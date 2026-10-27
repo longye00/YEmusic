@@ -1,7 +1,11 @@
-# YEmusic 0.5.2
+# YEmusic 0.5.3
 
 融合 **洛雪音乐（lx-music）自定义音源生态** 与 **Folia 风格沉浸式界面** 的音乐播放器：**Windows 桌面版（Electron）** 与 **Android 版（Capacitor）**，
 共用同一套界面、播放引擎与音源运行环境。内置 **10 种歌词动画**（其中 8 种来自 Folia，见文末「许可」）。
+
+> 0.5.3 是一次安全与性能加固：主进程全部出网请求增加 DNS rebinding 防护（解析结果必须是公网 IP）、
+> 渲染进程读文件增加目录白名单（与写白名单同机制）、音频代理令牌改为密码学随机；
+> 渲染层做了 vendor 分包，主包体积约降 32%。详见 `CHANGELOG.md`。
 
 | 产物 | 说明 |
 | --- | --- |
@@ -37,6 +41,9 @@ npm run typecheck          # TypeScript 类型检查
 npm run build              # 类型检查 + 打包渲染进程(dist/) + 打包主进程(dist-electron/)
 npx electron .             # 运行（需要先 build）
 ```
+渲染层分包策略见 `vite.config.ts`：react / framer-motion / i18next 各拆一个稳定 vendor chunk（升级版本时缓存不失效）；
+three.js / pixi.js 刻意不手动分组——它们只被懒加载的可视化器引用，打包器会自动在异步 chunk 间共享，
+手动分组反而会让主包静态依赖大 chunk。
 
 ### 生成 Windows 安装包
 需要：Windows x64 版 Electron 44 运行时（解压后的 `electron-v44.x-win32-x64` 目录；0.5.0 用的是 44.7.0）、NSIS 3（`makensis`，Linux 上也可以用发行版的 `nsis` 包，
@@ -55,6 +62,8 @@ node packaging/build-win.mjs --runtime <electron-win32-x64 目录> [--makensis <
 ### 生成 Android APK
 需要：Node.js 22+、**JDK 21**、Android SDK（`platforms;android-36`，`build-tools` 35 或更新），
 用环境变量 `ANDROID_HOME`（或 `android/local.properties` 里的 `sdk.dir=…`）指向 SDK。
+注意 SDK 目录名必须精确匹配：`android-36.1` 不能当作 `android-36` 使用（AGP 会校验包 ID 与目录一致），
+`build-tools/35.0.0` 缺失时 `assembleRelease` 会报 `Failed to find Build Tools revision 35.0.0`。
 ```bash
 npm install
 npm run android:apk        # = tsc 类型检查 → vite build → cap sync android → gradlew assembleRelease
@@ -82,6 +91,17 @@ npm run android:apk        # = tsc 类型检查 → vite build → cap sync andr
 ### 更新图标
 `build/icon-source.png`（1024×1024，透明底的圆角方形）是图标源图；`npm run icons`（需要 `pip install pillow numpy`）
 生成托盘 / 关于页图标、Android 启动图标（含自适应与单色主题图标）与安装向导图，`python3 scripts/make-icons.py --ico` 同时重新生成 `build/icon.ico`。
+
+## 安全设计（桌面版）
+- **进程隔离**：`contextIsolation` + `sandbox`，渲染进程只能通过 preload 显式列出的 30 个 IPC 通道访问主进程，没有通用 invoke 后门。
+- **网络出口**：所有主进程出网请求（`ye:fetch` 系列 / 音频代理上游 / 下载）经 `electron/net.cjs` 统一处理：
+  协议白名单、逐跳校验的重定向跟随、响应体大小限制；`isPublicHost` 拒绝内网域名/字面量，`publicLookup` DNS 钩子在连接前校验解析结果
+  （拒绝私有段、CGNAT、IPv6 ULA/链路本地），防 DNS rebinding。平台元数据接口另有域名白名单（`shared/proxy-hosts.json`）。
+- **文件系统**：写入限制在下载/音乐/文档/userData 与用户在对话框中选择过的目录（`allowed-dirs.json`）；读取同机制（0.5.3 新增），
+  文件对话框选中文件后其所在目录自动放行。
+- **音频代理**：只监听 127.0.0.1，随机端口，访问凭据为 `crypto.randomBytes` 令牌（本地文件 / 远程流分开授权），不是任意转发器。
+- **音源脚本**：在独立 Web Worker 中运行，网络请求全部经主进程代理并做公网校验 + 用户屏蔽名单。
+- **Electron fuses**：RunAsNode / NODE_OPTIONS / --inspect 在打包时关闭。
 
 ## 聚合音源
 `src/plugins/presets/yemusic-merged.js` 是把多个 LX 音源合成一个的脚本，可以直接导入洛雪音乐 / YEmusic。
