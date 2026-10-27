@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-electron/
+release/
+packaging/.stage/
+*.log
+# Android：签名密钥与本机路径不进版本库（自己保管好 android/yemusic-release.jks 与 keystore.properties）
+android/keystore.properties
+android/*.jks
+android/*.keystore
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/

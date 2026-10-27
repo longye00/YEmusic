@@ -1,0 +1,19 @@
+{
+  "_comment": "主进程 ye:fetch-url / ye:fetch-bytes 允许访问的平台接口域名（精确匹配或作为子域名后缀匹配）。音源脚本的请求走另一条通道，不受此列表限制。",
+  "hosts": [
+    "kuwo.cn",
+    "kugou.com",
+    "kgimg.com",
+    "y.qq.com",
+    "qqmusic.qq.com",
+    "gtimg.cn",
+    "music.163.com",
+    "126.net",
+    "163cn.tv",
+    "migu.cn",
+    "lrclib.net",
+    "ptlogin2.qq.com",
+    "graph.qq.com",
+    "weixin.qq.com"
+  ]
+}
