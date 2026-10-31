@@ -30,7 +30,7 @@ export function MiniPlayer({ className = '' }: { className?: string }) {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 14 }}
-            className={cx('no-drag absolute z-30 flex h-[60px] items-center gap-1 overflow-hidden rounded-full border border-white/[0.07] bg-black/60 lite:bg-black/80 pl-2 pr-1.5 shadow-[0_12px_40px_rgba(0,0,0,.45)] backdrop-blur-2xl', compact ? 'inset-x-3 bottom-3' : 'bottom-6 right-6', className)}
+            className={cx('no-drag absolute z-30 flex h-[60px] items-center gap-1 overflow-hidden rounded-full border border-white/[0.07] bg-black/60 lite:bg-black/80 pl-2 pr-1.5 shadow-[0_12px_40px_rgba(0,0,0,.45)] backdrop-blur-2xl', compact ? 'inset-x-3 bottom-[calc(0.75rem+var(--safe-bottom))]' : 'bottom-6 right-6', className)}
         >
             <button type="button" onClick={ui.openPlayer} title="打开播放页 (Ctrl+P)" className={cx('flex min-w-0 items-center gap-3 rounded-full pr-2 text-left', compact && 'flex-1')}>
                 <Cover src={current.cover || coverUrl} size={44} seed={current.name} className={cx('h-11 w-11 shrink-0', playing && 'spin-slow')} rounded="rounded-full" />

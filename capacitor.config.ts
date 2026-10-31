@@ -15,10 +15,6 @@ const config: CapacitorConfig = {
         allowMixedContent: true,
         webContentsDebuggingEnabled: false,
     },
-    plugins: {
-        // 深色界面：状态栏 / 导航栏图标用浅色；页面内容放在系统栏之内（insets 由原生层处理）
-        SystemBars: { style: 'DARK', insetsHandling: 'css' },
-    },
 };
 
 export default config;

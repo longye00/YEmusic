@@ -314,7 +314,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
         >
-            <div className="drag absolute inset-x-0 top-0 h-14" />
+            <div className="drag absolute inset-x-0 top-0 h-14 touch:hidden" />
             <IconButton variant="solid" label="返回" className={cx('absolute left-6 top-6 z-10')} onClick={ui.closeDetail}><ChevronLeft className="h-5 w-5" /></IconButton>
             {children}
             <MiniPlayer />

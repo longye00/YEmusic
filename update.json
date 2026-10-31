@@ -1,0 +1,7 @@
+{
+  "version": "0.5.5",
+  "notes": "登录音乐平台后优先用平台官方接口取播放链接（会员可拿到无损 / Hi-Res），拿不到再走洛雪音源；乐库把账号的「我喜欢」排到最前面；安卓端登录改用手机验证码；修复旧 WebView 上手机版布局错乱；应用内更新",
+  "android": "YEmusic-0.5.5-android.apk",
+  "windows": "YEmusic-setup-0.5.5.exe",
+  "publishedAt": "2026-10-31T03:40:20.055Z"
+}

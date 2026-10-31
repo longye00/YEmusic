@@ -46,7 +46,7 @@ export async function initWyAccount() {
             useWyAccount.setState(s => ({ profile, status: 'ready', version: s.profile?.userId === profile.userId ? s.version : s.version + 1 }));
         } else {
             useWyAccount.setState({ status: 'expired' });
-            toast('网易云登录已失效，可在乐库中重新扫码登录', 'warning', { duration: 5000 });
+            toast('网易云登录已失效，可在乐库中重新登录', 'warning', { duration: 5000 });
         }
     } catch {
         useWyAccount.setState(s => ({ status: s.profile ? 'ready' : 'expired' }));

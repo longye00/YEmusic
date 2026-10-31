@@ -1,7 +1,7 @@
 {
   "name": "yemusic",
   "productName": "YEmusic",
-  "version": "0.5.3",
+  "version": "0.5.5",
   "private": true,
   "author": "YEmusic contributors",
   "description": "YEmusic - 融合洛雪音源生态与沉浸式界面的音乐播放器（Windows / Android），含 10 种歌词动画",
@@ -17,6 +17,7 @@
     "dist:win": "node packaging/build-win.mjs",
     "android:sync": "vite build && cap sync android",
     "android:apk": "node scripts/build-android.mjs",
+    "manifest": "node scripts/make-update-manifest.mjs",
     "icons": "python3 scripts/make-icons.py"
   },
   "dependencies": {

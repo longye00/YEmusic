@@ -32,7 +32,8 @@ function setSeamLevel(next: SeamLevel) {
 function placePop(kind: PopPlacement['kind'], anchor: HTMLElement): PopPlacement {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const width = kind === 'account' ? 288 : 256;
+    // 窄屏（手机竖屏）上别让弹层占满整屏：至少给屏幕两侧各留 16px
+    const width = Math.min(kind === 'account' ? 288 : 256, vw - 32);
     const r = anchor.getBoundingClientRect();
     const seam = (anchor.closest('.seam') as HTMLElement | null)?.getBoundingClientRect() ?? r;
     const roomRight = vw - seam.right;
@@ -250,7 +251,7 @@ export function Library() {
                 {pop?.kind === 'menu' && <SeamMenu key="menu" placement={pop} items={menuItems} onClose={() => setPop(null)} />}
             </AnimatePresence>
 
-            <footer className={cx('pointer-events-none absolute z-20 flex justify-center', compact ? 'inset-x-2 bottom-2' : 'bottom-6')} style={compact ? undefined : { left: pillCenter - pillWidth / 2, width: pillWidth }}>
+            <footer className={cx('pointer-events-none absolute z-20 flex justify-center', compact ? 'inset-x-2 bottom-[calc(0.5rem+var(--safe-bottom))]' : 'bottom-6')} style={compact ? undefined : { left: pillCenter - pillWidth / 2, width: pillWidth }}>
                 <ControlPill variant="home" maxWidth={pillWidth} />
             </footer>
             {!compact && <NowPlayingButton />}

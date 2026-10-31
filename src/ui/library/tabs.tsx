@@ -107,6 +107,18 @@ function usePlaylistsTab(): TabData {
     const cards = useMemo(() => {
         const out: WallCard[] = [];
         const imported = new Set(playlists.map(p => (p.origin ? `${p.origin.platform}_${p.origin.id}` : '')).filter(Boolean));
+        const accountLists = (profile && remote.data) || [];
+        const isImported = (p: OnlinePlaylist) => imported.has(`${p.source}_${p.id}`);
+        // 账号的“我喜欢”排到整面墙最前面：登录了音乐平台之后，最想看到的就是自己的收藏。
+        // 本地收藏卡片（同名、往往是空的）跟在它后面，两者用角标区分开。
+        const liked = accountLists.find(p => p.liked && !isImported(p));
+        const likedCard = (p: (typeof accountLists)[number]) => playlistCard(p as OnlinePlaylist, {
+            featured: true,
+            desc: `${meta.short} · ${p.total || 0} 首`,
+            badge: `${meta.short} · ${p.total || 0}`,
+            badgeIcon: <Heart fill="currentColor" />,
+        });
+        if (liked) out.push(likedCard(liked));
         for (const p of playlists) {
             const list = playlistTracks(p, tracks);
             const cover = p.cover || firstCover(list);
@@ -173,6 +185,7 @@ function usePlaylistsTab(): TabData {
             mine.sort((a, b) => Number(Boolean(b.liked)) - Number(Boolean(a.liked)));
             for (const p of [...mine, ...subscribed]) {
                 if (imported.has(`${p.source}_${p.id}`)) continue;
+                if (liked && p === liked) continue; // 已经排到墙最前面了
                 out.push(playlistCard(p, {
                     featured: p.liked,
                     desc: p.liked ? `${meta.short} · ${p.total || 0} 首` : `${meta.short} · ${p.subscribed ? `收藏${p.author ? ` · ${p.author}` : ''}` : '创建'}`,

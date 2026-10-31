@@ -24,6 +24,7 @@ import android.util.Base64;
 import androidx.activity.result.ActivityResult;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -130,10 +131,15 @@ public class YeNativePlugin extends Plugin {
     @PluginMethod
     public void defaultPaths(PluginCall call) {
         File downloads = Downloader.defaultDir(getContext());
+        // 应用内更新的安装包目录（cacheDir/updates，installApk 只接受这里面的文件）
+        File updates = new File(getContext().getCacheDir(), "updates");
+        //noinspection ResultOfMethodCallIgnored
+        updates.mkdirs();
         JSObject out = new JSObject();
         out.put("downloads", downloads.getAbsolutePath());
         out.put("music", downloads.getParentFile() == null ? downloads.getAbsolutePath() : downloads.getParentFile().getAbsolutePath());
         out.put("userData", getContext().getFilesDir().getAbsolutePath());
+        out.put("cache", updates.getAbsolutePath());
         call.resolve(out);
     }
 
@@ -669,6 +675,49 @@ public class YeNativePlugin extends Plugin {
         JSObject out = new JSObject();
         out.put("launched", launched);
         call.resolve(out);
+    }
+
+    /**
+     * 安装已下载好的 APK（应用内更新）。
+     * 只接受 cacheDir/updates 下由本应用下载的文件；通过 FileProvider 以 content:// 共享给系统安装器
+     * （Android 7+ 禁止跨应用传 file://）。用户在系统安装界面确认后才会真正安装，
+     * 首次使用需要在系统设置里允许本应用“安装未知应用”。
+     */
+    @PluginMethod
+    public void installApk(PluginCall call) {
+        final String path = call.getString("path", "");
+        io.execute(() -> {
+            JSObject out = new JSObject();
+            try {
+                if (path.isEmpty()) {
+                    out.put("value", false);
+                    call.resolve(out);
+                    return;
+                }
+                File apk = new File(path);
+                // 限定在应用自己的缓存目录里，避免被拿来安装任意位置的文件
+                File cache = getContext().getCacheDir();
+                if (!apk.isFile() || !apk.getAbsolutePath().startsWith(cache.getAbsolutePath())) {
+                    out.put("value", false);
+                    call.resolve(out);
+                    return;
+                }
+                Uri uri;
+                if (Build.VERSION.SDK_INT >= 24) {
+                    uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".apkprovider", apk);
+                } else {
+                    uri = Uri.fromFile(apk);
+                }
+                Intent intent = new Intent(Intent.ACTION_VIEW)
+                        .setDataAndType(uri, "application/vnd.android.package-archive")
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                getContext().startActivity(intent);
+                out.put("value", true);
+            } catch (Exception e) {
+                out.put("value", false);
+            }
+            call.resolve(out);
+        });
     }
 
     // ---------------------------------------------------------------- 媒体会话

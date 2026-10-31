@@ -17,6 +17,7 @@ import { sdks } from './sdk';
 import { useUi } from './store/ui';
 import { useWyAccount } from './store/wyAccount';
 import { initAccounts, useOtherAccounts } from './store/accounts';
+import { checkForUpdateOnLaunch } from './lib/updater';
 
 // 调试用：在开发者工具中可通过 __ye 查看状态
 Object.defineProperty(window, '__ye', { value: { player: usePlayer, ui: useUi, sources: useSources, library: useLibrary, settings: useSettings, wyAccount: useWyAccount, accounts: useOtherAccounts, host, resolveUrl, callSource, toLxMusicInfo, sdks, findAlternatives, actions: { importFiles, rescanLocal, setSetting, playTrack, playList } } });
@@ -40,4 +41,6 @@ createRoot(document.getElementById('root')!).render(
     await Promise.allSettled([loadLibrary(), loadSources()]);
     restorePlayback();
     initAccounts();
+    // 启动后检查一次更新（GitHub Releases 里的 update.json；失败静默）
+    checkForUpdateOnLaunch();
 })();

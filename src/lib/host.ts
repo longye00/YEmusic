@@ -69,7 +69,8 @@ export interface YeApi {
     exists(path: string): Promise<boolean>;
     showOpenDialog(options: { title?: string; directory?: boolean; multiple?: boolean; filters?: { name: string; extensions: string[] }[] }): Promise<{ cancelled: boolean; paths: string[] }>;
     showSaveDialog(options: { title?: string; defaultPath?: string; filters?: { name: string; extensions: string[] }[] }): Promise<{ cancelled: boolean; filePath?: string }>;
-    defaultPaths(): Promise<{ downloads: string; music: string; userData: string }>;
+    /** userData 之外的 cache 目录：应用内更新的安装包放这里（Android 上避免落进音乐目录被曲库扫到） */
+    defaultPaths(): Promise<{ downloads: string; music: string; userData: string; cache?: string }>;
     showItemInFolder(path: string): Promise<void>;
     openPath(path: string): Promise<string>;
     openExternal(url: string): Promise<void>;
@@ -94,6 +95,8 @@ export interface YeApi {
     saveImage?(req: { data: Uint8Array; name: string }): Promise<string>;
     /** 仅 Android：打开另一个 App（登录时用它的“扫一扫”）；没有安装返回 false */
     launchApp?(app: 'qq' | 'wechat' | 'kugou' | 'netease' | 'qqmusic'): Promise<boolean>;
+    /** 仅 Android：调起系统安装器安装已下载的 APK（应用内更新）；无法调起返回 false */
+    installApk?(options: { path: string }): Promise<boolean>;
 }
 
 declare global {

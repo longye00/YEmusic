@@ -44,6 +44,10 @@
     --accent-soft: 214 204 255;
     --base: 20 18 34;
     --panel: 30 26 48;
+    /* 底部手势条 / 导航条的安全区高度：当前 WebView 排在系统栏之内时为 0，
+       edge-to-edge（Android 15+ 强制）下自动生效，底部悬浮控件统一引用它 */
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
 }
 
 @layer base {

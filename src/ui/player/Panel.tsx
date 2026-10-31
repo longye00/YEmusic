@@ -56,14 +56,14 @@ function Row({ children, className = '' }: { children: ReactNode; className?: st
 function Stepper({ label, icon, value, onPrev, onNext, extra }: { label?: string; icon?: ReactNode; value: ReactNode; onPrev: () => void; onNext: () => void; extra?: ReactNode }) {
     return (
         <div className="flex items-center gap-1">
-            <button type="button" onClick={onPrev} className="grid h-8 w-6 place-items-center rounded-lg text-white/45 hover:text-white"><ChevronLeft className="h-4 w-4" /></button>
+            <button type="button" onClick={onPrev} className="grid h-8 w-6 place-items-center rounded-lg text-white/45 hover:text-white touch:h-10 touch:w-9 active:bg-white/10"><ChevronLeft className="h-4 w-4" /></button>
             <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-xl bg-white/[0.08] px-3">
                 {icon && <span className="text-white/45 [&>svg]:h-3.5 [&>svg]:w-3.5">{icon}</span>}
                 {label && <span className="text-[11px] text-white/40">{label}</span>}
                 <span className="truncate text-[13px] font-semibold">{value}</span>
             </div>
             {extra}
-            <button type="button" onClick={onNext} className="grid h-8 w-6 place-items-center rounded-lg text-white/45 hover:text-white"><ChevronRight className="h-4 w-4" /></button>
+            <button type="button" onClick={onNext} className="grid h-8 w-6 place-items-center rounded-lg text-white/45 hover:text-white touch:h-10 touch:w-9 active:bg-white/10"><ChevronRight className="h-4 w-4" /></button>
         </div>
     );
 }
@@ -286,8 +286,8 @@ function QueueTab() {
                                 <div className="truncate text-[11px] text-white/40">{track.singer}</div>
                             </div>
                         </button>
-                        <span className="font-mono text-[10px] text-white/35 group-hover:hidden">{formatTime(track.duration)}</span>
-                        <button type="button" title="移出队列" onClick={() => removeFromQueue(i)} className="hidden h-6 w-6 place-items-center rounded-full text-white/50 hover:bg-white/10 hover:text-white group-hover:grid"><X className="h-3.5 w-3.5" /></button>
+                        <span className="font-mono text-[10px] text-white/35 group-hover:hidden touch:hidden">{formatTime(track.duration)}</span>
+                        <button type="button" title="移出队列" onClick={() => removeFromQueue(i)} className="hidden h-6 w-6 place-items-center rounded-full text-white/50 hover:bg-white/10 hover:text-white group-hover:grid touch:grid touch:h-8 touch:w-8"><X className="h-3.5 w-3.5" /></button>
                     </div>
                 ))}
             </div>
@@ -364,7 +364,7 @@ export function Panel({ theme }: { theme: Theme }) {
         <motion.div
             className={cx(
                 'no-drag absolute z-30 flex flex-col overflow-hidden rounded-[30px] border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,.45)] backdrop-blur-3xl',
-                compact ? 'inset-x-2 bottom-[110px] max-h-[calc(100%-176px)] p-4' : 'bottom-[104px] right-8 max-h-[calc(100vh-140px)] w-[320px] p-5',
+                compact ? 'inset-x-2 bottom-[calc(110px+var(--safe-bottom))] max-h-[calc(100%-176px)] p-4' : 'bottom-[104px] right-8 max-h-[calc(100vh-140px)] w-[320px] p-5',
             )}
             style={{ background: css(theme.panel, lite ? 0.94 : 0.72) }}
             initial={{ opacity: 0, y: 24, scale: 0.96 }}

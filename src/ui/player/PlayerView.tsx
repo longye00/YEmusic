@@ -105,7 +105,7 @@ export function PlayerView() {
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
         >
             <Backdrop />
-            <div className="drag absolute inset-x-0 top-0 h-16" />
+            <div className="drag absolute inset-x-0 top-0 h-16 touch:hidden" />
 
             <div className="absolute inset-0">
                 {!current ? (
@@ -133,7 +133,7 @@ export function PlayerView() {
                 <div className="absolute left-1/2 top-6 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/30 px-4 py-1.5 text-[12px] text-white/70 backdrop-blur-xl"><Spinner className="h-3.5 w-3.5" />{statusText || '正在加载…'}</div>
             )}
 
-            <motion.div className={cx('absolute z-20 flex items-center gap-3', compact ? 'left-3 top-3' : 'left-6 top-6')} animate={{ opacity: idle ? 0 : 1 }} transition={{ duration: 0.4 }}>
+            <motion.div className={cx('absolute z-20 flex items-center gap-3', compact ? 'left-3 top-3' : 'left-6 top-6', idle && 'pointer-events-none')} animate={{ opacity: idle ? 0 : 1 }} transition={{ duration: 0.4 }}>
                 <IconButton variant="solid" label="返回 (Esc)" onClick={ui.closePlayer}><ChevronLeft className="h-5 w-5" /></IconButton>
                 {current && hasLyric && (
                     <div className={cx('leading-tight', compact ? 'max-w-[52vw]' : 'max-w-[40vw]')}>
@@ -143,13 +143,13 @@ export function PlayerView() {
                 )}
             </motion.div>
 
-            <div className={cx('pointer-events-none absolute inset-x-0 z-20 flex justify-center', compact ? 'bottom-2 px-2' : 'bottom-7')}>
+            <div className={cx('pointer-events-none absolute inset-x-0 z-20 flex justify-center', compact ? 'bottom-[calc(0.5rem+var(--safe-bottom))] px-2' : 'bottom-7')}>
                 <ControlPill variant="player" idle={idle} />
             </div>
 
             <AnimatePresence>{panelOpen && <Panel key="panel" theme={theme} />}</AnimatePresence>
 
-            <motion.div className={cx('absolute z-40', compact ? 'right-3 top-3' : 'bottom-8 right-8')} animate={{ opacity: idle ? 0 : 1 }} transition={{ duration: 0.4 }}>
+            <motion.div className={cx('absolute z-40', compact ? 'right-3 top-3' : 'bottom-8 right-8', idle && 'pointer-events-none')} animate={{ opacity: idle ? 0 : 1 }} transition={{ duration: 0.4 }}>
                 <IconButton
                     size={compact ? 'md' : 'lg'}
                     variant={panelOpen ? 'white' : 'solid'}

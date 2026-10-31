@@ -5,7 +5,7 @@
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import { parseCookieString } from '@/sdk/wyAuth';
-import { qrCheck, qrCreate } from '@/sdk/wyApi';
+import { captchaSent, loginCellphone, qrCheck, qrCreate } from '@/sdk/wyApi';
 import { getTxCredential, hasTxLogin, parseTxCookie, setTxCredential, txFallbackName, txFetchProfile, txQqQrCheck, txQqQrCreate, txQqQrFinish, txWxQrCheck, txWxQrCreate, txWxQrFinish, type TxCredential } from '@/sdk/txAuth';
 import { getKgCredential, hasKgLogin, isKgAuthError, kgQrCheck, kgQrCreate, kgUserPlaylists, parseKgCookie, setKgCredential, type KgCredential } from '@/sdk/kgAuth';
 import { sleep } from '@/lib/util';
@@ -108,7 +108,7 @@ async function initTxAccount() {
         const info = await txFetchProfile(cred);
         if (!info) {
             patch('tx', { status: 'expired' });
-            toast('QQ音乐 登录已失效，可在乐库中重新扫码登录', 'warning', { duration: 5000 });
+            toast('QQ音乐 登录已失效，可在乐库中重新登录', 'warning', { duration: 5000 });
             return;
         }
         const saved = { ...cred, nickname: info.nickname, avatarUrl: info.avatarUrl || cred.avatarUrl };
@@ -152,7 +152,7 @@ async function initKgAccount() {
     } catch (error) {
         if (isKgAuthError(error)) {
             patch('kg', { status: 'expired' });
-            toast('酷狗音乐登录已失效，可在乐库中重新扫码登录', 'warning', { duration: 5000 });
+            toast('酷狗音乐登录已失效，可在乐库中重新登录', 'warning', { duration: 5000 });
         } else patch('kg', { status: 'ready' });
     }
 }
@@ -194,6 +194,20 @@ export async function loginWithCookie(p: AccountPlatform, text: string): Promise
     const cred = parseKgCookie(text);
     if (!cred) throw new Error('没有找到 userid 与 token，请按 userid=…; token=… 的格式粘贴');
     return completeKgLogin(cred);
+}
+
+// ---------------- 手机验证码登录（仅网易云） ----------------
+/** 发送登录验证码；成功后 UI 自行做 60s 倒计时 */
+export async function sendWyCaptcha(phone: string): Promise<void> {
+    await captchaSent(phone.replace(/\s+/g, ''));
+}
+
+/** 手机号 + 验证码登录网易云；复用扫码登录的凭据落地路径 */
+export async function loginWyWithPhone(phone: string, captcha: string): Promise<AccountProfile> {
+    const cookies = await loginCellphone(phone.replace(/\s+/g, ''), captcha.replace(/\s+/g, ''));
+    const profile = await completeWyLogin(cookies);
+    afterLogin('wy');
+    return { id: String(profile.userId), nickname: profile.nickname, avatarUrl: profile.avatarUrl };
 }
 
 // ---------------- 扫码登录流程 ----------------

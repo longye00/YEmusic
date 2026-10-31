@@ -92,6 +92,33 @@ npm run android:apk        # = tsc 类型检查 → vite build → cap sync andr
 `build/icon-source.png`（1024×1024，透明底的圆角方形）是图标源图；`npm run icons`（需要 `pip install pillow numpy`）
 生成托盘 / 关于页图标、Android 启动图标（含自适应与单色主题图标）与安装向导图，`python3 scripts/make-icons.py --ico` 同时重新生成 `build/icon.ico`。
 
+### 应用内更新（发版流程）
+应用启动后会检查一次新版本，发现新版时弹窗提示并在应用内下载安装（Android 下完调起系统安装器，Windows 下完运行安装包）；
+设置 → 关于里也有「检查更新」按钮。清单读取顺序是 GitHub Release 里的 `update.json`，连不上时回退到 jsDelivr 上的仓库副本。
+
+发布一个版本：
+```bash
+# 1. 改版本号：package.json 的 version、android/app/build.gradle 的 versionName 与 versionCode（三处一起）
+# 2. 生成清单（写入仓库根的 update.json）
+node scripts/make-update-manifest.mjs --notes "本次更新说明"
+# 3. 构建两个安装包
+npm run android:apk                                   # → release/YEmusic-<版本>-android.apk
+npm run build && node packaging/build-win.mjs --runtime <electron-win32-x64>   # → release/YEmusic-setup-<版本>.exe
+```
+4. 在 GitHub 上建一个 Release，tag 用 **`latest`**（应用请求的是 `releases/latest/download/…`，用别的 tag 名就取不到），
+   把 `release/YEmusic-<版本>-android.apk`、`release/YEmusic-setup-<版本>.exe` 和仓库根的 `update.json` 三个文件都传上去。
+   文件名要与 `update.json` 里的 `android` / `windows` 字段一致（脚本已按版本号自动写好）。
+   `update.json` 也留在仓库根目录，这样 jsDelivr 的兜底地址才有内容。
+
+要点：
+- 仓库地址写在 `src/lib/updater.ts` 顶部的 `OWNER` / `REPO`，换仓库只改这两行。
+- `update.json` 的域名要能被网络层放行：桌面版的白名单在 `shared/proxy-hosts.json`，Android 原生层读同一份文件
+  （`android/app/build.gradle` 把 `shared/` 加进了 assets），已包含 `github.com` / `githubusercontent.com` / `jsdelivr.net`。
+- APK 下载走的是 `Downloader`（只校验公网域名，不受白名单限制），安装包落在 `cacheDir/updates`，
+  由 `FileProvider`（authority `<包名>.apkprovider`，路径见 `android/app/src/main/res/xml/apk_paths.xml`）共享给系统安装器。
+  首次更新时系统会要求允许本应用「安装未知应用」；`installApk` 只接受缓存目录里的文件，不接受任意路径。
+- 清单拉不到（离线、仓库还没发版、格式不对）时静默跳过，不弹错误提示。
+
 ## 安全设计（桌面版）
 - **进程隔离**：`contextIsolation` + `sandbox`，渲染进程只能通过 preload 显式列出的 30 个 IPC 通道访问主进程，没有通用 invoke 后门。
 - **网络出口**：所有主进程出网请求（`ye:fetch` 系列 / 音频代理上游 / 下载）经 `electron/net.cjs` 统一处理：
@@ -102,6 +129,21 @@ npm run android:apk        # = tsc 类型检查 → vite build → cap sync andr
 - **音频代理**：只监听 127.0.0.1，随机端口，访问凭据为 `crypto.randomBytes` 令牌（本地文件 / 远程流分开授权），不是任意转发器。
 - **音源脚本**：在独立 Web Worker 中运行，网络请求全部经主进程代理并做公网校验 + 用户屏蔽名单。
 - **Electron fuses**：RunAsNode / NODE_OPTIONS / --inspect 在打包时关闭。
+
+## 播放链接的两条通道
+解析播放链接（`src/player/resolver.ts`）时按顺序尝试两条通道，先拿到可用链接的胜出：
+
+1. **平台官方通道**（`src/sdk/official.ts`，设置 → 播放 → 「优先用平台官方接口取播放链接」，默认开）：
+   直接用平台自己的播放接口取链，**带上已登录账号的凭据**，所以 VIP 歌曲能拿到会员音质（无损 / Hi-Res），
+   链接来自平台自己的 CDN，不受第三方音源存活情况影响。网易云对游客也开放（上限 320k）；
+   QQ音乐 / 酷狗的官方接口未登录一律拒绝，因此只在已登录时尝试。
+   平台按会员等级降档时以平台回答的实际档位为准（请求无损却只给 320k 就记作 320k），
+   并先让音源脚本按请求档位试一次，脚本也拿不到时才用降档链接兜底；只有试听片段的链接直接弃用。
+   官方通道的失败**不计入**音源脚本的熔断与降权统计。
+2. **洛雪音源脚本**：见下面「聚合音源」。官方通道拿不到时逐档、逐源竞速。
+
+两条都失败才会按「歌名 + 歌手 + 时长」到其他平台匹配同一首歌。下载走的是同一条解析链路。
+没有装任何音源脚本时，只要官方通道可用（网易云，或已登录 QQ音乐 / 酷狗）依然能播放。
 
 ## 聚合音源
 `src/plugins/presets/yemusic-merged.js` 是把多个 LX 音源合成一个的脚本，可以直接导入洛雪音乐 / YEmusic。
@@ -115,7 +157,7 @@ npm run android:apk        # = tsc 类型检查 → vite build → cap sync andr
 拖动、滚轮（Shift + 滚轮横向）、方向键（Shift 加速）都可以平移，Home 回到起点，`/` 过滤当前页，
 点击卡片打开、双击直接播放。
 
-**在线平台账号（可选）**：网易云音乐（扫码）、QQ音乐（QQ / 微信扫码）、酷狗音乐（扫码），都支持粘贴 Cookie 备用。
+**在线平台账号（可选）**：网易云音乐（桌面端扫码 / 安卓端手机验证码）、QQ音乐（QQ / 微信扫码）、酷狗音乐（扫码），都支持粘贴 Cookie 备用。安卓端不提供扫码入口（手机上"存二维码到相册再去扫一扫"太绕），网易云用手机验证码、QQ音乐与酷狗用 Cookie。
 登录在书签里完成；点书签底部的头像可在已登录的平台之间切换，乐库会显示该平台你创建 / 收藏的歌单与专辑
 （网易云还会按你的口味生成私人FM 与每日推荐）。凭据只保存在本机，不登录也能用通用推荐。设置 → 外观 → 首页布局 可切回封面流。
 

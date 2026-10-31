@@ -99,7 +99,7 @@ export function SearchOverlay() {
 
     return (
         <motion.div className="absolute inset-0 z-50 flex flex-col bg-[rgba(9,9,13,0.88)] backdrop-blur-2xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-            <div className="drag absolute inset-x-0 top-0 h-10" />
+            <div className="drag absolute inset-x-0 top-0 h-10 touch:hidden" />
             <motion.div className="mx-auto flex w-full max-w-[1080px] min-h-0 flex-1 flex-col px-8 pt-12 max-sm:px-4 max-sm:pt-4" initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 32 }}>
                 <div className="flex items-center gap-3">
                     <div className="flex h-12 flex-1 items-center gap-3 rounded-[18px] border border-white/[0.14] bg-white/[0.04] px-4 focus-within:border-white/30">
@@ -168,7 +168,7 @@ export function SearchOverlay() {
                                     {loading ? <Spinner className="h-5 w-5 text-white/50" /> : hasMore ? (
                                         <button type="button" onClick={() => run(submitted, source as Platform, result.page + 1)} className="h-10 rounded-full border border-white/15 bg-white/[0.04] px-6 text-[13px] font-medium text-white/85 hover:bg-white/[0.1]">加载更多</button>
                                     ) : <span className="font-mono text-[11px] text-white/25">共 {list.length} 首</span>}
-                                    <div className="h-16" />
+                                    <div className="h-24 max-sm:h-[86px]" />
                                 </div>
                             }
                         />

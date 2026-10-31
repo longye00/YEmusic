@@ -23,6 +23,8 @@ export interface Settings {
     quality: Quality;
     qualityFallback: boolean;
     autoSwitchSource: boolean;
+    /** 播放时优先用平台官方接口取链（登录后能拿到会员音质），失败再走洛雪音源 */
+    officialFirst: boolean;
     skipOnError: boolean;
     volume: number;
     muted: boolean;
@@ -84,6 +86,7 @@ export const DEFAULT_SETTINGS: Settings = {
     quality: '320k',
     qualityFallback: true,
     autoSwitchSource: true,
+    officialFirst: true,
     skipOnError: true,
     volume: 0.8,
     muted: false,

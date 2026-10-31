@@ -13,3 +13,5 @@ android/.gradle/
 android/build/
 android/app/build/
 android/capacitor-cordova-android-plugins/
+.tmp-stubs/
+.tmp-test.mjs

@@ -105,8 +105,8 @@ function NameDialog({ title, initial, confirmText, onSubmit, onClose }: { title:
     };
     return (
         <Modal open onClose={onClose} title={title}>
-            <div className="space-y-5 px-7 pb-7 pt-3">
-                <TextInput value={name} onChange={setName} placeholder="歌单名称" autoFocus onEnter={submit} />
+            <div className="space-y-5 px-7 pb-7 pt-3 max-sm:px-5 max-sm:pb-5">
+                <TextInput value={name} onChange={setName} placeholder="歌单名称" autoFocus={!isAndroid} onEnter={submit} />
                 <div className="flex justify-end gap-2">
                     <Button variant="ghost" onClick={onClose}>取消</Button>
                     <Button variant="white" onClick={submit} disabled={!name.trim()}>{confirmText}</Button>
@@ -140,10 +140,10 @@ function AddToPlaylistDialog({ tracks, onClose }: { tracks: import('@/sdk/types'
                     </button>
                 ))}
             </div>
-            <div className="border-t border-white/[0.07] px-7 py-5">
+            <div className="border-t border-white/[0.07] px-7 py-5 max-sm:px-5">
                 {creating ? (
                     <div className="flex gap-2">
-                        <TextInput value={name} onChange={setName} placeholder="新歌单名称" autoFocus onEnter={() => { if (name.trim()) add(createPlaylist(name).id); }} />
+                        <TextInput value={name} onChange={setName} placeholder="新歌单名称" autoFocus={!isAndroid} onEnter={() => { if (name.trim()) add(createPlaylist(name).id); }} />
                         <Button variant="white" className="h-11" disabled={!name.trim()} onClick={() => add(createPlaylist(name).id)}>创建并添加</Button>
                     </div>
                 ) : (
@@ -275,7 +275,7 @@ function CreatePlaylistDialog({ trackIds, onClose }: { trackIds?: string[]; onCl
 
     return (
         <Modal open onClose={onClose} title="新建歌单">
-            <div className="scroll-thin max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto px-7 pb-7 pt-3">
+            <div className="scroll-thin max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto px-7 pb-7 pt-3 max-sm:px-5">
                 <TextInput value={name} onChange={setName} placeholder={importing ? '歌单名称（留空则沿用导入歌单的名称）' : '歌单名称'} autoFocus={!isAndroid} onEnter={submit} />
                 {sources.length > 0 && (
                     <div>
@@ -356,7 +356,7 @@ function ImportPlaylistDialog({ onClose }: { onClose: () => void }) {
 
     return (
         <Modal open onClose={onClose} title="导入在线歌单">
-            <div className="scroll-thin max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto px-7 pb-7 pt-3">
+            <div className="scroll-thin max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto px-7 pb-7 pt-3 max-sm:px-5">
                 <p className="text-[13px] leading-relaxed text-white/50">在 QQ音乐 / 网易云 / 酷狗 / 酷我 / 咪咕 里把歌单「分享 → 复制链接」，回到这里粘贴整段文字即可（短链接也行），也可以只输入歌单 ID。</p>
                 <LinkField value={text} onChange={v => { setText(v); setError(''); }} fallback={platform} placeholder="例如 https://music.163.com/playlist?id=3778678" autoFocus={!isAndroid} onSubmit={submit} failed={Boolean(error)} />
                 <div className="space-y-1.5">
@@ -400,7 +400,7 @@ function TrackInfoDialog({ track, onClose }: { track: import('@/sdk/types').Trac
     }
     return (
         <Modal open onClose={onClose} title="歌曲信息">
-            <div className="px-7 pb-7 pt-2">
+            <div className="scroll-thin max-h-[calc(100vh-9rem)] overflow-y-auto px-7 pb-7 pt-2 max-sm:px-5">
                 <div className="mb-5 flex items-center gap-4">
                     <Cover src={track.cover} size={80} seed={track.name} className="h-20 w-20" rounded="rounded-2xl" />
                     <div className="min-w-0">
@@ -441,8 +441,8 @@ export function Dialogs() {
         case 'confirm':
             return (
                 <Modal open onClose={close} title={dialog.title}>
-                    <div className="space-y-6 px-7 pb-7 pt-2">
-                        <p className="text-[14px] leading-relaxed text-white/65">{dialog.message}</p>
+                    <div className="space-y-6 px-7 pb-7 pt-2 max-sm:px-5 max-sm:pb-5">
+                        <p className="whitespace-pre-line text-[14px] leading-relaxed text-white/65">{dialog.message}</p>
                         <div className="flex justify-end gap-2">
                             <Button variant="ghost" onClick={close}>取消</Button>
                             <Button variant={dialog.danger ? 'danger' : 'white'} onClick={() => { close(); dialog.onConfirm(); }}>{dialog.confirmText || '确定'}</Button>
@@ -458,7 +458,7 @@ export function Toasts() {
     const toasts = useToasts(s => s.toasts);
     const dismiss = useToasts(s => s.dismiss);
     return (
-        <div className="pointer-events-none fixed inset-x-0 bottom-28 z-[100] flex flex-col items-center gap-2 px-6">
+        <div className="pointer-events-none fixed inset-x-0 bottom-28 z-[100] flex flex-col items-center gap-2 px-6 max-sm:bottom-[calc(9.5rem+var(--safe-bottom))] max-sm:px-4">
             <AnimatePresence initial={false}>
                 {toasts.map(t => (
                     <motion.div

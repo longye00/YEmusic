@@ -295,9 +295,13 @@ export interface TxUserPlaylist extends OnlinePlaylist { liked?: boolean; subscr
 /** 我创建的歌单（含“我喜欢”）+ 我收藏的歌单 */
 export async function txUserPlaylists(uin: string): Promise<TxUserPlaylist[]> {
     const headers = txHeaders('https://y.qq.com/portal/profile.html');
+    // g_tk 必须由 musickey 算出（hash33(key, 5381)）；写死成 5381 只在游客态下碰巧能用，
+    // 登录后服务端会校验它，错了就返回 code 1000（未登录），账号歌单一个也出不来。
+    const cred = getTxCredential();
+    const token = gtk(cred?.musickey || '');
     const [created, collected] = await Promise.all([
-        requestJson(`https://c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss?hostuin=${uin}&sin=0&size=200&g_tk=5381&loginUin=${uin}&format=json&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq.json&needNewCode=0`, { headers }),
-        requestJson(`https://c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg?ct=20&cid=205360956&userid=${uin}&reqtype=3&sin=0&ein=199&format=json&inCharset=utf8&outCharset=utf-8&loginUin=${uin}`, { headers }).catch(() => null),
+        requestJson(`https://c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss?hostuin=${uin}&sin=0&size=200&g_tk=${token}&loginUin=${uin}&format=json&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq.json&needNewCode=0`, { headers }),
+        requestJson(`https://c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg?ct=20&cid=205360956&userid=${uin}&reqtype=3&sin=0&ein=199&format=json&inCharset=utf8&outCharset=utf-8&loginUin=${uin}&g_tk=${token}`, { headers }).catch(() => null),
     ]);
     if (Number(created?.code) !== 0 && !created?.data) throw new Error(created?.msg || `QQ 音乐歌单加载失败（${created?.code}）`);
     const out: TxUserPlaylist[] = [];

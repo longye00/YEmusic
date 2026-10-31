@@ -82,7 +82,7 @@ export function AccountList({ placement, onClose, onLogin }: { placement: PopPla
                         key={p}
                         role="menuitem"
                         tabIndex={0}
-                        title={usable ? (isCurrent ? '乐库正在显示这个平台' : `在乐库里显示${meta.name}的歌单与专辑`) : `扫码登录${meta.name}`}
+                        title={usable ? (isCurrent ? '乐库正在显示这个平台' : `在乐库里显示${meta.name}的歌单与专辑`) : `登录${meta.name}`}
                         onClick={() => {
                             onClose();
                             if (usable) setSetting('libraryAccount', p);
@@ -107,7 +107,7 @@ export function AccountList({ placement, onClose, onLogin }: { placement: PopPla
                         <span className="min-w-0 flex-1">
                             <span className="block truncate text-[13px] font-bold text-[#f7f4ee]">{meta.name}</span>
                             <span className={cx('block truncate text-[11.5px]', expired ? 'text-amber-300/90' : 'text-white/50')}>
-                                {expired ? '登录已失效，点击重新登录' : state.profile ? state.profile.nickname : state.status === 'checking' ? '正在检查登录…' : '未登录 · 扫码登录'}
+                                {expired ? '登录已失效，点击重新登录' : state.profile ? state.profile.nickname : state.status === 'checking' ? '正在检查登录…' : '未登录 · 点击登录'}
                             </span>
                         </span>
                         {logged && (

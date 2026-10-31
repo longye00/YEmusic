@@ -1,9 +1,14 @@
-/** 在线平台扫码登录面板：乐库书签里的登录态与设置页的登录对话框共用 */
+/**
+ * 在线平台登录面板：乐库书签里的登录态与设置页的登录对话框共用。
+ * 安卓端不提供扫码入口（在手机上要走「显示二维码 → 存到相册 → 打开另一个 App 的扫一扫 → 从相册选图」，
+ * 步骤多且经常失败）：网易云用手机号 + 短信验证码，QQ音乐 / 酷狗没有公开的短信登录接口，以粘贴 Cookie 为主。
+ * 桌面端维持扫码为主、Cookie 兜底。
+ */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Download, RefreshCw, ScanLine, Smartphone, X } from 'lucide-react';
-import { host, isAndroid } from '@/lib/host';
+import { CheckCircle2, RefreshCw, Smartphone, X } from 'lucide-react';
+import { isAndroid } from '@/lib/host';
 import qrMatrix from '@/lib/vendor/qrcode.js';
-import { ACCOUNT_META, loginWithCookie, startQrLogin, type AccountPlatform, type LoginMethod, type LoginPhase, type LoginQr } from '@/store/accounts';
+import { ACCOUNT_META, loginWithCookie, loginWyWithPhone, sendWyCaptcha, startQrLogin, type AccountPlatform, type LoginMethod, type LoginPhase, type LoginQr } from '@/store/accounts';
 import { toast } from '@/store/toast';
 import { Button, Spinner, cx } from '../components/common';
 
@@ -31,37 +36,6 @@ export function PlatformBadge({ platform, size = 32, className }: { platform: Ac
     );
 }
 
-/** 把登录二维码画成一张留白充足的 PNG（用于保存到相册，再用别的 App 的“扫一扫 → 相册”识别） */
-async function qrToPng(qr: LoginQr): Promise<Uint8Array> {
-    const SIZE = 720;
-    const canvas = document.createElement('canvas');
-    canvas.width = SIZE;
-    canvas.height = SIZE;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('无法生成图片');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, SIZE, SIZE);
-    ctx.imageSmoothingEnabled = false;
-    if (qr.kind === 'text') {
-        const matrix: boolean[][] = qrMatrix(qr.value, 'M');
-        const cell = Math.max(1, Math.floor(SIZE / (matrix.length + 8)));
-        const offset = Math.floor((SIZE - cell * matrix.length) / 2);
-        ctx.fillStyle = '#000000';
-        matrix.forEach((row, y) => row.forEach((on, x) => { if (on) ctx.fillRect(offset + x * cell, offset + y * cell, cell, cell); }));
-    } else {
-        const img = new Image();
-        img.src = qr.value;
-        await img.decode();
-        const scale = Math.max(1, Math.floor((SIZE - 120) / Math.max(img.naturalWidth, 1)));
-        const w = img.naturalWidth * scale;
-        const h = img.naturalHeight * scale;
-        ctx.drawImage(img, Math.floor((SIZE - w) / 2), Math.floor((SIZE - h) / 2), w, h);
-    }
-    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
-    if (!blob) throw new Error('生成图片失败');
-    return new Uint8Array(await blob.arrayBuffer());
-}
-
 const COOKIE_HINT: Record<AccountPlatform, { text: string; placeholder: string }> = {
     wy: { text: '在浏览器登录 music.163.com 后，从开发者工具复制 Cookie（或其中 MUSIC_U 的值）粘贴到这里。', placeholder: 'MUSIC_U=…; __csrf=…' },
     tx: { text: '在浏览器登录 y.qq.com 后，从开发者工具复制 Cookie 粘贴到这里（需要包含 uin 与 qqmusic_key 或 qm_keyst）。', placeholder: 'uin=…; qqmusic_key=…' },
@@ -79,12 +53,111 @@ export interface LoginPanelProps {
     bottomSafe?: number;
 }
 
+/** 安卓端的登录方式：网易云可用手机验证码，另外两个平台只能粘贴 Cookie */
+type AndroidMode = 'phone' | 'cookie';
+
+/** 网易云手机号 + 短信验证码登录 */
+function PhoneLogin({ metaName, onDone }: { metaName: string; onDone: () => void }) {
+    const [phone, setPhone] = useState('');
+    const [code, setCode] = useState('');
+    const [countdown, setCountdown] = useState(0);
+    const [sending, setSending] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
+    const doneRef = useRef(onDone);
+    doneRef.current = onDone;
+
+    useEffect(() => {
+        if (countdown <= 0) return;
+        const timer = setInterval(() => setCountdown(c => (c <= 1 ? 0 : c - 1)), 1000);
+        return () => clearInterval(timer);
+    }, [countdown]);
+
+    const digits = phone.replace(/\D/g, '');
+    const phoneOk = /^1\d{10}$/.test(digits);
+    const inputClass = 'no-drag h-11 w-full rounded-[12px] border border-white/10 bg-black/30 px-4 text-[14px] outline-none transition-colors placeholder:text-white/25 focus:border-white/30';
+
+    const sendCode = async () => {
+        if (!phoneOk || sending || countdown > 0) return;
+        setSending(true);
+        setError('');
+        try {
+            await sendWyCaptcha(digits);
+            setCountdown(60);
+            toast('验证码已发送，请注意查收短信', 'success');
+        } catch (e) {
+            setError((e as Error).message || '发送验证码失败，请稍后重试');
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const submit = async () => {
+        if (!phoneOk || code.trim().length < 4 || busy) return;
+        setBusy(true);
+        setError('');
+        try {
+            const profile = await loginWyWithPhone(digits, code);
+            toast(`已登录${metaName}：${profile.nickname}`, 'success');
+            doneRef.current();
+        } catch (e) {
+            setError((e as Error).message || '登录失败，请检查手机号与验证码');
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div className="mt-4 space-y-2.5">
+            <div className="flex items-center gap-2">
+                <span className="grid h-11 w-14 shrink-0 place-items-center rounded-[12px] border border-white/10 bg-black/30 font-mono text-[13px] text-white/55">+86</span>
+                <input
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    maxLength={11}
+                    value={phone}
+                    onChange={event => setPhone(event.target.value.replace(/\D/g, ''))}
+                    onKeyDown={event => { if (event.key === 'Enter') void (code.trim().length >= 4 ? submit() : sendCode()); }}
+                    placeholder="手机号"
+                    className={inputClass}
+                />
+            </div>
+            <div className="flex items-center gap-2">
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={8}
+                    value={code}
+                    onChange={event => setCode(event.target.value.replace(/\D/g, ''))}
+                    onKeyDown={event => { if (event.key === 'Enter') void submit(); }}
+                    placeholder="短信验证码"
+                    className={inputClass}
+                />
+                <Button variant="glass" className="h-11 shrink-0 !rounded-[12px] px-3.5" onClick={sendCode} disabled={!phoneOk || sending || countdown > 0}>
+                    {sending ? <Spinner /> : countdown > 0 ? `${countdown}s` : '获取验证码'}
+                </Button>
+            </div>
+            {error && <p className="break-words rounded-xl bg-red-500/10 px-3 py-2 text-[12.5px] leading-relaxed text-red-300">{error}</p>}
+            <Button variant="white" className="h-11 w-full !rounded-[12px]" onClick={submit} disabled={!phoneOk || code.trim().length < 4 || busy}>
+                {busy && <Spinner />}登录
+            </Button>
+            <p className="text-center text-[11.5px] leading-relaxed text-[color:var(--seam-ink-soft)]">
+                验证码由网易云官方接口发送；手机号只用于本次登录，不会保存在本机。
+            </p>
+        </div>
+    );
+}
+
 export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 }: LoginPanelProps) {
     const meta = ACCOUNT_META[platform];
     const [method, setMethod] = useState<LoginMethod>(platform === 'tx' ? 'qq' : 'qr');
     const [qr, setQr] = useState<LoginQr | null>(null);
     const [phase, setPhase] = useState<LoginPhase>({ phase: 'loading' });
     const [nonce, setNonce] = useState(0);
+    // 安卓端不请求二维码：网易云默认手机验证码，QQ音乐 / 酷狗默认 Cookie
+    const [mode, setMode] = useState<AndroidMode>(platform === 'wy' ? 'phone' : 'cookie');
     const [manual, setManual] = useState(false);
     const [cookieText, setCookieText] = useState('');
     const [busy, setBusy] = useState(false);
@@ -92,7 +165,7 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
     doneRef.current = onDone;
 
     useEffect(() => {
-        if (manual) return;
+        if (isAndroid || manual) return;
         return startQrLogin(platform, method, setQr, next => {
             setPhase(next);
             if (next.phase === 'done') {
@@ -115,31 +188,6 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
         }
     };
 
-    // 同一台手机登录：二维码没法自己扫自己，先存进相册，再到对应 App 的“扫一扫 → 相册”里选它
-    const scanApp = platform === 'wy' ? ({ key: 'netease', name: '网易云音乐', short: '网易云' } as const)
-        : platform === 'kg' ? ({ key: 'kugou', name: '酷狗音乐', short: '酷狗' } as const)
-            : method === 'wechat' ? ({ key: 'wechat', name: '微信', short: '微信' } as const)
-                : ({ key: 'qq', name: 'QQ', short: 'QQ' } as const);
-    const canSave = isAndroid && Boolean(host.saveImage) && Boolean(qr) && (phase.phase === 'waiting' || phase.phase === 'scanned');
-    const saveQr = async () => {
-        if (!qr || !host.saveImage) return;
-        try {
-            const data = await qrToPng(qr);
-            await host.saveImage({ data, name: `YEmusic-${platform}-login-${Date.now().toString(36)}.png` });
-            toast(`二维码已保存到相册。打开${scanApp.name}的「扫一扫」→ 点相册，选这张图`, 'success', { duration: 6000 });
-        } catch (error) {
-            toast(`保存失败：${(error as Error).message || '未知错误'}`, 'error');
-        }
-    };
-    const openScanner = async () => {
-        try {
-            const ok = (await host.launchApp?.(scanApp.key)) ?? false;
-            if (!ok) toast(`没有找到${scanApp.name}，请先安装，或换另一台设备扫码`, 'error');
-        } catch {
-            toast(`无法打开${scanApp.name}`, 'error');
-        }
-    };
-
     const qrSize = variant === 'seam' ? 196 : 200;
     const refresh = () => setNonce(n => n + 1);
     const scanWith = platform === 'tx' ? (method === 'wechat' ? '微信' : '手机 QQ') : meta.scanWith;
@@ -154,8 +202,24 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
                                     : phase.message;
     const overlay = phase.phase === 'scanned' || phase.phase === 'finishing' || phase.phase === 'done' || phase.phase === 'expired' || phase.phase === 'refused' || (phase.phase === 'error' && qr);
 
+    const cookieForm = (
+        <div className="mt-4 space-y-3">
+            <p className="text-[12px] leading-relaxed text-[color:var(--seam-ink-soft)]">{COOKIE_HINT[platform].text}</p>
+            <textarea
+                value={cookieText}
+                onChange={event => setCookieText(event.target.value)}
+                placeholder={COOKIE_HINT[platform].placeholder}
+                spellCheck={false}
+                className="no-drag scroll-thin h-28 w-full resize-none rounded-[12px] border border-white/10 bg-black/30 px-3.5 py-3 font-mono text-[11.5px] outline-none placeholder:text-white/25 focus:border-white/30"
+            />
+            <div className="flex justify-end">
+                <Button variant="white" onClick={submitCookie} disabled={busy || !cookieText.trim()}>{busy && <Spinner />}登录</Button>
+            </div>
+        </div>
+    );
+
     return (
-        <div className={cx('login-panel flex h-full flex-col', variant === 'seam' ? 'scroll-thin overflow-y-auto px-[22px] pt-5' : 'px-7 pb-7 pt-2')} style={variant === 'seam' ? { paddingBottom: bottomSafe } : undefined}>
+        <div className={cx('login-panel flex h-full flex-col', variant === 'seam' ? 'scroll-thin overflow-y-auto px-[22px] pt-5' : 'px-7 pb-7 pt-2 max-sm:px-5')} style={variant === 'seam' ? { paddingBottom: bottomSafe } : undefined}>
             {variant === 'seam' && (
                 <div className="flex items-center gap-2.5">
                     <PlatformBadge platform={platform} size={28} />
@@ -166,7 +230,25 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
             <p className={cx('text-[12px] leading-relaxed text-[color:var(--seam-ink-soft)]', variant === 'seam' ? 'mt-3' : '')}>
                 登录是可选的：登录后乐库会显示{meta.perks}。凭据只保存在本机。
             </p>
-            {!manual ? (
+            {isAndroid ? (
+                <>
+                    {platform === 'wy' && (
+                        <div className="mt-4 flex w-full rounded-[10px] bg-white/[0.06] p-[3px] text-[12.5px] font-bold">
+                            {(['phone', 'cookie'] as AndroidMode[]).map(m => (
+                                <button
+                                    key={m}
+                                    type="button"
+                                    onClick={() => setMode(m)}
+                                    className={cx('no-drag h-8 flex-1 rounded-[8px] transition-colors', mode === m ? 'bg-[#f7f4ee] text-[#0b0b0c]' : 'text-white/60 hover:text-white')}
+                                >
+                                    {m === 'phone' ? '手机验证码' : 'Cookie'}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    {platform === 'wy' && mode === 'phone' ? <PhoneLogin metaName={meta.name} onDone={onDone} /> : cookieForm}
+                </>
+            ) : !manual ? (
                 <div className="mt-4 flex flex-col items-center">
                     {platform === 'tx' && (
                         <div className="mb-4 flex w-full rounded-[10px] bg-white/[0.06] p-[3px] text-[12.5px] font-bold">
@@ -211,39 +293,17 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
                         <span className="min-w-0">{statusText}</span>
                     </div>
                     {phase.phase === 'error' && !qr && <Button className="mt-3" onClick={refresh}><RefreshCw className="h-4 w-4" />重试</Button>}
-                    {isAndroid ? (
-                        <div className="mt-3.5 w-full space-y-2">
-                            {canSave && (
-                                <div className="flex gap-2">
-                                    <Button className="min-w-0 flex-1 !px-2" onClick={saveQr}><Download className="h-4 w-4 shrink-0" />保存二维码</Button>
-                                    <Button className="min-w-0 flex-1 !px-2" onClick={openScanner}><ScanLine className="h-4 w-4 shrink-0" /><span className="truncate">打开{scanApp.short}</span></Button>
-                                </div>
-                            )}
-                            <p className="text-center text-[11.5px] leading-relaxed text-[color:var(--seam-ink-soft)]">
-                                二维码需要用另一个设备扫，或者在这台手机上：先「保存二维码」，再打开{scanApp.name}，用「扫一扫」→ 相册选择这张图片。
-                            </p>
-                        </div>
-                    ) : null}
                 </div>
-            ) : (
-                <div className="mt-4 space-y-3">
-                    <p className="text-[12px] leading-relaxed text-[color:var(--seam-ink-soft)]">{COOKIE_HINT[platform].text}</p>
-                    <textarea
-                        value={cookieText}
-                        onChange={event => setCookieText(event.target.value)}
-                        placeholder={COOKIE_HINT[platform].placeholder}
-                        spellCheck={false}
-                        className="no-drag scroll-thin h-28 w-full resize-none rounded-[12px] border border-white/10 bg-black/30 px-3.5 py-3 font-mono text-[11.5px] outline-none placeholder:text-white/25 focus:border-white/30"
-                    />
-                    <div className="flex justify-end">
-                        <Button variant="white" onClick={submitCookie} disabled={busy || !cookieText.trim()}>{busy && <Spinner />}登录</Button>
-                    </div>
-                </div>
-            )}
+            ) : cookieForm}
             <div className={cx('flex items-center justify-between gap-3 text-[12px]', variant === 'seam' ? 'mt-auto pb-2 pt-4' : 'mt-6 border-t border-white/[0.06] pt-4')}>
-                <button type="button" className="no-drag text-left text-white/45 underline-offset-2 hover:text-white/80 hover:underline" onClick={() => setManual(m => !m)}>
-                    {manual ? '返回扫码登录' : '扫码不可用？使用 Cookie 登录'}
-                </button>
+                {isAndroid ? (
+                    // 安卓没有扫码入口，也就没有"返回扫码"可切；QQ音乐 / 酷狗只有 Cookie 一种方式
+                    <span className="text-white/35">{platform === 'wy' ? '登录后可同步歌单与会员音质' : `${meta.name}在手机上使用 Cookie 登录`}</span>
+                ) : (
+                    <button type="button" className="no-drag text-left text-white/45 underline-offset-2 hover:text-white/80 hover:underline" onClick={() => setManual(m => !m)}>
+                        {manual ? '返回扫码登录' : '扫码不可用？使用 Cookie 登录'}
+                    </button>
+                )}
                 {variant === 'dialog' && <Button variant="ghost" onClick={onClose}>稍后再说</Button>}
             </div>
         </div>

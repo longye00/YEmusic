@@ -1,0 +1,28 @@
+# 仓库内统一存 LF，检出时不做转换：避免 Windows 上 autocrlf=true 把整个树改写成 CRLF，
+# 也让 shell 脚本 / gradlew 在 Linux 上可直接执行。
+* text=auto eol=lf
+
+# 二进制文件不参与换行与文本 diff
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.bmp binary
+*.icns binary
+*.webp binary
+*.jks binary
+*.keystore binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+*.mp3 binary
+*.flac binary
+*.zip binary
+*.exe binary
+*.apk binary
+*.dex binary
+*.jar binary
+
+# shell 脚本必须保持 LF，否则 gradlew 在 Unix 上跑不起来
+gradlew text eol=lf
+*.sh text eol=lf

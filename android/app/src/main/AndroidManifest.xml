@@ -43,6 +43,17 @@
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </receiver>
+
+        <!-- 应用内更新：把下载好的 APK 以 content:// 形式共享给系统安装器（Android 7+ 不允许 file:// 跨应用） -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.apkprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/apk_paths" />
+        </provider>
     </application>
 
     <!-- Android 11+ 包可见性：登录时要能检测 / 打开这些应用的“扫一扫” -->
@@ -64,4 +75,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 应用内更新：调起系统安装器安装下载好的 APK（用户仍需在系统提示里确认，并允许“安装未知应用”） -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>

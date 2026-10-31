@@ -115,6 +115,24 @@ export async function qrCheck(key: string): Promise<QrStatus> {
     };
 }
 
+// ---------------- 手机验证码登录 ----------------
+/** 向手机号发送登录验证码（仅支持 +86） */
+export async function captchaSent(phone: string): Promise<void> {
+    const { body } = await weapi('/sms/captcha/sent', { cellphone: phone, ctcode: '86' });
+    check(body, '发送验证码失败');
+}
+
+/** 手机号 + 验证码登录；返回可供 completeWyLogin 使用的凭据 Cookie */
+export async function loginCellphone(phone: string, captcha: string): Promise<WyCookies> {
+    const { body, cookies } = await weapi('/login/cellphone', { phone, countrycode: '86', captcha, rememberLogin: 'true' });
+    check(body, '手机号登录失败');
+    // 与扫码登录一致：凭据通常在 Set-Cookie 里，个别网络环境会吞掉响应头，回退到响应体里的 cookie 字符串
+    const merged: WyCookies = typeof body.cookie === 'string' ? parseCookieString(body.cookie) : {};
+    for (const name of Object.keys(cookies)) if (cookies[name] !== '' || merged[name] === undefined) merged[name] = cookies[name];
+    if (!merged.MUSIC_U) throw new WyApiError('没有拿到登录凭据，请稍后重试');
+    return merged;
+}
+
 export async function fetchAccount(): Promise<WyProfile | null> {
     const { body } = await weapi('/w/nuser/account/get', {});
     check(body, '获取账号信息失败');
@@ -150,12 +168,27 @@ function toPlaylist(item: any, extra: Partial<WyPlaylist> = {}): WyPlaylist {
 }
 
 export async function userPlaylists(uid: number): Promise<WyPlaylist[]> {
-    const { body } = await weapi('/user/playlist', { uid, limit: 1000, offset: 0, includeVideo: true });
-    check(body, '获取账号歌单失败');
-    return (body.playlist || []).map((item: any) => toPlaylist(item, {
+    const map = (list: any[]) => list.map((item: any) => toPlaylist(item, {
         subscribed: Boolean(item.subscribed) || Number(item.creator?.userId) !== Number(uid),
         liked: item.specialType === 5,
     }));
+    // 优先走 weapi（需要 Cookie 里的 __csrf）。刚用手机验证码登录时凭据可能没有 __csrf，
+    // weapi 会因签名不完整而报错、或返回空列表；两种情况都回退到不需要 csrf_token 的明文接口——
+    // 它同样带 MUSIC_U，能拿到账号的全部歌单（含"我喜欢的音乐"）。
+    const plain = async () => {
+        const body = await requestJson(`https://music.163.com/api/user/playlist?uid=${uid}&limit=1000&offset=0`, { headers: wyHeaders(), retries: 0 });
+        check(body, '获取账号歌单失败');
+        return map(body.playlist || []);
+    };
+    try {
+        const { body } = await weapi('/user/playlist', { uid, limit: 1000, offset: 0, includeVideo: true });
+        check(body, '获取账号歌单失败');
+        const list = body.playlist || [];
+        return list.length ? map(list) : await plain();
+    } catch (error) {
+        if (isLoginRequired(error)) throw error;
+        return plain();
+    }
 }
 
 /** 推荐歌单：登录后为个性化推荐，否则为通用推荐（35 个） */

@@ -25,7 +25,7 @@ interface Picked { cancelled: boolean; paths: string[] }
 interface YeNative {
     version(): Promise<{ value: string }>;
     quit(): Promise<void>;
-    defaultPaths(): Promise<{ downloads: string; music: string; userData: string }>;
+    defaultPaths(): Promise<{ downloads: string; music: string; userData: string; cache?: string }>;
     request(options: Record<string, unknown>): Promise<NativeResponse>;
     proxyAudioUrl(options: { url: string; headers?: Record<string, string> }): Promise<{ url: string | null }>;
     localAudioUrl(options: { path: string }): Promise<{ url: string | null }>;
@@ -45,6 +45,7 @@ interface YeNative {
     readClipboard(): Promise<{ text: string }>;
     saveImage(options: { dataBase64: string; name: string }): Promise<{ where: string }>;
     launchApp(options: { app: string }): Promise<{ launched: boolean }>;
+    installApk(options: { path: string }): Promise<{ value: boolean }>;
     setNowPlaying(options: Record<string, unknown>): Promise<void>;
     clearNowPlaying(): Promise<void>;
     addListener(event: 'downloadProgress' | 'mediaCommand', handler: (data: never) => void): Promise<PluginListenerHandle>;
@@ -174,6 +175,7 @@ function install() {
         readClipboard: async () => (await native.readClipboard()).text,
         saveImage: async req => (await native.saveImage({ dataBase64: bytesToBase64(req.data), name: req.name })).where,
         launchApp: async app => (await native.launchApp({ app })).launched,
+        installApk: async req => (await native.installApk(req)).value,
         setNowPlaying: async (info: NowPlaying) => {
             const payload: Record<string, unknown> = { hasTrack: info.hasTrack, title: info.title, artist: info.artist, album: info.album, duration: info.duration, position: info.position, playing: info.playing };
             if (info.cover === undefined) payload.coverUnchanged = true;

@@ -17,6 +17,7 @@ import { EQ_BANDS, EQ_PRESETS, resetSettings, setSetting, useSettings, type Sett
 import { clearLogs, installSource, isAggregateSource, moveSource, removeSource, setBlockedHosts, setSourceEnabled, startSource, useSources, type SourceRecord } from '@/store/sources';
 import { toast } from '@/store/toast';
 import { ui, useUi, type SettingsTab } from '@/store/ui';
+import { checkForUpdateManually } from '@/lib/updater';
 import { ACCOUNT_META, ACCOUNT_PLATFORMS, logoutAccount, useAccounts } from '@/store/accounts';
 import { PlatformBadge } from '../library/LoginPanel';
 import { FOLIA_MODES } from '../player/folia/modes';
@@ -84,6 +85,7 @@ function PlaybackTab() {
             <Section title="音质与容错" desc="音质按偏好从高到低尝试；每个链接播放前都会先探测，失效链接（403/404/410、错误页）会被自动跳过，不会再出现无限重试。">
                 <Item title="首选音质" desc="实际音质取决于歌曲与音源支持情况"><Segmented size="sm" value={s.quality} onChange={v => setSetting('quality', v)} options={QUALITY_OPTIONS} /></Item>
                 <Toggle k="qualityFallback" title="首选音质不可用时自动切换其他音质" />
+                <Toggle k="officialFirst" title="优先用平台官方接口取播放链接" desc="登录网易云 / QQ音乐 / 酷狗后，先用平台自己的接口取链（会员可拿到无损、Hi-Res），拿不到再走洛雪音源" />
                 <Toggle k="autoSwitchSource" title="当前平台无法播放时自动换源" desc="按歌名、歌手与时长在其他平台匹配同一首歌" />
                 <Toggle k="skipOnError" title="播放失败自动跳到下一首" desc="连续多首失败会自动停止并提示" />
                 <Toggle k="resumePlayback" title="启动时恢复上次的播放队列与进度" />
@@ -337,11 +339,11 @@ function AccountsSection() {
                                 {profile && current === p && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-white/70">乐库显示中</span>}
                             </span>
                         }
-                        desc={profile ? (status === 'expired' ? `${profile.nickname} · 登录已失效，请重新扫码` : status === 'checking' ? `${profile.nickname} · 正在校验登录状态…` : `${profile.nickname} · ID ${profile.id}`) : `未登录 · 使用${meta.scanWith}扫码登录`}
+                        desc={profile ? (status === 'expired' ? `${profile.nickname} · 登录已失效，请重新登录` : status === 'checking' ? `${profile.nickname} · 正在校验登录状态…` : `${profile.nickname} · ID ${profile.id}`) : `未登录 · 点击登录${isAndroid ? '（手机验证码 / Cookie）' : `（${meta.scanWith}扫码）`}`}
                     >
                         <div className="flex gap-2">
                             {profile && status !== 'expired' && current !== p && <Button variant="ghost" onClick={() => setSetting('libraryAccount', p)}>在乐库显示</Button>}
-                            {(!profile || status === 'expired') && <Button variant="white" onClick={() => ui.dialog({ type: 'login', platform: p })}>扫码登录</Button>}
+                            {(!profile || status === 'expired') && <Button variant="white" onClick={() => ui.dialog({ type: 'login', platform: p })}>登录</Button>}
                             {profile && <Button variant="ghost" onClick={() => ui.confirm(`退出${meta.name}`, `确定退出${meta.name}账号吗？`, () => void logoutAccount(p), { confirmText: '退出', danger: true })}>退出登录</Button>}
                         </div>
                     </Item>
@@ -480,6 +482,7 @@ const SHORTCUTS: [string, string][] = [
 
 function AboutTab() {
     const [version, setVersion] = useState('');
+    const [checking, setChecking] = useState(false);
     useEffect(() => { host.version().then(setVersion).catch(() => {}); }, []);
     return (
         <>
@@ -491,6 +494,11 @@ function AboutTab() {
                     {chromeMajor() > 0 && <div className="mt-0.5 text-[11.5px] text-white/35">{isAndroid ? 'Android System WebView' : 'Chromium'} {chromeMajor()}{OLD_WEBVIEW ? '（版本较旧，部分界面效果已自动降级；可在应用商店更新「Android System WebView」与 Chrome）' : ''}</div>}
                 </div>
             </div>
+            <Section title="更新">
+                <Item title="检查更新" desc="有新版本时在应用内下载并自动开始安装（数据保留）">
+                    <Button variant="glass" onClick={() => { setChecking(true); void checkForUpdateManually().finally(() => setChecking(false)); }}>{checking && <Spinner className="h-3.5 w-3.5" />}检查更新</Button>
+                </Item>
+            </Section>
             {!isAndroid && <Section title="快捷键">
                 {SHORTCUTS.map(([k, v]) => <div key={k} className="flex items-center justify-between px-4 py-2.5 text-[13px]"><span className="text-white/70">{v}</span><kbd>{k}</kbd></div>)}
             </Section>}
@@ -529,7 +537,7 @@ export function SettingsModal() {
                                 </button>
                             ))}
                         </nav>
-                        <div className="scroll-thin min-w-0 flex-1 overflow-y-auto px-8 pb-6 pt-7 max-sm:border-t max-sm:border-white/[0.06] max-sm:px-4 max-sm:pb-12 max-sm:pt-4">
+                        <div className="scroll-thin min-w-0 flex-1 overflow-y-auto px-8 pb-6 pt-7 max-sm:border-t max-sm:border-white/[0.06] max-sm:px-4 max-sm:pb-[calc(3rem+var(--safe-bottom))] max-sm:pt-4">
                             {tab === 'playback' && <PlaybackTab />}
                             {tab === 'sources' && <SourcesTab />}
                             {tab === 'lyrics' && <LyricsTab />}

@@ -9,6 +9,7 @@
 import { host } from '@/lib/host';
 import { normalizeArtist, normalizeTitle } from '@/lib/util';
 import { sdks } from '@/sdk';
+import { OFFICIAL_SOURCE_ID, officialAvailable, officialUrl } from '@/sdk/official';
 import { PLATFORM_NAMES, PLATFORMS, QUALITY_NAMES, QUALITY_ORDER, type Platform, type Quality, type Track } from '@/sdk/types';
 import { callSource, isAggregateSource, markSourceResult, sourcesFor, useSources } from '@/store/sources';
 import { useSettings } from '@/store/settings';
@@ -142,6 +143,42 @@ function judgeProbe(probe: { ok: boolean; status: number; error?: string; conten
 
 interface Attempt { record: { id: string; name: string }; qualitys: Quality[] }
 
+/**
+ * 官方通道：直接用平台自己的播放接口取链（登录后能拿到会员音质）。
+ * 与音源脚本的区别是它不受第三方音源存活情况影响，且携带登录态；
+ * 拿不到就返回 null，调用方继续走音源脚本。官方通道不参与音源的熔断 / 降权统计。
+ */
+async function tryOfficial(track: Track, platform: Platform, quality: Quality, options: ResolveOptions, errors: string[]): Promise<Resolved | null> {
+    if (options.onlySource) return null;
+    if (options.excludeSources?.has(`${OFFICIAL_SOURCE_ID}|${platform}`)) return null;
+    if (!officialAvailable(platform)) return null;
+    try {
+        const started = Date.now();
+        const hit = await officialUrl(track, quality);
+        if (!hit || options.exclude?.has(hit.url)) return null;
+        const probe = await host.probeUrl({ url: hit.url, timeoutMs: 6000 });
+        const verdict = judgeProbe(probe);
+        log(hit.sourceName, platform, quality, `${Date.now() - started}ms`, probe.status, probe.contentType, verdict || 'ok', hit.url.slice(0, 120));
+        if (verdict) {
+            errors.push(`${hit.sourceName} · ${QUALITY_NAMES[hit.quality]}：${verdict}`);
+            return null;
+        }
+        options.onStatus?.(`正在播放${hit.sourceName}链接…`);
+        return {
+            url: hit.url,
+            // 平台按会员等级可能降档（请求 lossless 实际给 exhigh），以平台回答的档位为准
+            quality: hit.quality,
+            sourceId: OFFICIAL_SOURCE_ID,
+            sourceName: hit.sourceName,
+            platform,
+            weak: probe.status === 0,
+        };
+    } catch (error) {
+        errors.push(`平台官方 · ${QUALITY_NAMES[quality]}：${friendly((error as Error).message)}`);
+        return null;
+    }
+}
+
 async function tryOne(track: Track, platform: Platform, quality: Quality, candidate: Attempt, options: ResolveOptions, errors: string[], skip: Set<string>, deadline: number): Promise<Resolved | null> {
     const { record } = candidate;
     // 聚合音源内部有多个子源：给出的链接失效时带上失败链接再请求一次，它会换用其他子源
@@ -239,25 +276,29 @@ async function resolveOnPlatform(track: Track, options: ResolveOptions, errors: 
     const platform = track.source as Platform;
     const settings = useSettings.getState();
     const qualities = qualityCandidates(track, options.quality || settings.quality, settings.qualityFallback || Boolean(options.quality));
+    // 官方通道优先：登录后能拿到会员音质，链接来自平台自己的 CDN，不受第三方音源存活情况影响
+    const official = settings.officialFirst && !options.onlySource && officialAvailable(platform);
     let sources: Attempt[] = sourcesFor(platform);
     if (options.onlySource) sources = sources.filter(s => s.record.id === options.onlySource);
-    if (!sources.length) {
+    if (!sources.length && !official) {
         errors.push(`${PLATFORM_NAMES[platform]}：没有可用的音源`);
         return null;
     }
     const skip = new Set<string>();
     for (const s of sources) if (options.excludeSources?.has(`${s.record.id}|${platform}`)) skip.add(s.record.id);
     // 熔断中的音源先跳过；如果全部都在熔断中，新歌曲仍会逐个尝试一次（网络可能已恢复），重试时则直接换平台
-    if (!options.onlySource) {
+    if (!options.onlySource && sources.length) {
         const healthy = sources.filter(s => !skip.has(s.record.id) && !circuitOpen(s.record.id, platform));
         if (healthy.length || options.excludeSources?.size) for (const s of sources) if (!healthy.includes(s)) skip.add(s.record.id);
     }
-    if (skip.size >= sources.length) {
+    if (sources.length && skip.size >= sources.length && !official) {
         errors.push(`${PLATFORM_NAMES[platform]}：音源刚刚都无法播放这首歌`);
         return null;
     }
     const deadline = Date.now() + budget;
     let weak: Resolved | null = null;
+    // 平台按会员等级降档给出的官方链接（请求无损却只给 320k）：先让音源脚本按请求音质试一次，都不行再用它
+    let officialLower: Resolved | null = null;
     for (const quality of qualities) {
         if (Date.now() >= deadline) {
             errors.push(`${PLATFORM_NAMES[platform]}：获取链接超时`);
@@ -266,6 +307,24 @@ async function resolveOnPlatform(track: Track, options: ResolveOptions, errors: 
         const key = `${track.id}|${quality}|${options.onlySource || ''}`;
         const hit = cache.get(key);
         if (hit && Date.now() - hit.time < CACHE_TTL && !options.exclude?.has(hit.url)) return hit;
+        // 官方通道先跑：它快且稳，拿到了就不必再等音源脚本
+        if (official && deadline - Date.now() > 3000) {
+            options.onStatus?.(`正在向${PLATFORM_NAMES[platform]}获取${QUALITY_NAMES[quality]}链接…`);
+            const officialHit = await tryOfficial(track, platform, quality, options, errors);
+            if (officialHit && !officialHit.weak) {
+                // 平台给到的档位不低于请求档位就直接用；降档的先留着当兜底
+                const gave = QUALITY_ORDER.indexOf(officialHit.quality || quality);
+                const asked = QUALITY_ORDER.indexOf(quality);
+                if (gave >= 0 && asked >= 0 && gave <= asked) {
+                    cache.set(key, { ...officialHit, time: Date.now() });
+                    return officialHit;
+                }
+                if (!officialLower) officialLower = officialHit;
+            } else if (officialHit && !weak) {
+                weak = officialHit;
+            }
+            if (Date.now() >= deadline) break;
+        }
         const list = sources.filter(s => !s.qualitys.length || s.qualitys.includes(quality));
         if (!list.length) continue;
         options.onStatus?.(`正在获取${QUALITY_NAMES[quality]}链接…`);
@@ -275,9 +334,10 @@ async function resolveOnPlatform(track: Track, options: ResolveOptions, errors: 
             return result;
         }
         if (result && !weak) weak = result;
-        if (skip.size >= sources.length) break;
+        if (sources.length && skip.size >= sources.length) break;
     }
-    return weak;
+    // 降档的官方链接（已探测可用）比"未确认"的 weak 链接更值得用
+    return officialLower || weak;
 }
 
 /** 多个平台的同名歌曲错峰并发解析（失败立即补位），先拿到可用链接的胜出 */
@@ -356,7 +416,11 @@ export async function resolveUrl(track: Track, options: ResolveOptions = {}): Pr
         if (!url) throw new ResolveError('无法读取本地文件');
         return { url, local: true };
     }
-    if (!useSources.getState().records.some(r => r.enabled)) throw new ResolveError('没有启用的音源，请在“设置 → 音源”中导入或启用洛雪自定义源');
+    // 官方通道（平台自己的接口）可用时，没有音源脚本也能播放；两条路都没有才提示去装音源
+    const hasSources = useSources.getState().records.some(r => r.enabled);
+    if (!hasSources && !(useSettings.getState().officialFirst && officialAvailable(track.source as Platform))) {
+        throw new ResolveError('没有启用的音源，请在“设置 → 音源”中导入或启用洛雪自定义源');
+    }
     const errors: string[] = [];
     const allowSwitch = (options.allowSwitch ?? useSettings.getState().autoSwitchSource) && !options.onlySource;
     // 原平台迟迟拿不到链接时，提前在后台搜索其他平台的同名歌曲，失败后可立即切换
