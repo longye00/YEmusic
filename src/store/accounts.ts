@@ -8,6 +8,7 @@ import { parseCookieString } from '@/sdk/wyAuth';
 import { captchaSent, loginCellphone, qrCheck, qrCreate } from '@/sdk/wyApi';
 import { getTxCredential, hasTxLogin, parseTxCookie, setTxCredential, txFallbackName, txFetchProfile, txQqQrCheck, txQqQrCreate, txQqQrFinish, txWxQrCheck, txWxQrCreate, txWxQrFinish, type TxCredential } from '@/sdk/txAuth';
 import { getKgCredential, hasKgLogin, isKgAuthError, kgQrCheck, kgQrCreate, kgUserPlaylists, parseKgCookie, setKgCredential, type KgCredential } from '@/sdk/kgAuth';
+import { clearUrlCache, resetCircuits } from '@/player/resolver';
 import { sleep } from '@/lib/util';
 import { setSetting, useSettings } from './settings';
 import { toast } from './toast';
@@ -63,9 +64,24 @@ function isLoggedIn(p: AccountPlatform) {
     return Boolean(useOtherAccounts.getState()[p].profile);
 }
 
-const afterLogin = (p: AccountPlatform) => setSetting('libraryAccount', p);
+const afterLogin = (p: AccountPlatform) => {
+    clearResolvedUrls();
+    setSetting('libraryAccount', p);
+};
+
+/**
+ * 登录态变了，之前取的链接就不再对：未登录时缓存的是游客链接（QQ / 酷狗甚至根本没有），
+ * 登录后应当走平台自己的接口拿会员音质；退出后反之。链接缓存留 12 分钟，
+ * 不清掉的话登录后重播的歌仍在放登录前那条链接。熔断记录一并清掉，让平台重新试一次。
+ */
+function clearResolvedUrls() {
+    clearUrlCache();
+    resetCircuits();
+}
 
 function afterLogout(p: AccountPlatform) {
+    // 放在早退之前：下面那个 return 只决定“乐库显示哪个平台”，链接缓存无论如何都要清
+    clearResolvedUrls();
     if (useSettings.getState().libraryAccount !== p) return;
     const other = ACCOUNT_PLATFORMS.find(x => x !== p && isLoggedIn(x));
     if (other) setSetting('libraryAccount', other);
