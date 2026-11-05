@@ -41,8 +41,10 @@ function DesktopWindowControls() {
     }, []);
     if (!isDesktop || host.platform === 'darwin') return null;
     const base = 'no-drag grid h-8 w-[46px] place-items-center text-white/60 transition-colors duration-150 hover:text-white';
+    // z-[220]：Folia 移植过来的 ThemedDialog（凝彩的图层弹窗）是 z-[200]，
+    // 窗口按钮压在它上面，否则弹窗一开最小化 / 关闭就点不到了。
     return (
-        <div className={cx('fixed right-0 top-0 z-[120] flex overflow-hidden rounded-bl-xl transition-opacity duration-300', revealed ? 'opacity-100' : state.focused ? 'opacity-40' : 'opacity-25')}>
+        <div className={cx('fixed right-0 top-0 z-[220] flex overflow-hidden rounded-bl-xl transition-opacity duration-300', revealed ? 'opacity-100' : state.focused ? 'opacity-40' : 'opacity-25')}>
             <button type="button" aria-label="最小化" title="最小化" className={cx(base, 'hover:bg-white/10')} onClick={() => host.minimize()}>
                 <Minus className="h-4 w-4" strokeWidth={1.6} />
             </button>

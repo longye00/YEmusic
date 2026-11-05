@@ -13,7 +13,7 @@ import { PlayerView } from './ui/player/PlayerView';
 import { SearchOverlay } from './ui/search/SearchOverlay';
 import { SettingsModal } from './ui/settings/SettingsModal';
 import { useShortcuts } from './ui/shortcuts';
-import { useTheme } from './ui/theme';
+import { syncThemeVars, useTheme } from './ui/theme';
 import { WindowControls } from './ui/WindowControls';
 import { ErrorBoundary } from './ui/components/ErrorBoundary';
 
@@ -32,6 +32,13 @@ function SharedBackground() {
     const homeTheme = useTheme(bgPalette || playerPalette);
     const playerTheme = useTheme(playerPalette);
     const theme = playerOpen ? playerTheme : homeTheme;
+
+    // 主题 → CSS 变量：乐库拼贴墙的辉光、书签焦点环、::selection 读的是这几个变量，
+    // 不同步的话换封面 / 自定义配色后它们仍停在默认紫（见 ui/theme.ts 的 syncThemeVars）
+    useEffect(() => {
+        syncThemeVars(theme);
+    }, [theme]);
+
     const energy = useCallback(() => engine.energy(), []);
     const covered = playerOpen && background !== 'latent';
     return (

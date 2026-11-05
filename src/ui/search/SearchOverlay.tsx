@@ -98,7 +98,7 @@ export function SearchOverlay() {
     const hasMore = source !== 'local' && result.list.length < result.total && result.page > 0;
 
     return (
-        <motion.div className="absolute inset-0 z-50 flex flex-col bg-[rgba(9,9,13,0.88)] backdrop-blur-2xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <motion.div className="absolute inset-0 z-50 flex flex-col bg-[var(--surface-overlay)] backdrop-blur-2xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
             <div className="drag absolute inset-x-0 top-0 h-10 touch:hidden" />
             <motion.div className="mx-auto flex w-full max-w-[1080px] min-h-0 flex-1 flex-col px-8 pt-12 max-sm:px-4 max-sm:pt-4" initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 32 }}>
                 <div className="flex items-center gap-3">
