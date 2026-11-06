@@ -22,7 +22,7 @@ import { ACCOUNT_META, ACCOUNT_PLATFORMS, logoutAccount, useAccounts } from '@/s
 import { PlatformBadge } from '../library/LoginPanel';
 import { FOLIA_MODES } from '../player/folia/modes';
 import { css, useTheme } from '../theme';
-import { Button, IconButton, Segmented, Slider, Spinner, Switch, cx } from '../components/common';
+import { Button, EmptyState, IconButton, Segmented, Slider, Spinner, Switch, cx } from '../components/common';
 
 const TABS: { id: SettingsTab; label: string; icon: typeof Play }[] = [
     { id: 'playback', label: '播放', icon: Play },
@@ -254,7 +254,7 @@ function SourcesTab() {
                 )}
             </Section>
             <Section title={`已安装（${records.length}）`} desc="排在前面的音源优先使用；某平台连续取链失败的音源会被临时排到后面。">
-                {records.length ? records.map((r, i) => <SourceCard key={r.id} record={r} index={i} count={records.length} />) : <div className="px-4 py-6 text-center text-[13px] text-white/40">还没有音源，请导入洛雪自定义源脚本</div>}
+                {records.length ? records.map((r, i) => <SourceCard key={r.id} record={r} index={i} count={records.length} />) : <EmptyState dense icon={<FileCode2 className="h-4 w-4" />} title="还没有安装任何音源" desc="用上面的按钮导入洛雪自定义源脚本，或直接「恢复内置音源」" />}
             </Section>
             <Section title="网络限制" desc="禁止音源脚本访问的域名（每行一个，含子域名）。脚本只能访问公网地址，本机与局域网地址始终被拦截。">
                 <div className="space-y-2 px-4 py-3.5">
@@ -400,7 +400,7 @@ function DownloadTab() {
                         ))}
                         <div className="flex justify-end px-4 py-2.5"><Button variant="ghost" onClick={clearFinishedDownloads}>清除已完成</Button></div>
                     </>
-                ) : <div className="px-4 py-6 text-center text-[13px] text-white/40">暂无下载</div>}
+                ) : <EmptyState dense icon={<Download className="h-4 w-4" />} title="暂无下载" />}
             </Section>
         </>
     );
