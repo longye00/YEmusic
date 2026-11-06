@@ -237,7 +237,7 @@ export function Library() {
                             initial={{ opacity: 0, y: -6 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0 }}
-                            className="flex max-w-[min(520px,100%)] items-center gap-2 rounded-full bg-black/70 px-3.5 py-1.5 text-[12px] text-white/70 shadow-[0_8px_30px_rgba(0,0,0,.4)]"
+                            className="flex max-w-[min(520px,100%)] items-center gap-2 rounded-full bg-black/70 px-3.5 py-1.5 text-[12px] text-white/70 shadow-[var(--shadow-float)]"
                         >
                             {d.loading && <Spinner className="h-3.5 w-3.5" />}
                             <span className="truncate">{status}</span>

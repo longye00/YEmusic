@@ -59,6 +59,18 @@
        ErrorBoundary 24px 各写各的，同一类浮层看着不成一套。
        播放面板与底部控制条不在此列：那是贴边抽屉与胶囊，形状不同。 */
     --radius-card: 28px;
+    /* 投影四档。原先 22 个 shadow-[…] 里 20 个是一次性字面值
+       （0_40px_140px、0_40px_120px、0_30px_90px、0_30px_80px、0_20px_60px、
+       0_18px_50px、0_12px_40px、0_12px_32px、0_10px_40px、0_10px_30px、0_8px_30px…），
+       同类浮层深浅不一，看不出层级关系。按「离观察者多远」收成四档：
+       --shadow-card  最深一档：居中卡片（对话框、设置）与播放页的主视觉封面
+       --shadow-panel 大块贴边浮层（播放面板、播放页卡、详情页封面）
+       --shadow-float 小件贴边浮层（迷你播放器、Toast、右键菜单、筛选条）
+       --shadow-inset 控件自身的细投影（滑块圆点、小 chip） */
+    --shadow-card: 0 40px 120px rgb(0 0 0 / 0.6);
+    --shadow-panel: 0 30px 90px rgb(0 0 0 / 0.45);
+    --shadow-float: 0 12px 40px rgb(0 0 0 / 0.45);
+    --shadow-inset: 0 2px 8px rgb(0 0 0 / 0.35);
     /* 底部手势条 / 导航条的安全区高度：当前 WebView 排在系统栏之内时为 0，
        edge-to-edge（Android 15+ 强制）下自动生效，底部悬浮控件统一引用它 */
     --safe-bottom: env(safe-area-inset-bottom, 0px);

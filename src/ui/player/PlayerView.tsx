@@ -46,7 +46,7 @@ function CoverHero({ note, busy }: { note?: string; busy?: boolean }) {
     if (!current) return null;
     return (
         <motion.div className="absolute inset-0 flex flex-col items-center justify-center gap-6 pb-16" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 26 }}>
-            <Cover src={coverUrl || current.cover} seed={current.name} className="aspect-square w-[min(40vh,360px)] shadow-[0_40px_120px_rgba(0,0,0,.55)] ring-1 ring-white/15" rounded="rounded-[28px]" eager />
+            <Cover src={coverUrl || current.cover} seed={current.name} className="aspect-square w-[min(40vh,360px)] shadow-[var(--shadow-card)] ring-1 ring-white/15" rounded="rounded-[28px]" eager />
             <div className="max-w-[70vw] text-center">
                 <div className="truncate text-[30px] font-bold tracking-tight text-shadow-soft">{current.name}</div>
                 <div className="mt-1 truncate text-[15px] text-white/60">{current.singer}{current.album ? ` • ${current.album}` : ''}</div>
@@ -63,7 +63,7 @@ function ErrorCard() {
     const queueLength = usePlayer(s => s.queue.length);
     return (
         <motion.div className="absolute inset-0 grid place-items-center px-6 pb-16" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="w-[min(560px,100%)] rounded-[28px] border border-white/10 bg-black/35 p-7 text-center shadow-[0_30px_90px_rgba(0,0,0,.4)] backdrop-blur-2xl">
+            <div className="w-[min(560px,100%)] rounded-[28px] border border-white/10 bg-black/35 p-7 text-center shadow-[var(--shadow-panel)] backdrop-blur-2xl">
                 <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-red-500/15 text-red-200"><AlertTriangle className="h-7 w-7" /></div>
                 <div className="mt-4 text-[20px] font-bold">《{current?.name}》暂时无法播放</div>
                 <div className="mt-2 text-[13px] leading-relaxed text-white/60">{error}</div>
@@ -155,7 +155,7 @@ export function PlayerView() {
                     variant={panelOpen ? 'white' : 'solid'}
                     label={panelOpen ? '关闭面板' : '播放设置'}
                     onClick={() => ui.togglePanel()}
-                    className="shadow-[0_10px_30px_rgba(0,0,0,.3)]"
+                    className="shadow-[var(--shadow-float)]"
                 >
                     {panelOpen ? <X className="h-5 w-5" /> : <SlidersHorizontal className="h-5 w-5" />}
                 </IconButton>

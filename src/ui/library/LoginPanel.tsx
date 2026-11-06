@@ -264,7 +264,7 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
                             ))}
                         </div>
                     )}
-                    <div className="relative grid place-items-center overflow-hidden rounded-[14px] bg-white p-2 shadow-[0_18px_50px_rgba(0,0,0,.45)]" style={{ width: qrSize + 16, height: qrSize + 16 }}>
+                    <div className="relative grid place-items-center overflow-hidden rounded-[14px] bg-white p-2 shadow-[var(--shadow-panel)]" style={{ width: qrSize + 16, height: qrSize + 16 }}>
                         {qr?.kind === 'text' && <QrSvg text={qr.value} size={qrSize} />}
                         {qr?.kind === 'image' && <img src={qr.value} alt="登录二维码" draggable={false} style={{ width: qrSize, height: qrSize, imageRendering: 'pixelated' }} />}
                         {!qr && phase.phase !== 'error' && <Spinner className="h-6 w-6 text-black/50" />}

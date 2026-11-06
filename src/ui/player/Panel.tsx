@@ -389,7 +389,7 @@ export function Panel({ theme }: { theme: Theme }) {
     return (
         <motion.div
             className={cx(
-                'no-drag absolute z-30 flex flex-col overflow-hidden rounded-[30px] border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,.45)] backdrop-blur-3xl',
+                'no-drag absolute z-30 flex flex-col overflow-hidden rounded-[30px] border border-white/10 shadow-[var(--shadow-panel)] backdrop-blur-3xl',
                 compact ? 'inset-x-2 bottom-[calc(110px+var(--safe-bottom))] max-h-[calc(100%-176px)] p-4' : 'bottom-[104px] right-8 max-h-[calc(100vh-140px)] w-[320px] p-5',
             )}
             style={{ background: css(theme.panel, lite ? 0.94 : 0.72) }}
@@ -399,7 +399,7 @@ export function Panel({ theme }: { theme: Theme }) {
             transition={{ type: 'spring', stiffness: 360, damping: 32 }}
         >
             {tab !== 'queue' && !(compact && tab !== 'cover') && (
-                <Cover src={coverUrl || current?.cover} seed={current?.name} className={cx('mb-4 aspect-square shrink-0 shadow-[0_12px_40px_rgba(0,0,0,.35)]', compact ? 'mx-auto h-[min(30vh,200px)]' : 'w-full max-h-[280px]')} rounded="rounded-[20px]" eager />
+                <Cover src={coverUrl || current?.cover} seed={current?.name} className={cx('mb-4 aspect-square shrink-0 shadow-[var(--shadow-float)]', compact ? 'mx-auto h-[min(30vh,200px)]' : 'w-full max-h-[280px]')} rounded="rounded-[20px]" eager />
             )}
             <div className="mb-4 flex shrink-0 items-center gap-1 rounded-2xl bg-black/20 p-1">
                 {TABS.map(t => (

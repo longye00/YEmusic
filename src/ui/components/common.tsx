@@ -153,7 +153,7 @@ export function Slider({ value, max = 1, min = 0, step = 0, onChange, onCommit, 
                 {buffered !== undefined && <div className="absolute inset-y-0 left-0 rounded-full bg-white/15" style={{ width: `${Math.max(0, Math.min(1, (buffered - min) / range)) * 100}%` }} />}
                 <div className={cx('absolute inset-y-0 left-0 rounded-full', fillClass)} style={{ width: `${pct}%` }} />
             </div>
-            {thumb && <div className={cx('absolute h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,.35)] transition-transform', drag !== null ? 'scale-110' : 'scale-0 group-hover:scale-100 group-focus-visible:scale-100')} style={{ left: `${pct}%` }} />}
+            {thumb && <div className={cx('absolute h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-white shadow-[var(--shadow-inset)] transition-transform', drag !== null ? 'scale-110' : 'scale-0 group-hover:scale-100 group-focus-visible:scale-100')} style={{ left: `${pct}%` }} />}
         </div>
     );
 }
@@ -233,7 +233,7 @@ export function Modal({ open, onClose, children, className = '', title, wide }: 
             {open && (
                 <motion.div className="fixed inset-0 z-[80] grid place-items-center bg-black/55 p-6 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
                     <motion.div
-                        className={cx('relative max-h-full overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-[var(--surface-card)] shadow-[0_40px_120px_rgba(0,0,0,.6)]', wide ? 'w-[min(920px,100%)]' : 'w-[min(440px,100%)]', className)}
+                        className={cx('relative max-h-full overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-[var(--surface-card)] shadow-[var(--shadow-card)]', wide ? 'w-[min(920px,100%)]' : 'w-[min(440px,100%)]', className)}
                         initial={{ opacity: 0, scale: 0.94, y: 16 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 8 }}

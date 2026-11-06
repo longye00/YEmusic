@@ -538,7 +538,7 @@ export function SettingsModal() {
         <AnimatePresence>
             {open && (
                 <motion.div className="fixed inset-0 z-[70] grid place-items-center bg-black/55 p-6 backdrop-blur-md max-sm:p-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onPointerDown={e => { if (e.target === e.currentTarget) ui.closeSettings(); }}>
-                    <motion.div className="relative flex h-[min(680px,100%)] w-[min(980px,100%)] overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-[var(--surface-card)] shadow-[0_40px_140px_rgba(0,0,0,.65)] max-sm:h-full max-sm:flex-col max-sm:rounded-none max-sm:border-0" initial={{ scale: 0.95, y: 16, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }} transition={{ type: 'spring', stiffness: 360, damping: 32 }}>
+                    <motion.div className="relative flex h-[min(680px,100%)] w-[min(980px,100%)] overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-[var(--surface-card)] shadow-[var(--shadow-card)] max-sm:h-full max-sm:flex-col max-sm:rounded-none max-sm:border-0" initial={{ scale: 0.95, y: 16, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }} transition={{ type: 'spring', stiffness: 360, damping: 32 }}>
                         <nav className="scroll-none flex w-[200px] shrink-0 flex-col gap-0.5 border-r border-white/[0.06] p-4 max-sm:mr-12 max-sm:w-auto max-sm:flex-row max-sm:gap-1 max-sm:overflow-x-auto max-sm:border-r-0 max-sm:p-2">
                             <div className="mb-4 px-3 pt-2 text-[20px] font-bold tracking-tight max-sm:hidden">设置</div>
                             {TABS.map(t => (

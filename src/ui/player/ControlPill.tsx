@@ -41,7 +41,7 @@ function DesktopPill({ variant, idle, maxWidth }: { variant: 'home' | 'player'; 
             onHoverEnd={() => setHover(false)}
             transition={{ type: 'spring', stiffness: 380, damping: 34 }}
             className={cx(
-                'no-drag pointer-events-auto flex items-center overflow-hidden rounded-full border border-white/[0.06] bg-black/30 lite:bg-black/55 shadow-[0_10px_40px_rgba(0,0,0,.25)] backdrop-blur-2xl transition-opacity duration-500',
+                'no-drag pointer-events-auto flex items-center overflow-hidden rounded-full border border-white/[0.06] bg-black/30 lite:bg-black/55 shadow-[var(--shadow-float)] backdrop-blur-2xl transition-opacity duration-500',
                 expanded ? 'h-[72px] gap-3 pl-3 pr-4' : 'h-12 gap-3 px-9',
                 idle && !hover ? 'opacity-40' : 'opacity-100',
             )}
@@ -124,7 +124,7 @@ function CompactPill({ variant, idle }: { variant: 'home' | 'player'; idle?: boo
     const time = usePlaybackTime(250);
     const duration = useDuration();
     const playing = status === 'playing';
-    const shell = 'no-drag pointer-events-auto w-full overflow-hidden rounded-[30px] border border-white/[0.08] bg-black/45 lite:bg-black/70 shadow-[0_10px_40px_rgba(0,0,0,.3)] backdrop-blur-2xl transition-opacity duration-500';
+    const shell = 'no-drag pointer-events-auto w-full overflow-hidden rounded-[30px] border border-white/[0.08] bg-black/45 lite:bg-black/70 shadow-[var(--shadow-float)] backdrop-blur-2xl transition-opacity duration-500';
     if (!current) {
         return (
             <div className={cx(shell, 'flex h-12 items-center justify-center')}>

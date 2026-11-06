@@ -59,7 +59,7 @@ export function ContextMenu() {
         fn();
     };
     return (
-        <div ref={ref} onPointerDown={event => event.stopPropagation()} className="fixed z-[90] w-56 rounded-2xl border border-white/10 bg-[var(--surface-float)] p-1.5 shadow-[0_20px_60px_rgba(0,0,0,.55)] backdrop-blur-2xl" style={{ left: pos.x, top: pos.y }}>
+        <div ref={ref} onPointerDown={event => event.stopPropagation()} className="fixed z-[90] w-56 rounded-2xl border border-white/10 bg-[var(--surface-float)] p-1.5 shadow-[var(--shadow-float)] backdrop-blur-2xl" style={{ left: pos.x, top: pos.y }}>
             <div className="mb-1 truncate px-3 pb-1.5 pt-1 text-[12px] text-white/40">{track.name} · {track.singer}</div>
             <MenuItem icon={<Play />} onClick={run(() => playTrack(track, list))}>播放</MenuItem>
             <MenuItem icon={<ListEnd />} onClick={run(() => playNext(track))}>下一首播放</MenuItem>
@@ -468,7 +468,7 @@ export function Toasts() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -8, scale: 0.96 }}
                         transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                        className="pointer-events-auto flex max-w-[640px] items-center gap-2.5 rounded-full border border-white/10 bg-[var(--surface-float)] py-2 pl-3 pr-4 text-[13px] text-white/90 shadow-[0_12px_40px_rgba(0,0,0,.45)] backdrop-blur-2xl"
+                        className="pointer-events-auto flex max-w-[640px] items-center gap-2.5 rounded-full border border-white/10 bg-[var(--surface-float)] py-2 pl-3 pr-4 text-[13px] text-white/90 shadow-[var(--shadow-float)] backdrop-blur-2xl"
                         onClick={() => dismiss(t.id)}
                     >
                         {t.kind === 'success' ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" /> : t.kind === 'error' ? <XCircle className="h-4 w-4 shrink-0 text-red-300" /> : t.kind === 'warning' ? <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" /> : <Info className="h-4 w-4 shrink-0 text-sky-300" />}

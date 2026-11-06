@@ -213,7 +213,7 @@ export function DetailView() {
         <Shell>
             <div className="flex h-full min-h-0 gap-10 px-10 pb-8 pt-20 max-lg:flex-col max-lg:gap-5 max-sm:gap-3 max-sm:px-4 max-sm:pb-3 max-sm:pt-[68px] short:flex-row short:gap-5 short:px-4 short:pb-2 short:pt-14">
                 <motion.aside initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 30 }} className="flex w-[300px] shrink-0 flex-col max-lg:w-full max-lg:flex-row max-lg:items-end max-lg:gap-6 max-sm:grid max-sm:grid-cols-[88px_1fr] max-sm:gap-x-4 max-sm:gap-y-3 short:w-[230px] short:flex-col short:items-stretch short:gap-3 short:overflow-y-auto">
-                    <div className="aspect-square w-full overflow-hidden rounded-[26px] shadow-[0_30px_80px_rgba(0,0,0,.5)] ring-1 ring-white/15 max-lg:w-40 max-sm:w-full max-sm:rounded-[18px] short:w-24 short:shrink-0 short:rounded-[18px]">
+                    <div className="aspect-square w-full overflow-hidden rounded-[26px] shadow-[var(--shadow-panel)] ring-1 ring-white/15 max-lg:w-40 max-sm:w-full max-sm:rounded-[18px] short:w-24 short:shrink-0 short:rounded-[18px]">
                         {playlist?.id === FAVORITES_ID ? (
                             <PosterArt title="我喜欢" subtitle="Favorites" seed="fav" tone={[330, 280]} icon={<Heart fill="currentColor" />} />
                         ) : target.kind === 'daily' ? (
