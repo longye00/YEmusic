@@ -15,7 +15,7 @@ import { ui, useUi, type PanelTab } from '@/store/ui';
 import { saveCustomLyric } from '@/player/lyrics';
 import { useLite } from '@/lib/lite';
 import { useCompact, useIsFavorite } from '../hooks';
-import { Cover, PlatformTag, Segmented, Slider, Spinner, Switch, cx } from '../components/common';
+import { Cover, EmptyState, PlatformTag, Segmented, Slider, Spinner, Switch, cx } from '../components/common';
 import { css, type Theme } from '../theme';
 import { MODE_ICONS } from './ControlPill';
 import { FOLIA_MODES, FOLIA_MODE_NAMES, isFoliaMode, type FoliaModeId } from './folia/modes';
@@ -72,7 +72,7 @@ function SongTab() {
     const current = usePlayer(s => s.current);
     const resolved = usePlayer(s => s.resolved);
     const liked = useIsFavorite(current?.id);
-    if (!current) return <div className="py-6 text-center text-[13px] text-white/40">没有正在播放的歌曲</div>;
+    if (!current) return <EmptyState dense icon={<Disc3 className="h-4 w-4" />} title="没有正在播放的歌曲" desc="去乐库或搜索里挑一首" />;
     return (
         <div className="space-y-3">
             <div>
@@ -275,7 +275,7 @@ function QueueTab() {
         const el = listRef.current?.children[index] as HTMLElement | undefined;
         el?.scrollIntoView({ block: 'center' });
     }, [index]);
-    if (!queue.length) return <div className="py-8 text-center text-[13px] text-white/40">播放队列为空</div>;
+    if (!queue.length) return <EmptyState dense icon={<ListMusic className="h-4 w-4" />} title="播放队列为空" desc="播放歌曲后，队列会出现在这里" />;
     return (
         <div className="flex min-h-0 flex-col">
             <div className="mb-2 flex items-center justify-between px-1">
@@ -309,8 +309,9 @@ function SourceTab() {
     const details = usePlayer(s => s.errorDetails);
     const records = useSources(s => s.records);
     const runtime = useSources(s => s.runtime);
-    if (!current) return <div className="py-6 text-center text-[13px] text-white/40">没有正在播放的歌曲</div>;
-    if (current.source === 'local') return <div className="py-6 text-center text-[13px] leading-relaxed text-white/45">本地文件直接播放<br /><span className="break-all font-mono text-[10.5px] text-white/30">{current.path}</span></div>;
+    if (!current) return <EmptyState dense icon={<Radio className="h-4 w-4" />} title="没有正在播放的歌曲" desc="播放后再来切换音源与音质" />;
+    // 本地文件不经过音源，这里不是「空」而是说明，保留一行居中提示
+    if (current.source === 'local') return <div className="px-4 py-7 text-center text-[12.5px] leading-relaxed text-white/65">本地文件直接播放<br /><span className="mt-1 block break-all font-mono text-[10.5px] text-white/35">{current.path}</span></div>;
     const available = new Set((current.qualities || []).map(q => q.type));
     const qualities = QUALITY_ORDER.filter(q => !available.size || available.has(q)).reverse();
     const platform = current.source;
@@ -388,7 +389,7 @@ export function Panel({ theme }: { theme: Theme }) {
     return (
         <motion.div
             className={cx(
-                'no-drag absolute z-30 flex flex-col overflow-hidden rounded-[30px] border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,.45)] backdrop-blur-3xl',
+                'no-drag absolute z-30 flex flex-col overflow-hidden rounded-[30px] border border-white/10 shadow-[var(--shadow-panel)] backdrop-blur-3xl',
                 compact ? 'inset-x-2 bottom-[calc(110px+var(--safe-bottom))] max-h-[calc(100%-176px)] p-4' : 'bottom-[104px] right-8 max-h-[calc(100vh-140px)] w-[320px] p-5',
             )}
             style={{ background: css(theme.panel, lite ? 0.94 : 0.72) }}
@@ -398,7 +399,7 @@ export function Panel({ theme }: { theme: Theme }) {
             transition={{ type: 'spring', stiffness: 360, damping: 32 }}
         >
             {tab !== 'queue' && !(compact && tab !== 'cover') && (
-                <Cover src={coverUrl || current?.cover} seed={current?.name} className={cx('mb-4 aspect-square shrink-0 shadow-[0_12px_40px_rgba(0,0,0,.35)]', compact ? 'mx-auto h-[min(30vh,200px)]' : 'w-full max-h-[280px]')} rounded="rounded-[20px]" eager />
+                <Cover src={coverUrl || current?.cover} seed={current?.name} className={cx('mb-4 aspect-square shrink-0 shadow-[var(--shadow-float)]', compact ? 'mx-auto h-[min(30vh,200px)]' : 'w-full max-h-[280px]')} rounded="rounded-[20px]" eager />
             )}
             <div className="mb-4 flex shrink-0 items-center gap-1 rounded-2xl bg-black/20 p-1">
                 {TABS.map(t => (

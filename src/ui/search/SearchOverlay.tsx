@@ -63,7 +63,7 @@ function ResultRow({ track, index, active, onHover, onPlay, onQueue }: {
             onClick={onPlay}
             className={cx(
                 'group flex h-[56px] cursor-pointer items-center gap-3 rounded-2xl border px-3 transition-colors duration-100',
-                active ? 'border-white/[0.22] bg-white/[0.12]' : isCurrent ? 'border-white/15 bg-white/[0.08]' : 'border-transparent hover:bg-white/[0.06]',
+                active ? 'border-white/[0.22] bg-[var(--ui-hover)]' : isCurrent ? 'border-white/15 bg-[var(--ui-idle)]' : 'border-transparent hover:bg-white/[0.06]',
             )}
         >
             <div className="w-6 shrink-0 text-center font-mono text-[11px] text-white/30">
@@ -287,7 +287,7 @@ export function SearchOverlay() {
                             onClick={() => changeScope(p)}
                             className={cx(
                                 'h-7 rounded-full px-3 text-[12px] font-medium transition-colors',
-                                scope === p ? 'bg-white text-black' : 'bg-white/[0.07] text-white/65 hover:bg-white/[0.14] hover:text-white',
+                                scope === p ? 'bg-white text-black' : 'bg-[var(--ui-idle)] text-white/65 hover:bg-[var(--ui-hover)] hover:text-white',
                             )}
                         >
                             {scopeLabel(p)}
@@ -307,7 +307,7 @@ export function SearchOverlay() {
                                     </div>
                                     <div className="flex flex-wrap gap-1.5">
                                         {history.map(h => (
-                                            <button key={h} type="button" onClick={() => pickKeyword(h)} className="h-7 max-w-[240px] truncate rounded-full bg-white/[0.06] px-3 text-[12px] text-white/70 hover:bg-white/[0.13] hover:text-white">{h}</button>
+                                            <button key={h} type="button" onClick={() => pickKeyword(h)} className="h-7 max-w-[240px] truncate rounded-full bg-[var(--ui-idle)] px-3 text-[12px] text-white/70 hover:bg-[var(--ui-hover)] hover:text-white">{h}</button>
                                         ))}
                                     </div>
                                 </section>
@@ -317,7 +317,7 @@ export function SearchOverlay() {
                                     <h3 className="mb-2.5 flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.14em] text-white/40"><Flame className="h-3.5 w-3.5" />{scopeLabel(scope)}热搜</h3>
                                     <div className="grid grid-cols-2 gap-x-5 gap-y-0.5 md:grid-cols-3">
                                         {hot.map((h, i) => (
-                                            <button key={h} type="button" onClick={() => pickKeyword(h)} className="flex h-8 items-center gap-2.5 rounded-lg px-1.5 text-left text-[12.5px] text-white/70 hover:bg-white/[0.05] hover:text-white">
+                                            <button key={h} type="button" onClick={() => pickKeyword(h)} className="flex h-8 items-center gap-2.5 rounded-lg px-1.5 text-left text-[12.5px] text-white/70 hover:bg-[var(--ui-idle)] hover:text-white">
                                                 <span className={cx('w-4 shrink-0 font-mono text-[11px]', i < 3 ? 'text-rose-300/90' : 'text-white/25')}>{i + 1}</span>
                                                 <span className="truncate">{h}</span>
                                             </button>
@@ -343,7 +343,7 @@ export function SearchOverlay() {
                                             <button
                                                 type="button"
                                                 onClick={() => setExpanded(e => ({ ...e, local: !e.local }))}
-                                                className="flex h-8 items-center gap-1 rounded-lg px-3 text-[11.5px] text-white/40 hover:bg-white/[0.05] hover:text-white/80"
+                                                className="flex h-8 items-center gap-1 rounded-lg px-3 text-[11.5px] text-white/40 hover:bg-[var(--ui-idle)] hover:text-white/80"
                                             >
                                                 {expanded.local ? '收起' : `展开其余 ${localList.length - LOCAL_INITIAL} 首`}
                                                 <ChevronDown className={cx('h-3 w-3 transition-transform', expanded.local && 'rotate-180')} />
@@ -383,7 +383,7 @@ export function SearchOverlay() {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setExpanded(e => ({ ...e, [group.key]: !e[group.key] }))}
-                                                                className="flex h-8 items-center gap-1 rounded-lg px-3 text-[11.5px] text-white/40 hover:bg-white/[0.05] hover:text-white/80"
+                                                                className="flex h-8 items-center gap-1 rounded-lg px-3 text-[11.5px] text-white/40 hover:bg-[var(--ui-idle)] hover:text-white/80"
                                                             >
                                                                 {expanded[group.key] ? '收起' : `展开其余 ${group.list.length - GROUP_INITIAL} 首`}
                                                                 <ChevronDown className={cx('h-3 w-3 transition-transform', expanded[group.key] && 'rotate-180')} />

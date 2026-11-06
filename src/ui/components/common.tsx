@@ -153,7 +153,7 @@ export function Slider({ value, max = 1, min = 0, step = 0, onChange, onCommit, 
                 {buffered !== undefined && <div className="absolute inset-y-0 left-0 rounded-full bg-white/15" style={{ width: `${Math.max(0, Math.min(1, (buffered - min) / range)) * 100}%` }} />}
                 <div className={cx('absolute inset-y-0 left-0 rounded-full', fillClass)} style={{ width: `${pct}%` }} />
             </div>
-            {thumb && <div className={cx('absolute h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,.35)] transition-transform', drag !== null ? 'scale-110' : 'scale-0 group-hover:scale-100 group-focus-visible:scale-100')} style={{ left: `${pct}%` }} />}
+            {thumb && <div className={cx('absolute h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-white shadow-[var(--shadow-inset)] transition-transform', drag !== null ? 'scale-110' : 'scale-0 group-hover:scale-100 group-focus-visible:scale-100')} style={{ left: `${pct}%` }} />}
         </div>
     );
 }
@@ -233,7 +233,7 @@ export function Modal({ open, onClose, children, className = '', title, wide }: 
             {open && (
                 <motion.div className="fixed inset-0 z-[80] grid place-items-center bg-black/55 p-6 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
                     <motion.div
-                        className={cx('relative max-h-full overflow-hidden rounded-[28px] border border-white/10 bg-[var(--surface-card)] shadow-[0_40px_120px_rgba(0,0,0,.6)]', wide ? 'w-[min(920px,100%)]' : 'w-[min(440px,100%)]', className)}
+                        className={cx('relative max-h-full overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-[var(--surface-card)] shadow-[var(--shadow-card)]', wide ? 'w-[min(920px,100%)]' : 'w-[min(440px,100%)]', className)}
                         initial={{ opacity: 0, scale: 0.94, y: 16 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -253,7 +253,24 @@ export function Modal({ open, onClose, children, className = '', title, wide }: 
     );
 }
 
-export function EmptyState({ icon, title, desc, children }: { icon?: ReactNode; title: string; desc?: string; children?: ReactNode }) {
+/**
+ * 空状态。
+ *
+ * @param dense 窄容器（320px 的播放面板、设置里的单栏）用紧凑版：小图标、小标题、小留白。
+ *   这些地方原先各写一句 `py-6 text-center text-[13px] text-white/40`，
+ *   留白 6/8 不一、字色 /40 与 /45 混用、有的带图标有的不带，看着不成一套。
+ */
+export function EmptyState({ icon, title, desc, children, dense }: { icon?: ReactNode; title: string; desc?: string; children?: ReactNode; dense?: boolean }) {
+    if (dense) {
+        return (
+            <div className="flex flex-col items-center justify-center gap-1.5 px-4 py-7 text-center">
+                {icon && <div className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--ui-idle)] text-white/45">{icon}</div>}
+                <div className="text-[12.5px] font-semibold text-white/65">{title}</div>
+                {desc && <div className="max-w-[240px] break-words text-[11.5px] leading-relaxed text-white/38">{desc}</div>}
+                {children && <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">{children}</div>}
+            </div>
+        );
+    }
     return (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
             {icon && <div className="grid h-20 w-20 place-items-center rounded-[22px] border border-white/10 bg-white/[0.05] text-white/55">{icon}</div>}

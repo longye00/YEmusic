@@ -60,7 +60,7 @@ export function ContextMenu() {
         fn();
     };
     return (
-        <div ref={ref} onPointerDown={event => event.stopPropagation()} className="fixed z-[90] w-56 rounded-2xl border border-white/10 bg-[var(--surface-float)] p-1.5 shadow-[0_20px_60px_rgba(0,0,0,.55)] backdrop-blur-2xl" style={{ left: pos.x, top: pos.y }}>
+        <div ref={ref} onPointerDown={event => event.stopPropagation()} className="fixed z-[90] w-56 rounded-2xl border border-white/10 bg-[var(--surface-float)] p-1.5 shadow-[var(--shadow-float)] backdrop-blur-2xl" style={{ left: pos.x, top: pos.y }}>
             <div className="mb-1 truncate px-3 pb-1.5 pt-1 text-[12px] text-white/40">{track.name} · {track.singer}</div>
             <MenuItem icon={<Play />} onClick={run(() => playTrack(track, list))}>播放</MenuItem>
             <MenuItem icon={<ListEnd />} onClick={run(() => playNext(track))}>下一首播放</MenuItem>

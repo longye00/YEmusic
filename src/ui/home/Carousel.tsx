@@ -122,7 +122,7 @@ export function Carousel({ items, focus, onFocus, keyboard = true, reduceMotion 
                             onDoubleClick={() => { if (isCenter) item.onPlay?.(); }}
                             className={cx(
                                 'group relative h-full w-full overflow-hidden rounded-[18px] transition-[filter,box-shadow] duration-500',
-                                isCenter ? 'shadow-[0_30px_80px_rgba(0,0,0,.55)] ring-1 ring-white/25' : 'shadow-[0_18px_50px_rgba(0,0,0,.45)] ring-1 ring-white/10',
+                                isCenter ? 'shadow-[0_30px_80px_rgba(0,0,0,.55)] ring-1 ring-white/25' : 'shadow-[var(--shadow-panel)] ring-1 ring-white/10',
                             )}
                             style={{ filter: `brightness(${s.brightness}) saturate(${isCenter ? 1 : 0.85})` }}
                         >
@@ -135,7 +135,7 @@ export function Carousel({ items, focus, onFocus, keyboard = true, reduceMotion 
                                         event.stopPropagation();
                                         item.onPlay?.();
                                     }}
-                                    className="absolute bottom-4 right-4 grid h-12 w-12 translate-y-2 place-items-center rounded-full bg-white text-black opacity-0 shadow-[0_10px_30px_rgba(0,0,0,.4)] transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100"
+                                    className="absolute bottom-4 right-4 grid h-12 w-12 translate-y-2 place-items-center rounded-full bg-white text-black opacity-0 shadow-[var(--shadow-float)] transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100"
                                 >
                                     <Play className="ml-0.5 h-5 w-5" fill="currentColor" />
                                 </button>
