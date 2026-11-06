@@ -16,6 +16,7 @@ import { Panel } from './Panel';
 import { FoliaBoundary } from './folia/FoliaBoundary';
 import { isFoliaMode } from './folia/modes';
 import { toast } from '@/store/toast';
+import { MOTION } from '../motion';
 
 // Folia 的动画代码（pixi / three / 各动画）体积不小，选用时才下载
 const FoliaLyrics = lazy(() => import('./folia/FoliaLyrics'));
@@ -90,6 +91,7 @@ export function PlayerView() {
     const lyricState = usePlayer(s => s.lyricState);
     const palette = usePlayer(s => s.palette);
     const panelOpen = useUi(s => s.panelOpen);
+    const searchOpen = useUi(s => s.searchOpen);
     const style = useSettings(s => s.lyricStyle);
     const theme = useTheme(palette);
     const compact = useCompact();
@@ -98,11 +100,12 @@ export function PlayerView() {
 
     return (
         <motion.div
-            className={cx('absolute inset-0 z-[60] overflow-hidden', idle && 'cursor-none')}
+            className={cx('absolute inset-0 z-[60] overflow-hidden', idle && 'cursor-none', searchOpen && 'invisible')}
+            aria-hidden={searchOpen || undefined}
             initial={{ opacity: 0, scale: 1.03 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.03 }}
-            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: MOTION.dur.show, ease: MOTION.ease.out }}
         >
             <Backdrop />
             <div className="drag absolute inset-x-0 top-0 h-16 touch:hidden" />

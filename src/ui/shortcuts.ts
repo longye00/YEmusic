@@ -25,6 +25,8 @@ function closeTopLayer() {
     const s = useUi.getState();
     if (s.menu) return ui.menu(null);
     if (s.dialog || s.settingsOpen) return;
+    // 搜索浮在播放页之上时先关搜索
+    if (s.searchOpen && s.playerOpen) return ui.closeSearch();
     if (s.playerOpen && s.panelOpen) return useUi.setState({ panelOpen: false });
     if (s.playerOpen) return ui.closePlayer();
     if (s.searchOpen) return ui.closeSearch();
@@ -44,6 +46,7 @@ export function handleBack(): boolean {
     const s = useUi.getState();
     if (s.menu) { ui.menu(null); return true; }
     if (s.dialog || s.settingsOpen) { fireEscape(); return true; }
+    if (s.searchOpen && s.playerOpen) { ui.closeSearch(); return true; }
     if (s.playerOpen && s.panelOpen) { useUi.setState({ panelOpen: false }); return true; }
     if (s.playerOpen) { ui.closePlayer(); return true; }
     if (s.searchOpen) { ui.closeSearch(); return true; }

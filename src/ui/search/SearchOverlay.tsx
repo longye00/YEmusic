@@ -8,7 +8,8 @@ import { useLibrary } from '@/store/library';
 import { playTrack } from '@/store/player';
 import { setSetting, useSettings } from '@/store/settings';
 import { ui, useUi } from '@/store/ui';
-import { Chip, EmptyState, IconButton, Spinner } from '../components/common';
+import { Chip, EmptyState, IconButton, Spinner, cx } from '../components/common';
+import { MOTION } from '../motion';
 import { VirtualTrackList } from '../components/TrackList';
 import { MiniPlayer } from '../player/MiniPlayer';
 
@@ -27,6 +28,8 @@ interface ResultState { key: string; list: Track[]; total: number; page: number;
 
 export function SearchOverlay() {
     const query = useUi(s => s.searchQuery);
+    // 在播放页上打开：浮到歌词之上，用更深的 scrim；播放页自身的控件隐藏，只留一套传输控件
+    const overPlayer = useUi(s => s.playerOpen);
     const savedPlatform = useSettings(s => s.searchPlatform);
     const [source, setSource] = useState<SearchSource>(savedPlatform);
     const [text, setText] = useState(query);
@@ -98,7 +101,7 @@ export function SearchOverlay() {
     const hasMore = source !== 'local' && result.list.length < result.total && result.page > 0;
 
     return (
-        <motion.div className="absolute inset-0 z-50 flex flex-col bg-[var(--surface-overlay)] backdrop-blur-2xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+        <motion.div className={cx('absolute inset-0 flex flex-col', overPlayer ? 'z-[70] bg-[rgb(7_7_9/0.72)] backdrop-blur-[24px]' : 'z-50 bg-[var(--surface-overlay)] backdrop-blur-2xl')} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: MOTION.dur.move, ease: MOTION.ease.standard }}>
             <div className="drag absolute inset-x-0 top-0 h-10 touch:hidden" />
             <motion.div className="mx-auto flex w-full max-w-[1080px] min-h-0 flex-1 flex-col px-8 pt-12 max-sm:px-4 max-sm:pt-4" initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 32 }}>
                 <div className="flex items-center gap-3">

@@ -1,5 +1,5 @@
 /** 应用外壳：共享流体背景 + 首页 + 详情 / 搜索 / 播放页浮层 + 全局对话框 */
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { useCallback, useEffect } from 'react';
 import { engine } from '@/player/engine';
 import { usePlayer } from '@/store/player';
@@ -67,6 +67,8 @@ export function App() {
 
     const homeHidden = playerOpen || Boolean(detail);
     return (
+        // 减少动效：framer 的位移 / 缩放 / layout 动画统一关掉（CSS 侧见 .reduce-motion）
+        <MotionConfig reducedMotion={reduceMotion ? 'always' : 'never'}>
         <div className="relative h-full w-full overflow-hidden bg-[#050507] text-white antialiased">
             <SharedBackground />
             {/* 首页 / 详情页背景更克制：叠一层暗色晕影，让封面和文字成为视觉中心 */}
@@ -128,5 +130,6 @@ export function App() {
             <Toasts />
             <WindowControls />
         </div>
+        </MotionConfig>
     );
 }

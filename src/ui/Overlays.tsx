@@ -13,6 +13,7 @@ import { addToQueue, playNext, playTrack } from '@/store/player';
 import { toast, useToasts } from '@/store/toast';
 import { ui, useUi } from '@/store/ui';
 import { Button, Cover, Modal, PlatformTag, Spinner, cx } from './components/common';
+import { MOTION } from './motion';
 import { LoginDialog } from './library/LoginDialog';
 
 // ---------------- 右键菜单 ----------------
@@ -457,27 +458,62 @@ export function Dialogs() {
 export function Toasts() {
     const toasts = useToasts(s => s.toasts);
     const dismiss = useToasts(s => s.dismiss);
+    const hold = useToasts(s => s.hold);
+    const release = useToasts(s => s.release);
+    // 设置 / 对话框打开时挪到顶部，不压住弹窗内容
+    const modal = useUi(s => s.settingsOpen || Boolean(s.dialog));
+    const [open, setOpen] = useState<number | null>(null);
     return (
-        <div className="pointer-events-none fixed inset-x-0 bottom-28 z-[100] flex flex-col items-center gap-2 px-6 max-sm:bottom-[calc(9.5rem+var(--safe-bottom))] max-sm:px-4">
-            <AnimatePresence initial={false}>
-                {toasts.map(t => (
-                    <motion.div
-                        key={t.key || t.id}
-                        layout
-                        initial={{ opacity: 0, y: 16, scale: 0.96 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                        transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                        className="pointer-events-auto flex max-w-[640px] items-center gap-2.5 rounded-full border border-white/10 bg-[var(--surface-float)] py-2 pl-3 pr-4 text-[13px] text-white/90 shadow-[0_12px_40px_rgba(0,0,0,.45)] backdrop-blur-2xl"
-                        onClick={() => dismiss(t.id)}
-                    >
-                        {t.kind === 'success' ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" /> : t.kind === 'error' ? <XCircle className="h-4 w-4 shrink-0 text-red-300" /> : t.kind === 'warning' ? <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" /> : <Info className="h-4 w-4 shrink-0 text-sky-300" />}
-                        <span className="line-clamp-2">{t.message}</span>
-                        {t.action && (
-                            <button type="button" className="ml-1 shrink-0 rounded-full bg-white/10 px-2.5 py-0.5 text-[12px] font-medium hover:bg-white/20" onClick={event => { event.stopPropagation(); t.action!.run(); dismiss(t.id); }}>{t.action.label}</button>
-                        )}
-                    </motion.div>
-                ))}
+        <div
+            role="status"
+            aria-live="polite"
+            className={cx(
+                'pointer-events-none fixed inset-x-0 z-[100] flex flex-col items-center px-6 max-sm:px-4',
+                modal ? 'top-[calc(1rem+var(--safe-top))]' : 'bottom-28 max-sm:bottom-[calc(9.5rem+var(--safe-bottom))]'
+            )}
+        >
+            <AnimatePresence initial={false} mode="popLayout">
+                {toasts.map(t => {
+                    const expanded = open === t.id;
+                    return (
+                        <motion.div
+                            key={t.key || t.id}
+                            layout
+                            initial={{ opacity: 0, y: modal ? -12 : 12, scale: 0.97 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.97 }}
+                            transition={{ duration: MOTION.dur.unfold, ease: MOTION.ease.out }}
+                            onPointerEnter={() => hold(t.id)}
+                            onPointerLeave={() => { if (!expanded) release(t.id); }}
+                            className="ye-glass pointer-events-auto flex max-w-[min(560px,100%)] flex-col rounded-[18px] px-3.5 py-2.5 text-[13px] text-white/90"
+                        >
+                            <div className="flex items-center gap-2.5">
+                                {t.kind === 'success' ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" /> : t.kind === 'error' ? <XCircle className="h-4 w-4 shrink-0 text-red-300" /> : t.kind === 'warning' ? <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" /> : <Info className="h-4 w-4 shrink-0 text-sky-300" />}
+                                <button type="button" className="min-w-0 flex-1 truncate text-left" title="关闭" onClick={() => dismiss(t.id)}>{t.message}</button>
+                                {t.detail && (
+                                    <button
+                                        type="button"
+                                        aria-expanded={expanded}
+                                        className="flex shrink-0 items-center gap-0.5 rounded-full px-2 py-0.5 text-[12px] text-white/55 hover:bg-white/10 hover:text-white/85"
+                                        onClick={() => {
+                                            setOpen(expanded ? null : t.id);
+                                            if (expanded) release(t.id); else hold(t.id);
+                                        }}
+                                    >
+                                        详情
+                                        <ChevronDown className={cx('h-3.5 w-3.5 transition-transform duration-[var(--ye-dur-move)]', expanded && 'rotate-180')} />
+                                    </button>
+                                )}
+                                {t.action && (
+                                    <button type="button" className="shrink-0 rounded-full bg-white/10 px-2.5 py-0.5 text-[12px] font-medium hover:bg-white/20" onClick={() => { t.action!.run(); dismiss(t.id); }}>{t.action.label}</button>
+                                )}
+                            </div>
+                            {expanded && t.detail && (
+                                <pre className="mt-2 max-h-40 select-text overflow-auto whitespace-pre-wrap break-all rounded-[10px] bg-black/25 px-2.5 py-2 font-mono text-[11.5px] leading-relaxed text-white/60">{t.detail}</pre>
+                            )}
+                        </motion.div>
+                    );
+                })}
             </AnimatePresence>
         </div>
     );
