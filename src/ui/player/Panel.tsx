@@ -42,7 +42,7 @@ function cycle<T>(list: T[], value: T, dir: number): T {
 
 function Tile({ active, onClick, children, label, text }: { active?: boolean; onClick: () => void; children: ReactNode; label: string; text?: string }) {
     return (
-        <button type="button" title={label} aria-label={label} onClick={onClick} className={cx('flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-2 text-[12.5px] font-semibold transition-colors', active ? 'bg-white/[0.22] text-white' : 'bg-white/[0.09] text-white/80 hover:bg-white/[0.15] hover:text-white')}>
+        <button type="button" title={label} aria-label={label} onClick={onClick} className={cx('flex h-12 min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-2 text-[12.5px] font-semibold transition-colors', active ? 'bg-[var(--ui-selected)] text-white' : 'bg-[var(--ui-idle)] text-white/80 hover:bg-[var(--ui-hover)] hover:text-white')}>
             {children}
             {text && <span className="truncate">{text}</span>}
         </button>
@@ -100,7 +100,7 @@ function SongTab() {
 
 function StyleTile({ active, name, sub, onClick }: { active: boolean; name: string; sub: string; onClick: () => void }) {
     return (
-        <button type="button" onClick={onClick} className={cx('flex h-11 min-w-0 flex-col items-start justify-center rounded-xl px-3 text-left transition-colors', active ? 'bg-white/[0.22] text-white' : 'bg-white/[0.08] text-white/75 hover:bg-white/[0.14] hover:text-white')}>
+        <button type="button" onClick={onClick} className={cx('flex h-11 min-w-0 flex-col items-start justify-center rounded-xl px-3 text-left transition-colors', active ? 'bg-[var(--ui-selected)] text-white' : 'bg-[var(--ui-idle)] text-white/75 hover:bg-[var(--ui-hover)] hover:text-white')}>
             <span className="max-w-full truncate text-[12.5px] font-semibold leading-tight">{name}</span>
             <span className={cx('max-w-full truncate text-[10px] leading-tight', active ? 'text-white/60' : 'text-white/35')}>{sub}</span>
         </button>
@@ -157,27 +157,33 @@ function LyricsTab({ theme }: { theme: Theme }) {
             <Segmented size="sm" className="w-full [&>button]:flex-1" value={s.lyricFont} onChange={v => setSetting('lyricFont', v)} options={[{ value: 'sans', label: '黑体' }, { value: 'serif', label: '宋体' }]} />
             <Row>
                 <span className="w-12 text-[12px] text-white/50">字号</span>
-                <Slider value={s.lyricScale} min={0.6} max={1.6} step={0.05} onChange={v => setSetting('lyricScale', v)} className="flex-1" />
+                <Slider value={s.lyricScale} min={0.6} max={1.6} step={0.05} onChange={v => setSetting('lyricScale', v)} className="flex-1" label="歌词字号" valueText={`${Math.round(s.lyricScale * 100)}%`} />
                 <span className="w-10 text-right font-mono text-[11px] text-white/60">{Math.round(s.lyricScale * 100)}%</span>
             </Row>
+            {/* 这首歌根本没有翻译 / 罗马音时，开关原先仍是可点的，拨了没有任何变化，看着像坏了。
+                现在直接禁用并把原因写在标题里。 */}
             <Row>
-                <span className="flex-1 text-[12px] text-white/70">显示翻译{lyric && !lyric.hasTrans ? '（本曲无）' : ''}</span>
-                <Switch checked={s.showTranslation} onChange={v => setSetting('showTranslation', v)} />
+                <span className="flex-1 text-[12px] text-white/70">
+                    显示翻译{lyric && !lyric.hasTrans ? <span className="text-white/35">（本曲没有翻译）</span> : ''}
+                </span>
+                <Switch checked={s.showTranslation} disabled={Boolean(lyric && !lyric.hasTrans)} onChange={v => setSetting('showTranslation', v)} />
             </Row>
             <Row>
-                <span className="flex-1 text-[12px] text-white/70">显示罗马音{lyric && !lyric.hasRoma ? '（本曲无）' : ''}</span>
-                <Switch checked={s.showRoma} onChange={v => setSetting('showRoma', v)} />
+                <span className="flex-1 text-[12px] text-white/70">
+                    显示罗马音{lyric && !lyric.hasRoma ? <span className="text-white/35">（本曲没有罗马音）</span> : ''}
+                </span>
+                <Switch checked={s.showRoma} disabled={Boolean(lyric && !lyric.hasRoma)} onChange={v => setSetting('showRoma', v)} />
             </Row>
             <Row>
                 <span className="flex-1 text-[12px] text-white/70">歌词偏移</span>
-                <button type="button" onClick={() => setSetting('lyricOffset', s.lyricOffset - 250)} className="grid h-7 w-7 place-items-center rounded-full bg-white/10 hover:bg-white/20" title="提前 0.25 秒"><Minus className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => setSetting('lyricOffset', s.lyricOffset - 250)} className="grid h-7 w-7 place-items-center rounded-full bg-[var(--ui-idle)] hover:bg-[var(--ui-hover)]" title="提前 0.25 秒"><Minus className="h-3.5 w-3.5" /></button>
                 <span className="w-16 text-center font-mono text-[11px]">{s.lyricOffset > 0 ? '+' : ''}{(s.lyricOffset / 1000).toFixed(2)}s</span>
-                <button type="button" onClick={() => setSetting('lyricOffset', s.lyricOffset + 250)} className="grid h-7 w-7 place-items-center rounded-full bg-white/10 hover:bg-white/20" title="延后 0.25 秒"><Plus className="h-3.5 w-3.5" /></button>
+                <button type="button" onClick={() => setSetting('lyricOffset', s.lyricOffset + 250)} className="grid h-7 w-7 place-items-center rounded-full bg-[var(--ui-idle)] hover:bg-[var(--ui-hover)]" title="延后 0.25 秒"><Plus className="h-3.5 w-3.5" /></button>
                 <button type="button" onClick={() => setSetting('lyricOffset', 0)} className="grid h-7 w-7 place-items-center rounded-full text-white/50 hover:text-white" title="重置"><RotateCcw className="h-3.5 w-3.5" /></button>
             </Row>
             <div className="flex items-center gap-2">
-                <button type="button" onClick={() => reloadLyric()} className="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-white/[0.09] text-[12px] hover:bg-white/[0.15]">{lyricState === 'loading' ? <Spinner className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5" />}重新获取</button>
-                <button type="button" onClick={() => fileRef.current?.click()} className="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-white/[0.09] text-[12px] hover:bg-white/[0.15]"><FileUp className="h-3.5 w-3.5" />导入 .lrc</button>
+                <button type="button" onClick={() => reloadLyric()} className="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ui-idle)] text-[12px] hover:bg-[var(--ui-hover)]">{lyricState === 'loading' ? <Spinner className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5" />}重新获取</button>
+                <button type="button" onClick={() => fileRef.current?.click()} className="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ui-idle)] text-[12px] hover:bg-[var(--ui-hover)]"><FileUp className="h-3.5 w-3.5" />导入 .lrc</button>
                 <input
                     ref={fileRef}
                     type="file"
@@ -225,7 +231,7 @@ function ControlsTab({ theme }: { theme: Theme }) {
                 onPrev={() => setSetting('lyricStyle', cycle<LyricStyle>(ALL_STYLES, s.lyricStyle, -1))}
                 onNext={() => setSetting('lyricStyle', cycle<LyricStyle>(ALL_STYLES, s.lyricStyle, 1))}
                 extra={
-                    <button type="button" onClick={() => setSetting('lyricIntensity', cycle<LyricIntensity>(['calm', 'normal', 'chaotic'], s.lyricIntensity, 1))} className="h-7 shrink-0 rounded-lg bg-white/[0.18] px-2 text-[11px] font-semibold hover:bg-white/25" title="动效强度">
+                    <button type="button" onClick={() => setSetting('lyricIntensity', cycle<LyricIntensity>(['calm', 'normal', 'chaotic'], s.lyricIntensity, 1))} className="h-7 shrink-0 rounded-lg bg-[var(--ui-hover)] px-2 text-[11px] font-semibold hover:bg-[var(--ui-selected)]" title="动效强度">
                         {INTENSITY_NAMES[s.lyricIntensity]}
                     </button>
                 }
@@ -236,14 +242,14 @@ function ControlsTab({ theme }: { theme: Theme }) {
                 onPrev={() => setSetting('background', cycle<BackgroundMode>(['latent', 'blur', 'solid'], s.background, -1))}
                 onNext={() => setSetting('background', cycle<BackgroundMode>(['latent', 'blur', 'solid'], s.background, 1))}
                 extra={
-                    <button type="button" onClick={() => setSetting('dither', !s.dither)} className={cx('h-7 shrink-0 rounded-lg px-2 text-[11px] font-semibold', s.dither ? 'bg-white/[0.18]' : 'bg-white/[0.06] text-white/45')} title="半色调网点">
+                    <button type="button" onClick={() => setSetting('dither', !s.dither)} className={cx('h-7 shrink-0 rounded-lg px-2 text-[11px] font-semibold', s.dither ? 'bg-[var(--ui-selected)]' : 'bg-[var(--ui-idle)] text-white/45')} title="半色调网点">
                         网点
                     </button>
                 }
             />
             <div className="flex items-center gap-1 rounded-2xl bg-black/20 p-1">
                 {([['default', '默认', '#05050a'], ['cover', '封面取色', css(theme.accent)], ['custom', '自定义', s.customAccent]] as const).map(([value, label, dot]) => (
-                    <button key={value} type="button" onClick={() => setSetting('theme', value)} className={cx('flex h-8 flex-1 items-center justify-center gap-1.5 rounded-xl text-[11.5px] transition-colors', s.theme === value ? 'bg-white/[0.2] font-semibold text-white' : 'text-white/50 hover:text-white/80')}>
+                    <button key={value} type="button" onClick={() => setSetting('theme', value)} className={cx('flex h-8 flex-1 items-center justify-center gap-1.5 rounded-xl text-[11.5px] transition-colors', s.theme === value ? 'bg-[var(--ui-selected)] font-semibold text-white' : 'text-white/50 hover:text-white/80')}>
                         <span className="h-2.5 w-2.5 rounded-full ring-1 ring-white/30" style={{ background: dot }} />
                         {label}
                     </button>
@@ -278,7 +284,7 @@ function QueueTab() {
             </div>
             <div ref={listRef} className="scroll-thin max-h-[300px] space-y-1 overflow-y-auto pr-1">
                 {queue.map((track, i) => (
-                    <div key={`${track.id}-${i}`} className={cx('group flex items-center gap-2.5 rounded-xl px-2 py-1.5', i === index ? 'bg-white/[0.14]' : 'hover:bg-white/[0.07]')}>
+                    <div key={`${track.id}-${i}`} className={cx('group flex items-center gap-2.5 rounded-xl px-2 py-1.5', i === index ? 'bg-[var(--ui-hover)]' : 'hover:bg-[var(--ui-idle)]')}>
                         <button type="button" className="flex min-w-0 flex-1 items-center gap-2.5 text-left" onClick={() => playTrack(track)}>
                             <Cover src={track.cover} size={36} seed={track.name} className="h-9 w-9 shrink-0" rounded="rounded-lg" />
                             <div className="min-w-0 flex-1">
@@ -322,7 +328,7 @@ function SourceTab() {
                     {qualities.map(q => {
                         const size = current.qualities?.find(x => x.type === q)?.size;
                         return (
-                            <button key={q} type="button" onClick={() => switchPlayback({ quality: q as Quality })} className={cx('flex h-10 flex-col items-center justify-center rounded-xl text-[12px] transition-colors', resolved?.quality === q ? 'bg-white text-black' : 'bg-white/[0.08] hover:bg-white/[0.15]')}>
+                            <button key={q} type="button" onClick={() => switchPlayback({ quality: q as Quality })} className={cx('flex h-10 flex-col items-center justify-center rounded-xl text-[12px] transition-colors', resolved?.quality === q ? 'bg-white text-black' : 'bg-[var(--ui-idle)] hover:bg-[var(--ui-hover)]')}>
                                 <span className="font-semibold leading-tight">{QUALITY_NAMES[q]}</span>
                                 {size && <span className={cx('font-mono text-[9.5px] leading-tight', resolved?.quality === q ? 'text-black/55' : 'text-white/40')}>{size}</span>}
                             </button>
@@ -338,17 +344,36 @@ function SourceTab() {
                         const supports = rt?.sources?.[platform as 'kw'];
                         const usable = rt?.status === 'ready' && supports?.actions.includes('musicUrl');
                         const fails = rt?.platformFailures?.[platform] || 0;
+                        // 停用行原先只是 opacity-40 加一个 10px 的等宽词，看着像坏掉的按钮。
+                        // 这里把原因写清楚：hover 提示说明为什么点不了，右侧词也换成完整说法。
+                        const state = rt?.status === 'loading'
+                            ? { word: '启动中', why: '音源脚本正在启动，稍等片刻即可选择' }
+                            : rt?.status === 'error'
+                                ? { word: '已失效', why: '音源脚本启动失败或已失效，可在「设置 → 音源」中重新导入' }
+                                : !supports?.actions.includes('musicUrl')
+                                    ? { word: '不支持', why: `这个音源不提供${PLATFORM_NAMES[platform]}的取链接口` }
+                                    : { word: (supports?.qualitys || []).map(q => q.replace('flac24bit', 'HR').replace('flac', 'SQ')).join('/'), why: `用这个音源重新获取${PLATFORM_NAMES[platform]}链接` };
                         return (
-                            <button key={r.id} type="button" disabled={!usable} onClick={() => switchPlayback({ onlySource: r.id })} className={cx('flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors disabled:opacity-40', resolved?.sourceId === r.id ? 'bg-white/[0.16]' : 'hover:bg-white/[0.08]')}>
+                            <button
+                                key={r.id}
+                                type="button"
+                                title={state.why}
+                                disabled={!usable}
+                                onClick={() => switchPlayback({ onlySource: r.id })}
+                                className={cx(
+                                    'flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors',
+                                    usable ? (resolved?.sourceId === r.id ? 'bg-[var(--ui-hover)]' : 'hover:bg-[var(--ui-idle)]') : 'cursor-not-allowed opacity-45',
+                                )}
+                            >
                                 <span className={cx('h-2 w-2 shrink-0 rounded-full', rt?.status === 'ready' ? (fails >= 2 ? 'bg-amber-300' : 'bg-emerald-400') : rt?.status === 'loading' ? 'bg-sky-300' : 'bg-red-400')} />
                                 <span className="min-w-0 flex-1 truncate text-[12.5px]">{r.name}</span>
-                                <span className="font-mono text-[10px] text-white/40">{usable ? (supports?.qualitys || []).map(q => q.replace('flac24bit', 'HR').replace('flac', 'SQ')).join('/') : rt?.status === 'loading' ? '启动中' : rt?.status === 'error' ? '失效' : '不支持'}</span>
+                                <span className={cx('shrink-0 text-[10.5px]', usable ? 'font-mono text-white/45' : 'text-white/55')}>{state.word}</span>
                             </button>
                         );
                     })}
                 </div>
             </div>
-            <button type="button" onClick={() => switchPlayback({})} className="flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-white/[0.09] text-[12px] hover:bg-white/[0.15]"><RefreshCw className="h-3.5 w-3.5" />重新获取链接</button>
+            <button type="button" onClick={() => switchPlayback({})} className="flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-[var(--ui-idle)] text-[12px] hover:bg-[var(--ui-hover)]"><RefreshCw className="h-3.5 w-3.5" />重新获取链接</button>
             <button type="button" onClick={() => ui.openSettings('sources')} className="w-full text-center text-[11px] text-white/40 hover:text-white/70">管理音源…</button>
         </div>
     );
@@ -377,7 +402,7 @@ export function Panel({ theme }: { theme: Theme }) {
             )}
             <div className="mb-4 flex shrink-0 items-center gap-1 rounded-2xl bg-black/20 p-1">
                 {TABS.map(t => (
-                    <button key={t.id} type="button" title={t.label} onClick={() => useUi.setState({ panelTab: t.id })} className={cx('grid h-9 flex-1 place-items-center rounded-xl transition-colors', tab === t.id ? 'bg-white/[0.18] text-white' : 'text-white/45 hover:text-white/80')}>
+                    <button key={t.id} type="button" title={t.label} onClick={() => useUi.setState({ panelTab: t.id })} className={cx('grid h-9 flex-1 place-items-center rounded-xl transition-colors', tab === t.id ? 'bg-[var(--ui-selected)] text-white' : 'text-white/45 hover:text-white/80')}>
                         <t.icon className="h-4 w-4" />
                     </button>
                 ))}

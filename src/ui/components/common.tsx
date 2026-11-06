@@ -34,8 +34,8 @@ type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { label?: strin
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton({ label, active, size = 'md', variant = 'ghost', className = '', children, ...rest }, ref) {
     const sizes = { sm: 'h-8 w-8', md: 'h-10 w-10', lg: 'h-12 w-12' };
     const variants = {
-        ghost: active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white',
-        glass: active ? 'bg-white/25 text-white' : 'bg-white/10 text-white/85 backdrop-blur-xl hover:bg-white/20 hover:text-white',
+        ghost: active ? 'bg-[var(--ui-selected)] text-white' : 'text-white/70 hover:bg-[var(--ui-hover)] hover:text-white',
+        glass: active ? 'bg-[var(--ui-selected)] text-white' : 'bg-[var(--ui-idle)] text-white/85 backdrop-blur-xl hover:bg-[var(--ui-hover)] hover:text-white',
         solid: 'bg-black/35 text-white/85 backdrop-blur-xl hover:bg-black/50 hover:text-white',
         white: 'bg-white text-black hover:bg-white/90',
     };
@@ -48,10 +48,10 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
 
 export function Button({ children, variant = 'glass', className = '', ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'glass' | 'white' | 'danger' | 'ghost' }) {
     const variants = {
-        glass: 'bg-white/10 hover:bg-white/[0.16] text-white border border-white/10',
+        glass: 'bg-[var(--ui-idle)] hover:bg-[var(--ui-hover)] text-white border border-white/10',
         white: 'bg-white text-black hover:bg-white/90',
         danger: 'bg-red-500/15 text-red-300 hover:bg-red-500/25 border border-red-400/20',
-        ghost: 'text-white/70 hover:text-white hover:bg-white/10',
+        ghost: 'text-white/70 hover:text-white hover:bg-[var(--ui-hover)]',
     };
     return (
         <button type="button" className={cx('no-drag inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-40', variants[variant], className)} {...rest}>
@@ -168,7 +168,7 @@ export function Switch({ checked, onChange, disabled }: { checked: boolean; onCh
 
 export function Segmented<T extends string>({ value, options, onChange, size = 'md', className = '' }: { value: T; options: { value: T; label: ReactNode; icon?: ReactNode }[]; onChange: (v: T) => void; size?: 'sm' | 'md'; className?: string }) {
     return (
-        <div className={cx('no-drag inline-flex items-center gap-0.5 rounded-full bg-white/[0.08] p-1', className)}>
+        <div className={cx('no-drag inline-flex items-center gap-0.5 rounded-full bg-[var(--ui-idle)] p-1', className)}>
             {options.map(option => (
                 <button
                     key={option.value}
@@ -190,7 +190,7 @@ export function Segmented<T extends string>({ value, options, onChange, size = '
 
 export function Chip({ active, children, onClick, className = '' }: { active?: boolean; children: ReactNode; onClick?: () => void; className?: string }) {
     return (
-        <button type="button" onClick={onClick} className={cx('no-drag inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium transition-colors', active ? 'bg-white text-black' : 'bg-white/[0.08] text-white/80 hover:bg-white/[0.14]', className)}>
+        <button type="button" onClick={onClick} className={cx('no-drag inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium transition-colors', active ? 'bg-white text-black' : 'bg-[var(--ui-idle)] text-white/80 hover:bg-[var(--ui-hover)]', className)}>
             {children}
         </button>
     );

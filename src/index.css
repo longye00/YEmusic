@@ -49,6 +49,12 @@
     --surface-card: rgb(23 22 31 / 0.95);
     --surface-float: rgb(29 27 38 / 0.95);
     --surface-input: #17161f;
+    /* 交互态色阶：静止 / 悬停 / 选中。原先各处各写各的（[0.06] [0.07] [0.08] [0.09] 当静止，
+       [0.12] [0.13] [0.14] [0.15] [0.16] 当悬停，[0.18] [0.2] [0.22] 当选中），
+       相邻控件深浅不一，播放面板与设置里各是一套。统一成三档，与主题无关（白叠加）。 */
+    --ui-idle: rgb(255 255 255 / 0.07);
+    --ui-hover: rgb(255 255 255 / 0.13);
+    --ui-selected: rgb(255 255 255 / 0.2);
     /* 底部手势条 / 导航条的安全区高度：当前 WebView 排在系统栏之内时为 0，
        edge-to-edge（Android 15+ 强制）下自动生效，底部悬浮控件统一引用它 */
     --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -721,6 +727,15 @@
 .lite *::after {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+}
+/* 去模糊之后浮层就失去了「压住亮背景」的手段：对话框、设置、右键菜单、Toast、搜索页
+   的底色原本带 12%~45% 透明度，靠 backdrop-blur 补足对比。浮层底色这一组由
+   ui/theme.ts 的 syncThemeVars() 写成内联样式，内联样式压不过 .lite 类选择器，
+   所以那部分在 TS 里按 lite 分支处理；这里只覆盖没有内联来源的三档白叠加。 */
+.lite {
+    --ui-idle: rgb(255 255 255 / 0.1);
+    --ui-hover: rgb(255 255 255 / 0.17);
+    --ui-selected: rgb(255 255 255 / 0.25);
 }
 /* 书签：不画噪点纸纹和大范围阴影 */
 .lite .seam {
