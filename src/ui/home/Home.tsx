@@ -225,7 +225,7 @@ function CarouselHome() {
                 <button
                     type="button"
                     onClick={() => ui.openSearch()}
-                    className="no-drag flex h-10 w-[248px] items-center gap-2.5 rounded-full border border-white/[0.14] bg-white/[0.04] px-4 text-left text-[13px] text-white/40 backdrop-blur-xl transition-colors hover:border-white/25 hover:bg-white/[0.08]"
+                    className="no-drag flex h-10 w-[248px] items-center gap-2.5 rounded-full border border-white/[0.14] bg-white/[0.04] lite:bg-white/[0.1] px-4 text-left text-[13px] text-white/40 lite:text-white/60 backdrop-blur-xl transition-colors hover:border-white/25 hover:bg-white/[0.08]"
                 >
                     <Search className="h-4 w-4 text-white/55" />
                     <span className="flex-1 truncate">搜索歌曲、歌手…</span>

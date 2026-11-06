@@ -270,7 +270,7 @@ export function DetailView() {
 
                 <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 240, damping: 30, delay: 0.04 }} className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <div className="mb-3 flex items-center gap-3">
-                        <div className="flex h-10 flex-1 items-center gap-2 rounded-full border border-white/10 bg-black/20 px-4 backdrop-blur-xl focus-within:border-white/25">
+                        <div className="flex h-10 flex-1 items-center gap-2 rounded-full border border-white/10 bg-black/20 lite:bg-black/60 px-4 backdrop-blur-xl focus-within:border-white/25">
                             <Search className="h-4 w-4 text-white/40" />
                             <input value={filter} onChange={e => setFilter(e.target.value)} placeholder={`在「${title}」中搜索`} className="h-full flex-1 bg-transparent text-[13px] outline-none placeholder:text-white/30" />
                         </div>

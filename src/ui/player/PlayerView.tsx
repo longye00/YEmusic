@@ -51,7 +51,7 @@ function CoverHero({ note, busy }: { note?: string; busy?: boolean }) {
                 <div className="truncate text-[30px] font-bold tracking-tight text-shadow-soft">{current.name}</div>
                 <div className="mt-1 truncate text-[15px] text-white/60">{current.singer}{current.album ? ` • ${current.album}` : ''}</div>
             </div>
-            {note && <div className="flex items-center gap-2 rounded-full bg-black/25 px-4 py-1.5 text-[12px] text-white/60 backdrop-blur-xl">{busy && <Spinner className="h-3.5 w-3.5" />}{note}</div>}
+            {note && <div className="flex items-center gap-2 rounded-full bg-black/25 lite:bg-black/65 px-4 py-1.5 text-[12px] text-white/60 lite:text-white/80 backdrop-blur-xl">{busy && <Spinner className="h-3.5 w-3.5" />}{note}</div>}
         </motion.div>
     );
 }
@@ -130,7 +130,7 @@ export function PlayerView() {
             </div>
 
             {current && status === 'loading' && hasLyric && (
-                <div className="absolute left-1/2 top-6 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/30 px-4 py-1.5 text-[12px] text-white/70 backdrop-blur-xl"><Spinner className="h-3.5 w-3.5" />{statusText || '正在加载…'}</div>
+                <div className="absolute left-1/2 top-6 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/30 lite:bg-black/70 px-4 py-1.5 text-[12px] text-white/70 lite:text-white/85 backdrop-blur-xl"><Spinner className="h-3.5 w-3.5" />{statusText || '正在加载…'}</div>
             )}
 
             <motion.div className={cx('absolute z-20 flex items-center gap-3', compact ? 'left-3 top-3' : 'left-6 top-6', idle && 'pointer-events-none')} animate={{ opacity: idle ? 0 : 1 }} transition={{ duration: 0.4 }}>
