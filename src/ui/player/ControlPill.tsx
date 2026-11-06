@@ -72,7 +72,7 @@ function DesktopPill({ variant, idle, maxWidth }: { variant: 'home' | 'player'; 
                 {current ? (
                     <div className="flex w-full items-center gap-3">
                         <span className="w-10 shrink-0 text-right font-mono text-[10px] text-white/45">{formatTime(time)}</span>
-                        <Slider value={time} max={duration || 1} onCommit={v => seek(v)} className="flex-1" trackClass="h-[5px]" fillClass="bg-white" thumb={expanded} />
+                        <Slider value={time} max={duration || 1} onCommit={v => seek(v)} className="flex-1" trackClass="h-[5px]" fillClass="bg-white" thumb={expanded} label="播放进度" valueText={`${formatTime(time)} / ${formatTime(duration)}`} />
                         <span className="w-10 shrink-0 font-mono text-[10px] text-white/45">{formatTime(duration)}</span>
                     </div>
                 ) : (
@@ -177,7 +177,7 @@ function CompactPill({ variant, idle }: { variant: 'home' | 'player'; idle?: boo
             </div>
             <div className="mt-0.5 flex items-center gap-2 px-1.5">
                 <span className="w-9 shrink-0 text-right font-mono text-[10px] text-white/45">{formatTime(time)}</span>
-                <Slider value={time} max={duration || 1} onCommit={v => seek(v)} className="flex-1" trackClass="h-[4px]" fillClass="bg-white" thumb={false} />
+                <Slider value={time} max={duration || 1} onCommit={v => seek(v)} className="flex-1" trackClass="h-[4px]" fillClass="bg-white" thumb={false} label="播放进度" valueText={`${formatTime(time)} / ${formatTime(duration)}`} />
                 <span className="w-9 shrink-0 font-mono text-[10px] text-white/45">{formatTime(duration)}</span>
             </div>
         </div>

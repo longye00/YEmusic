@@ -27,7 +27,9 @@ if (!process.argv.includes('--skip-web')) {
     run('npx', ['cap', 'sync', 'android']);
 }
 
-run(win ? 'gradlew.bat' : './gradlew', ['assembleRelease'], path.join(root, 'android'));
+// Windows 上写 .\ 前缀：设置了 NoDefaultCurrentDirectoryInExePath 的环境里 cmd 不搜当前目录，
+// 裸写 gradlew.bat 会报“不是内部或外部命令”。
+run(win ? '.\\gradlew.bat' : './gradlew', ['assembleRelease'], path.join(root, 'android'));
 
 const outDir = path.join(root, 'android', 'app', 'build', 'outputs', 'apk', 'release');
 const signed = path.join(outDir, 'app-release.apk');

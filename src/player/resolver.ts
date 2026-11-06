@@ -9,7 +9,7 @@
 import { host } from '@/lib/host';
 import { normalizeArtist, normalizeTitle } from '@/lib/util';
 import { sdks } from '@/sdk';
-import { OFFICIAL_SOURCE_ID, officialAvailable, officialUrl } from '@/sdk/official';
+import { OFFICIAL_SOURCE_ID, officialAvailable, officialLoggedIn, officialUrl } from '@/sdk/official';
 import { PLATFORM_NAMES, PLATFORMS, QUALITY_NAMES, QUALITY_ORDER, type Platform, type Quality, type Track } from '@/sdk/types';
 import { callSource, isAggregateSource, markSourceResult, sourcesFor, useSources } from '@/store/sources';
 import { useSettings } from '@/store/settings';
@@ -335,6 +335,14 @@ async function resolveOnPlatform(track: Track, options: ResolveOptions, errors: 
         }
         if (result && !weak) weak = result;
         if (sources.length && skip.size >= sources.length) break;
+    }
+    // 只走了官方通道（音源脚本被全部停用）却什么都没拿到：不能只说“音源不可用”，
+    // 那样会让人以为是音源的问题，实际是平台没给链接（登录态失效 / 没有这首歌的会员权益 / 已下架）
+    if (official && !sources.length && !weak && !officialLower) {
+        const loggedIn = officialLoggedIn(platform);
+        errors.push(loggedIn
+            ? `${PLATFORM_NAMES[platform]}官方：没有给出可用的链接（这首歌可能已下架，或账号没有对应的会员权益）`
+            : `${PLATFORM_NAMES[platform]}官方：需要登录后才能取链，可在乐库中登录`);
     }
     // 降档的官方链接（已探测可用）比"未确认"的 weak 链接更值得用
     return officialLower || weak;

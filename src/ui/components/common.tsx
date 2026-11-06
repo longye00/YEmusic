@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { forwardRef, useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, Music2, X } from 'lucide-react';
 import { seededRandom, thumbUrl } from '@/lib/util';
@@ -64,26 +64,71 @@ export function Spinner({ className = 'h-4 w-4' }: { className?: string }) {
     return <Loader2 className={cx('animate-spin', className)} />;
 }
 
-/** 自绘滑块：拖动时实时回调，松开时 onCommit */
-export function Slider({ value, max = 1, min = 0, step = 0, onChange, onCommit, className = '', trackClass = 'h-1', fillClass = 'bg-white', thumb = true, buffered, disabled }: {
+/** 自绘滑块：拖动时实时回调，松开时 onCommit；键盘方向键 / Home / End / PageUp / PageDown 可用 */
+export function Slider({ value, max = 1, min = 0, step = 0, onChange, onCommit, className = '', trackClass = 'h-1', fillClass = 'bg-white', thumb = true, buffered, disabled, label, valueText }: {
     value: number; max?: number; min?: number; step?: number; onChange?: (v: number) => void; onCommit?: (v: number) => void;
     className?: string; trackClass?: string; fillClass?: string; thumb?: boolean; buffered?: number; disabled?: boolean;
+    /** 无障碍名称：读屏会念出来 */
+    label?: string;
+    /** 读屏播报的值；不传则念数字 */
+    valueText?: string;
 }) {
     const ref = useRef<HTMLDivElement>(null);
     const [drag, setDrag] = useState<number | null>(null);
     const shown = drag ?? value;
     const range = max - min || 1;
     const pct = Math.max(0, Math.min(1, (shown - min) / range)) * 100;
+    const clamp = (v: number) => Math.max(min, Math.min(max, v));
+    // 没有 step 时按量程的 5% 走一格（音量、进度条都是这种）；有 step 就用 step
+    const unit = step || range / 20;
     const calc = useCallback((clientX: number) => {
         const rect = ref.current!.getBoundingClientRect();
         let v = min + Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) * range;
         if (step) v = Math.round(v / step) * step;
         return v;
     }, [min, range, step]);
+
+    /**
+     * 键盘操作：原先只有指针事件，音量 / 进度 / 均衡器 / 歌词偏移全都点不到键盘，
+     * 桌面端等于不可用。这里补齐 role / aria 与按键，并把结果对齐到 step。
+     */
+    const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+        if (disabled) return;
+        const big = unit * 5;
+        let next: number | null = null;
+        switch (event.key) {
+            case 'ArrowLeft': case 'ArrowDown': next = clamp(value - unit); break;
+            case 'ArrowRight': case 'ArrowUp': next = clamp(value + unit); break;
+            case 'PageDown': next = clamp(value - big); break;
+            case 'PageUp': next = clamp(value + big); break;
+            case 'Home': next = min; break;
+            case 'End': next = max; break;
+            default: return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        if (step) next = clamp(Math.round(next / step) * step);
+        // 浮点累加会留下 0.30000000000000004 这种尾巴，按 step 的小数位收一下
+        if (step) { const d = (String(step).split('.')[1] || '').length; next = Number(next.toFixed(Math.min(d + 2, 6))); }
+        if (next === value) return;
+        onChange?.(next);
+        onCommit?.(next);
+    };
+
     return (
         <div
             ref={ref}
-            className={cx('no-drag group relative flex h-4 cursor-pointer touch-none items-center touch:h-8', disabled && 'pointer-events-none opacity-40', className)}
+            role="slider"
+            tabIndex={disabled ? -1 : 0}
+            aria-label={label}
+            aria-valuemin={min}
+            aria-valuemax={max}
+            aria-valuenow={Number(shown.toFixed(4))}
+            aria-valuetext={valueText}
+            aria-disabled={disabled || undefined}
+            aria-orientation="horizontal"
+            onKeyDown={onKeyDown}
+            className={cx('no-drag group relative flex h-4 cursor-pointer touch-none items-center outline-none touch:h-8', disabled ? 'pointer-events-none opacity-40' : 'focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-white/45', className)}
             onPointerDown={event => {
                 (event.target as HTMLElement).setPointerCapture(event.pointerId);
                 const v = calc(event.clientX);
@@ -108,7 +153,7 @@ export function Slider({ value, max = 1, min = 0, step = 0, onChange, onCommit, 
                 {buffered !== undefined && <div className="absolute inset-y-0 left-0 rounded-full bg-white/15" style={{ width: `${Math.max(0, Math.min(1, (buffered - min) / range)) * 100}%` }} />}
                 <div className={cx('absolute inset-y-0 left-0 rounded-full', fillClass)} style={{ width: `${pct}%` }} />
             </div>
-            {thumb && <div className={cx('absolute h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,.35)] transition-transform', drag !== null ? 'scale-110' : 'scale-0 group-hover:scale-100')} style={{ left: `${pct}%` }} />}
+            {thumb && <div className={cx('absolute h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,.35)] transition-transform', drag !== null ? 'scale-110' : 'scale-0 group-hover:scale-100 group-focus-visible:scale-100')} style={{ left: `${pct}%` }} />}
         </div>
     );
 }
@@ -188,7 +233,7 @@ export function Modal({ open, onClose, children, className = '', title, wide }: 
             {open && (
                 <motion.div className="fixed inset-0 z-[80] grid place-items-center bg-black/55 p-6 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
                     <motion.div
-                        className={cx('relative max-h-full overflow-hidden rounded-[28px] border border-white/10 bg-[rgba(23,22,31,0.95)] shadow-[0_40px_120px_rgba(0,0,0,.6)]', wide ? 'w-[min(920px,100%)]' : 'w-[min(440px,100%)]', className)}
+                        className={cx('relative max-h-full overflow-hidden rounded-[28px] border border-white/10 bg-[var(--surface-card)] shadow-[0_40px_120px_rgba(0,0,0,.6)]', wide ? 'w-[min(920px,100%)]' : 'w-[min(440px,100%)]', className)}
                         initial={{ opacity: 0, scale: 0.94, y: 16 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 8 }}

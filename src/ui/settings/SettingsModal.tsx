@@ -21,6 +21,7 @@ import { checkForUpdateManually } from '@/lib/updater';
 import { ACCOUNT_META, ACCOUNT_PLATFORMS, logoutAccount, useAccounts } from '@/store/accounts';
 import { PlatformBadge } from '../library/LoginPanel';
 import { FOLIA_MODES } from '../player/folia/modes';
+import { css, useTheme } from '../theme';
 import { Button, IconButton, Segmented, Slider, Spinner, Switch, cx } from '../components/common';
 
 const TABS: { id: SettingsTab; label: string; icon: typeof Play }[] = [
@@ -465,13 +466,18 @@ function LibraryTab() {
 
 const SHORTCUTS: [string, string][] = [
     ['空格', '播放 / 暂停'],
+    ['多媒体键', '播放 / 暂停、上一首、下一首、停止、音量、静音（输入框里也生效）'],
     ['Ctrl + → / ←', '下一首 / 上一首'],
     ['→ / ←', '播放页：快进 / 快退 5 秒；封面流：切换封面；乐库：平移'],
     ['拖动 / 滚轮', '乐库：平移拼贴墙（Shift + 方向键一次移动 3 格）'],
+    ['双击', '乐库 / 封面流：直接播放，不打开详情'],
+    ['回车', '封面流：打开当前聚焦的封面'],
+    ['Tab + 方向键', '任何滑块：聚焦后用 ← → 微调，PageUp / PageDown 粗调，Home / End 到头'],
     ['/', '乐库：过滤当前页'],
     ['Home', '乐库：回到起点'],
     ['↑ / ↓', '播放页：音量 +/- 5%'],
     ['Ctrl + K / Ctrl + F', '搜索'],
+    ['搜索框内 ↑↓ / Enter', '选择结果 / 播放；Shift + Enter 加入队列，Tab 循环切换平台'],
     ['Ctrl + P', '打开 / 关闭播放页'],
     ['L', '喜欢当前歌曲'],
     ['M', '静音'],
@@ -483,14 +489,18 @@ const SHORTCUTS: [string, string][] = [
 function AboutTab() {
     const [version, setVersion] = useState('');
     const [checking, setChecking] = useState(false);
+    // 图标投影跟随主题：原先写死了一抹绿色（rgba(0,168,96,.32)），那是早期品牌的颜色，
+    // 和封面取色 / 自定义主题都对不上。取色顺序与 App 的背景一致。
+    const bgPalette = useUi(s => s.bgPalette);
+    const theme = useTheme(bgPalette);
     useEffect(() => { host.version().then(setVersion).catch(() => {}); }, []);
     return (
         <>
             <div className="mb-7 flex items-center gap-4">
-                <img src={appIcon} alt="" draggable={false} className="h-16 w-16 rounded-[18px] shadow-[0_12px_40px_rgba(0,168,96,.32)]" />
+                <img src={appIcon} alt="" draggable={false} className="h-16 w-16 rounded-[18px]" style={{ boxShadow: `0 12px 40px ${css(theme.accent, 0.32)}` }} />
                 <div>
                     <div className="text-[22px] font-bold tracking-tight">YEmusic</div>
-                    <div className="font-mono text-[12px] text-white/45">v{version || '0.5.2'} · 融合洛雪音源生态与沉浸式界面的音乐播放器（Windows / Android）</div>
+                    <div className="font-mono text-[12px] text-white/45">v{version || '—'} · 融合洛雪音源生态与沉浸式界面的音乐播放器（Windows / Android）</div>
                     {chromeMajor() > 0 && <div className="mt-0.5 text-[11.5px] text-white/35">{isAndroid ? 'Android System WebView' : 'Chromium'} {chromeMajor()}{OLD_WEBVIEW ? '（版本较旧，部分界面效果已自动降级；可在应用商店更新「Android System WebView」与 Chrome）' : ''}</div>}
                 </div>
             </div>
@@ -528,7 +538,7 @@ export function SettingsModal() {
         <AnimatePresence>
             {open && (
                 <motion.div className="fixed inset-0 z-[70] grid place-items-center bg-black/55 p-6 backdrop-blur-md max-sm:p-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onPointerDown={e => { if (e.target === e.currentTarget) ui.closeSettings(); }}>
-                    <motion.div className="relative flex h-[min(680px,100%)] w-[min(980px,100%)] overflow-hidden rounded-[30px] border border-white/10 bg-[rgba(20,19,25,0.95)] shadow-[0_40px_140px_rgba(0,0,0,.65)] max-sm:h-full max-sm:flex-col max-sm:rounded-none max-sm:border-0" initial={{ scale: 0.95, y: 16, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }} transition={{ type: 'spring', stiffness: 360, damping: 32 }}>
+                    <motion.div className="relative flex h-[min(680px,100%)] w-[min(980px,100%)] overflow-hidden rounded-[30px] border border-white/10 bg-[var(--surface-card)] shadow-[0_40px_140px_rgba(0,0,0,.65)] max-sm:h-full max-sm:flex-col max-sm:rounded-none max-sm:border-0" initial={{ scale: 0.95, y: 16, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }} transition={{ type: 'spring', stiffness: 360, damping: 32 }}>
                         <nav className="scroll-none flex w-[200px] shrink-0 flex-col gap-0.5 border-r border-white/[0.06] p-4 max-sm:mr-12 max-sm:w-auto max-sm:flex-row max-sm:gap-1 max-sm:overflow-x-auto max-sm:border-r-0 max-sm:p-2">
                             <div className="mb-4 px-3 pt-2 text-[20px] font-bold tracking-tight max-sm:hidden">设置</div>
                             {TABS.map(t => (

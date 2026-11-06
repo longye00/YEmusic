@@ -14,7 +14,7 @@
 import { requestJson } from '@/lib/http';
 import { md5 } from '@/lib/md5';
 import { hasWyLogin, wyHeaders } from './wyAuth';
-import { getTxCredential } from './txAuth';
+import { getTxCredential, type TxCredential } from './txAuth';
 import { getKgCredential } from './kgAuth';
 import type { Platform, Quality, Track } from './types';
 
@@ -78,13 +78,70 @@ export async function wyOfficialUrl(track: Track, quality: Quality): Promise<Off
 }
 
 // ---------------- QQ音乐 ----------------
-/** 音质 → 官方文件名前缀与扩展名 */
-const TX_FILE: Record<Quality, { prefix: string; ext: string }> = {
-    '128k': { prefix: 'M500', ext: 'mp3' },
-    '320k': { prefix: 'M800', ext: 'mp3' },
-    flac: { prefix: 'F000', ext: 'flac' },
-    flac24bit: { prefix: 'RS01', ext: 'flac' },
+/**
+ * 音质 → 官方文件名前缀与扩展名（前缀含义与腾讯客户端一致）：
+ * M500 = 128k、M800 = 320k、F000 = 无损、RS01 / AI00 = Hi-Res 与母带。
+ * 只用其中一个前缀会有一批歌拿不到 vkey（purl 为空），所以 Hi-Res 两个都试。
+ */
+const TX_FILE: Record<Quality, { prefixes: string[]; ext: string }> = {
+    '128k': { prefixes: ['M500'], ext: 'mp3' },
+    '320k': { prefixes: ['M800'], ext: 'mp3' },
+    flac: { prefixes: ['F000'], ext: 'flac' },
+    flac24bit: { prefixes: ['RS01', 'AI00'], ext: 'flac' },
 };
+
+/**
+ * 发一次 vkey 请求，返回完整播放地址；取不到（无版权 / 需要更高权益 / mid 段不对）时返回 null。
+ * 微信登录的 musicid 是 19 位整数，超出 JS 安全整数范围，所以 uin 一律按字符串发送。
+ */
+async function txVkey(cred: TxCredential, track: Track, filename: string, guid: string): Promise<string | null> {
+    try {
+        const body = await requestJson('https://u.y.qq.com/cgi-bin/musicu.fcg', {
+            method: 'POST',
+            json: {
+                comm: { uin: cred.uin, format: 'json', ct: 24, cv: 0, guid },
+                loginUin: cred.uin,
+                req_0: {
+                    module: 'vkey.GetVkeyServer',
+                    method: 'CgiGetVkey',
+                    param: {
+                        filename: [filename],
+                        guid,
+                        songmid: [track.songmid],
+                        songtype: [0],
+                        uin: cred.uin,
+                        loginflag: 1,
+                        platform: '20',
+                        firstlogin: 1,
+                        newver: 1,
+                        nohash: 0,
+                        cms: 0,
+                    },
+                },
+            },
+            headers: {
+                Referer: 'https://y.qq.com/',
+                Cookie: [
+                    `uin=o${cred.uin}`,
+                    `qm_keyst=${cred.musickey}`,
+                    `qqmusic_key=${cred.musickey}`,
+                    `qqmusic_uin=o${cred.uin}`,
+                    `tmeLoginType=${cred.loginType}`,
+                ].join('; '),
+            },
+            timeout: 6000,
+            retries: 0,
+        });
+        const data = body?.req_0?.data;
+        const purl = data?.midurlinfo?.[0]?.purl;
+        if (!purl) return null;
+        const sip: string[] = data?.sip || [];
+        const base = sip.find(s => s) || 'https://dl.stream.qqmusic.qq.com/';
+        return https(base + purl);
+    } catch {
+        return null;
+    }
+}
 
 /**
  * QQ音乐官方播放地址（vkey.GetVkeyServer / CgiGetVkey）。
@@ -93,52 +150,16 @@ const TX_FILE: Record<Quality, { prefix: string; ext: string }> = {
 export async function txOfficialUrl(track: Track, quality: Quality): Promise<OfficialUrl | null> {
     const cred = getTxCredential();
     if (!cred) return null;
-    const { prefix, ext } = TX_FILE[quality] || TX_FILE['320k'];
-    // 文件名里的 mid 优先用 media_mid（命中率更高）
-    const mediaMid = track.meta?.strMediaMid || track.songmid;
+    const { prefixes, ext } = TX_FILE[quality] || TX_FILE['320k'];
     const guid = String(Math.floor(Math.random() * 10000000000));
-    const data = {
-        comm: { uin: Number(cred.uin) || 0, format: 'json', ct: 23, cv: 0, guid },
-        req_0: {
-            module: 'vkey.GetVkeyServer',
-            method: 'CgiGetVkey',
-            param: {
-                filename: [`${prefix}${mediaMid}${track.songmid}.${ext}`],
-                songmid: [track.songmid],
-                songtype: [0],
-                uin: cred.uin,
-                loginflag: 1,
-                platform: '23',
-                firstlogin: 1,
-                newver: 1,
-                nohash: 0,
-                cms: 0,
-            },
-        },
-    };
-    const body = await requestJson(`https://u.y.qq.com/cgi-bin/musicu.fcg?format=json&data=${encodeURIComponent(JSON.stringify(data))}`, {
-        method: 'GET',
-        headers: {
-            Referer: 'https://y.qq.com/',
-            Cookie: [
-                `uin=o${cred.uin}`,
-                `qm_keyst=${cred.musickey}`,
-                `qqmusic_key=${cred.musickey}`,
-                `qqmusic_uin=o${cred.uin}`,
-                `tmeLoginType=${cred.loginType}`,
-                `pgv_pvid=${guid}`,
-                `ts_uid=${guid}`,
-            ].join('; '),
-        },
-        timeout: 6000,
-        retries: 0,
-    });
-    const info = body?.req_0?.data?.midurlinfo?.[0];
-    const purl = info?.purl;
-    if (!purl) return null;
-    const sip: string[] = body?.req_0?.data?.sip || [];
-    const base = sip.find(s => s) || 'https://dl.stream.qqmusic.qq.com/';
-    return { url: https(base + purl), quality, sourceName: 'QQ音乐官方' };
+    // filename 的 mid 段只放一个 mid（两个拼在一起会取不到 vkey）。
+    // QQ 认 file.media_mid 还是歌曲 mid 随歌而异，Hi-Res 又有两个前缀，几种组合都发一遍。
+    // 这些都是不下载音频的 JSON 接口，并发发出即可，串行会把 16 秒的取链预算耗光。
+    const mids = [...new Set([track.meta?.strMediaMid, track.songmid].filter(Boolean))] as string[];
+    const names = prefixes.flatMap(prefix => mids.map(mid => `${prefix}${mid}.${ext}`));
+    const urls = await Promise.all(names.map(filename => txVkey(cred, track, filename, guid)));
+    const url = urls.find(Boolean);
+    return url ? { url, quality, sourceName: 'QQ音乐官方' } : null;
 }
 
 // ---------------- 酷狗 ----------------

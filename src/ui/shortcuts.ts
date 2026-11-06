@@ -78,6 +78,38 @@ export function useShortcuts() {
                 ui.openSettings();
                 return;
             }
+            /**
+             * 多媒体键：放在 isTyping 之前，输入框里也要能控制播放。
+             * 原先只接了 MediaPlayPause，键盘上的下一首 / 上一首 / 停止 / 音量键全都没反应
+             * （系统媒体会话是另一条路径，窗口聚焦时按键先落到这里）。
+             */
+            if (key.startsWith('Media')) {
+                if (key === 'MediaPlayPause') {
+                    event.preventDefault();
+                    if (usePlayer.getState().current) toggle();
+                } else if (key === 'MediaTrackNext' || key === 'MediaNextTrack') {
+                    event.preventDefault();
+                    next();
+                } else if (key === 'MediaTrackPrevious' || key === 'MediaPreviousTrack') {
+                    event.preventDefault();
+                    prev();
+                } else if (key === 'MediaStop') {
+                    event.preventDefault();
+                    if (usePlayer.getState().status !== 'idle') toggle();
+                } else if (key === 'AudioVolumeUp' || key === 'VolumeUp') {
+                    event.preventDefault();
+                    changeVolume(0.05);
+                } else if (key === 'AudioVolumeDown' || key === 'VolumeDown') {
+                    event.preventDefault();
+                    changeVolume(-0.05);
+                } else if (key === 'AudioVolumeMute' || key === 'VolumeMute') {
+                    event.preventDefault();
+                    const muted = !useSettings.getState().muted;
+                    setSetting('muted', muted);
+                    toast(muted ? '已静音' : '已取消静音', 'info', { duration: 1000, key: 'volume' });
+                }
+                return;
+            }
             if (isTyping(event.target)) return;
             const state = useUi.getState();
             if (state.dialog || state.settingsOpen) return;
@@ -109,7 +141,7 @@ export function useShortcuts() {
                 return;
             }
             if (ctrl || event.altKey) return;
-            if (key === ' ' || key === 'MediaPlayPause') {
+            if (key === ' ') {
                 event.preventDefault();
                 (document.activeElement as HTMLElement | null)?.blur?.();
                 if (usePlayer.getState().current) toggle();
