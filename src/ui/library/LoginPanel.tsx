@@ -75,7 +75,7 @@ function PhoneLogin({ metaName, onDone }: { metaName: string; onDone: () => void
 
     const digits = phone.replace(/\D/g, '');
     const phoneOk = /^1\d{10}$/.test(digits);
-    const inputClass = 'no-drag h-11 w-full rounded-[12px] border border-white/10 bg-black/30 px-4 text-[14px] outline-none transition-colors placeholder:text-white/25 focus:border-white/30';
+    const inputClass = 'no-drag h-11 w-full rounded-[12px] border ln bg-black/30 px-4 text-[14px] outline-none transition-colors placeholder:txt-5 focus:ln-strong';
 
     const sendCode = async () => {
         if (!phoneOk || sending || countdown > 0) return;
@@ -110,7 +110,7 @@ function PhoneLogin({ metaName, onDone }: { metaName: string; onDone: () => void
     return (
         <div className="mt-4 space-y-2.5">
             <div className="flex items-center gap-2">
-                <span className="grid h-11 w-14 shrink-0 place-items-center rounded-[12px] border border-white/10 bg-black/30 font-mono text-[13px] text-white/55">+86</span>
+                <span className="grid h-11 w-14 shrink-0 place-items-center rounded-[12px] border ln bg-black/30 font-mono text-[13px] txt-3">+86</span>
                 <input
                     type="tel"
                     inputMode="numeric"
@@ -210,7 +210,7 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
                 onChange={event => setCookieText(event.target.value)}
                 placeholder={COOKIE_HINT[platform].placeholder}
                 spellCheck={false}
-                className="no-drag scroll-thin h-28 w-full resize-none rounded-[12px] border border-white/10 bg-black/30 px-3.5 py-3 font-mono text-[11.5px] outline-none placeholder:text-white/25 focus:border-white/30"
+                className="no-drag scroll-thin h-28 w-full resize-none rounded-[12px] border ln bg-black/30 px-3.5 py-3 font-mono text-[11.5px] outline-none placeholder:txt-5 focus:ln-strong"
             />
             <div className="flex justify-end">
                 <Button variant="white" onClick={submitCookie} disabled={busy || !cookieText.trim()}>{busy && <Spinner />}登录</Button>
@@ -239,7 +239,7 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
                                     key={m}
                                     type="button"
                                     onClick={() => setMode(m)}
-                                    className={cx('no-drag h-8 flex-1 rounded-[8px] transition-colors', mode === m ? 'bg-[#f7f4ee] text-[#0b0b0c]' : 'text-white/60 hover:text-white')}
+                                    className={cx('no-drag h-8 flex-1 rounded-[8px] transition-colors', mode === m ? 'bg-[#f7f4ee] text-[#0b0b0c]' : 'txt-3 hover:text-white')}
                                 >
                                     {m === 'phone' ? '手机验证码' : 'Cookie'}
                                 </button>
@@ -257,7 +257,7 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
                                     key={m}
                                     type="button"
                                     onClick={() => setMethod(m)}
-                                    className={cx('no-drag h-8 flex-1 rounded-[8px] transition-colors', method === m ? 'bg-[#f7f4ee] text-[#0b0b0c]' : 'text-white/60 hover:text-white')}
+                                    className={cx('no-drag h-8 flex-1 rounded-[8px] transition-colors', method === m ? 'bg-[#f7f4ee] text-[#0b0b0c]' : 'txt-3 hover:text-white')}
                                 >
                                     {m === 'qq' ? 'QQ 扫码' : '微信扫码'}
                                 </button>
@@ -289,18 +289,18 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
                             </div>
                         )}
                     </div>
-                    <div className={cx('mt-3.5 flex max-w-full items-start gap-2 text-center text-[12.5px] leading-snug', phase.phase === 'error' ? 'text-red-300' : 'text-white/75')}>
+                    <div className={cx('mt-3.5 flex max-w-full items-start gap-2 text-center text-[12.5px] leading-snug', phase.phase === 'error' ? 'text-red-300' : 'txt-2')}>
                         <span className="min-w-0">{statusText}</span>
                     </div>
                     {phase.phase === 'error' && !qr && <Button className="mt-3" onClick={refresh}><RefreshCw className="h-4 w-4" />重试</Button>}
                 </div>
             ) : cookieForm}
-            <div className={cx('flex items-center justify-between gap-3 text-[12px]', variant === 'seam' ? 'mt-auto pb-2 pt-4' : 'mt-6 border-t border-white/[0.06] pt-4')}>
+            <div className={cx('flex items-center justify-between gap-3 text-[12px]', variant === 'seam' ? 'mt-auto pb-2 pt-4' : 'mt-6 border-t ln-weak pt-4')}>
                 {isAndroid ? (
                     // 安卓没有扫码入口，也就没有"返回扫码"可切；QQ音乐 / 酷狗只有 Cookie 一种方式
-                    <span className="text-white/35">{platform === 'wy' ? '登录后可同步歌单与会员音质' : `${meta.name}在手机上使用 Cookie 登录`}</span>
+                    <span className="txt-4">{platform === 'wy' ? '登录后可同步歌单与会员音质' : `${meta.name}在手机上使用 Cookie 登录`}</span>
                 ) : (
-                    <button type="button" className="no-drag text-left text-white/45 underline-offset-2 hover:text-white/80 hover:underline" onClick={() => setManual(m => !m)}>
+                    <button type="button" className="no-drag text-left txt-4 underline-offset-2 hover:txt-2 hover:underline" onClick={() => setManual(m => !m)}>
                         {manual ? '返回扫码登录' : '扫码不可用？使用 Cookie 登录'}
                     </button>
                 )}

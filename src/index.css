@@ -71,6 +71,30 @@
     --shadow-panel: 0 30px 90px rgb(0 0 0 / 0.45);
     --shadow-float: 0 12px 40px rgb(0 0 0 / 0.45);
     --shadow-inset: 0 2px 8px rgb(0 0 0 / 0.35);
+    /* 文字色阶：原先全站 226 处 text-white/xx 用了 16 个档位（/25 /30 /35 /38 /40 /45 /50
+       /55 /60 /65 /70 /75 /80 /85 /90 /95），同样是「次级说明文字」，首页元信息 /40、
+       播放条时间戳 /45、卡片描述 /38，肉眼就是同一层级深浅不一。这里按「离观察者多近」
+       收成 5 档，与 Folia 的 --st-t1 / t2 / t3 是一个思路：
+       --text-1 标题 / 强调（原 85~95）
+       --text-2 正文（原 75~80）
+       --text-3 次级文字、说明（原 55~70）
+       --text-4 元信息、时间戳（原 35~50）
+       --text-5 提示、占位、禁用（原 25~30） */
+    --text-1: rgb(255 255 255 / 0.94);
+    --text-2: rgb(255 255 255 / 0.78);
+    --text-3: rgb(255 255 255 / 0.62);
+    --text-4: rgb(255 255 255 / 0.44);
+    --text-5: rgb(255 255 255 / 0.3);
+    /* 分割线两档：原先 border-white/5 到 /20 有 8 个值混用，分不清层级 */
+    --line-weak: rgb(255 255 255 / 0.06);
+    --line: rgb(255 255 255 / 0.1);
+    --line-strong: rgb(255 255 255 / 0.16);
+    /* 动效时长按「属性」分三档（借 Folia 的做法：颜色 .14s、透明度 .26s、形变 .42s），
+       不再让所有交互都吃同一个 duration-200。 */
+    --motion-micro: 140ms;
+    --motion-base: 220ms;
+    --motion-enter: 420ms;
+    --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
     /* 底部手势条 / 导航条的安全区高度：当前 WebView 排在系统栏之内时为 0，
        edge-to-edge（Android 15+ 强制）下自动生效，底部悬浮控件统一引用它 */
     --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -138,6 +162,14 @@
 
     button {
         cursor: default;
+    }
+
+    /* 键盘焦点：整站原先只有自绘滑块和书签写了 focus-visible，Tab 到收藏 / 切歌 / 图标按钮
+       时完全看不见焦点（这些控件也没有可用的 title 之外的提示）。用 :where() 保持 0 特异性，
+       组件自己写的 focus-visible 类仍然可以覆盖这一条。 */
+    :where(button, a[href], summary, select, input, textarea, [role="button"], [role="switch"], [role="tab"], [role="menuitem"], [role="option"]):focus-visible {
+        outline: 2px solid rgb(var(--accent-soft) / 0.85);
+        outline-offset: 2px;
     }
 
     /* Tailwind 预检样式里的 placeholder 用 color-mix()，旧 WebView 上会退化成和文字一样亮 */
@@ -752,6 +784,15 @@
     --ui-idle: rgb(255 255 255 / 0.1);
     --ui-hover: rgb(255 255 255 / 0.17);
     --ui-selected: rgb(255 255 255 / 0.25);
+    /* 去掉了 backdrop-blur，浮层压不住亮背景，文字色阶整体提亮一档 */
+    --text-1: rgb(255 255 255 / 0.96);
+    --text-2: rgb(255 255 255 / 0.86);
+    --text-3: rgb(255 255 255 / 0.72);
+    --text-4: rgb(255 255 255 / 0.58);
+    --text-5: rgb(255 255 255 / 0.42);
+    --line-weak: rgb(255 255 255 / 0.09);
+    --line: rgb(255 255 255 / 0.14);
+    --line-strong: rgb(255 255 255 / 0.2);
 }
 /* 书签：不画噪点纸纹和大范围阴影 */
 .lite .seam {
@@ -859,4 +900,61 @@
     outline: 2px solid rgb(var(--accent-soft) / 0.6);
     outline-offset: 4px;
     border-radius: 6px;
+}
+
+/* 语义色阶 utility：把「第几档文字」「多强的描边」「多长的过渡」从字面值里抽出来，
+   取值见 :root（第 68 行起）与 .lite 覆写（第 700 行起）。
+   必须写在顶层（不能包在 @layer 里），Tailwind 才会为 hover: / group-hover: /
+   focus-visible: 等变体生成对应规则。
+   档位对照：
+   | 文字 | 常规 | lite（去毛玻璃后提亮一档） |
+   |---|---|---|
+   | txt-1 主文字 | .94 | .96 |
+   | txt-2 次级 | .78 | .86 |
+   | txt-3 辅助 | .62 | .72 |
+   | txt-4 弱化 | .44 | .58 |
+   | txt-5 最弱 | .30 | .42 |
+   | 描边 | ln-weak .06 / ln .10 / ln-strong .16 | .09 / .14 / .20 | */
+@utility txt-1 { color: var(--text-1); }
+@utility txt-2 { color: var(--text-2); }
+@utility txt-3 { color: var(--text-3); }
+@utility txt-4 { color: var(--text-4); }
+@utility txt-5 { color: var(--text-5); }
+@utility ln-weak { border-color: var(--line-weak); }
+@utility ln { border-color: var(--line); }
+@utility ln-strong { border-color: var(--line-strong); }
+@utility dur-micro { transition-duration: var(--motion-micro); }
+@utility dur-base { transition-duration: var(--motion-base); }
+@utility dur-enter { transition-duration: var(--motion-enter); }
+
+/* ---------------- 搜索结果行（借 Folia 的 search-row-in） ---------------- */
+/* 行从左侧「刷」出来：先被裁掉右半边、整体左移 18px，60% 处裁切完成，末尾归位。
+   逐行延迟由 TSX 用内联 animation-delay 写入（min(序号,12) * 32ms），
+   这样一整组结果是一次波浪，而不是二十行同时闪。 */
+@keyframes search-row-in {
+    from {
+        opacity: 0;
+        transform: translateX(-18px);
+        clip-path: inset(0 100% 0 0);
+    }
+    60% {
+        clip-path: inset(0);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+        clip-path: inset(0);
+    }
+}
+.search-row-in {
+    animation: search-row-in 0.5s var(--ease-standard) both;
+}
+/* 精简模式：不做裁切（裁切每帧都要重算绘制区域），只留淡入 */
+@keyframes search-row-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.lite .search-row-in {
+    animation: search-row-fade 0.2s ease-out both;
+    animation-delay: 0ms !important;
 }

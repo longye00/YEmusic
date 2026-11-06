@@ -139,8 +139,8 @@ export function LyricsLuminous({ lyric, accent, soft, title, singer }: { lyric: 
                         >
                             {intro || outro ? (
                                 <>
-                                    <div className="max-w-full text-white/90" style={{ fontFamily: family, fontWeight: 900, fontSize: Math.min(96, Math.max(40, w * 0.06)) * scale, lineHeight: 1.1, textShadow: `0 0 40px ${css(accent, 0.35)}` }}>{title}</div>
-                                    <div className="text-[18px] font-medium text-white/50">{singer}</div>
+                                    <div className="max-w-full txt-1" style={{ fontFamily: family, fontWeight: 900, fontSize: Math.min(96, Math.max(40, w * 0.06)) * scale, lineHeight: 1.1, textShadow: `0 0 40px ${css(accent, 0.35)}` }}>{title}</div>
+                                    <div className="text-[18px] font-medium txt-4">{singer}</div>
                                 </>
                             ) : (
                                 <div className="flex gap-3">
@@ -165,7 +165,7 @@ export function LyricsLuminous({ lyric, accent, soft, title, singer }: { lyric: 
                 </AnimatePresence>
                 {nextLine && (
                     <AnimatePresence mode="wait">
-                        <motion.div key={`n${nextLine.time}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} className="max-w-[70vw] truncate text-[15px] font-medium text-white/30 blur-[0.3px]">
+                        <motion.div key={`n${nextLine.time}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} className="max-w-[70vw] truncate text-[15px] font-medium txt-5 blur-[0.3px]">
                             {nextLine.text}
                         </motion.div>
                     </AnimatePresence>

@@ -21,7 +21,7 @@ export function LikeButton({ track, className, iconClass = 'h-[18px] w-[18px]' }
                 const on = toggleFavorite(track);
                 toast(on ? '已添加到「我喜欢的音乐」' : '已取消喜欢', on ? 'success' : 'info', { duration: 1300, key: 'like' });
             }}
-            className={cx('grid shrink-0 place-items-center rounded-full transition-colors disabled:opacity-40', liked ? 'text-rose-400' : 'text-white/70 hover:text-white', className)}
+            className={cx('grid shrink-0 place-items-center rounded-full transition-colors disabled:opacity-40', liked ? 'text-rose-400' : 'txt-3 hover:text-white', className)}
         >
             <Heart className={iconClass} fill={liked ? 'currentColor' : 'none'} />
         </button>

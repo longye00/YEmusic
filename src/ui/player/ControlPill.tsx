@@ -41,7 +41,7 @@ function DesktopPill({ variant, idle, maxWidth }: { variant: 'home' | 'player'; 
             onHoverEnd={() => setHover(false)}
             transition={{ type: 'spring', stiffness: 380, damping: 34 }}
             className={cx(
-                'no-drag pointer-events-auto flex items-center overflow-hidden rounded-full border border-white/[0.06] bg-black/30 lite:bg-black/55 shadow-[var(--shadow-float)] backdrop-blur-2xl transition-opacity duration-500',
+                'no-drag pointer-events-auto flex items-center overflow-hidden rounded-full border ln-weak bg-black/30 lite:bg-black/55 shadow-[var(--shadow-float)] backdrop-blur-2xl transition-opacity duration-500',
                 expanded ? 'h-[72px] gap-3 pl-3 pr-4' : 'h-12 gap-3 px-9',
                 idle && !hover ? 'opacity-40' : 'opacity-100',
             )}
@@ -71,20 +71,20 @@ function DesktopPill({ variant, idle, maxWidth }: { variant: 'home' | 'player'; 
                 )}
                 {current ? (
                     <div className="flex w-full items-center gap-3">
-                        <span className="w-10 shrink-0 text-right font-mono text-[10px] text-white/45">{formatTime(time)}</span>
+                        <span className="w-10 shrink-0 text-right font-mono text-[10px] txt-4">{formatTime(time)}</span>
                         <Slider value={time} max={duration || 1} onCommit={v => seek(v)} className="flex-1" trackClass="h-[5px]" fillClass="bg-white" thumb={expanded} label="播放进度" valueText={`${formatTime(time)} / ${formatTime(duration)}`} />
-                        <span className="w-10 shrink-0 font-mono text-[10px] text-white/45">{formatTime(duration)}</span>
+                        <span className="w-10 shrink-0 font-mono text-[10px] txt-4">{formatTime(duration)}</span>
                     </div>
                 ) : (
                     // 还没有播放任何歌曲时，不显示空进度条，改为一句提示
-                    <button type="button" onClick={() => ui.openSearch()} className="flex items-center gap-2 text-[12px] text-white/40 transition-colors hover:text-white/75">
+                    <button type="button" onClick={() => ui.openSearch()} className="flex items-center gap-2 text-[12px] txt-4 transition-colors hover:txt-2">
                         <Music2 className="h-3.5 w-3.5" />
                         搜索或打开歌单，开始播放
                     </button>
                 )}
             </motion.div>
             {expanded && (
-                <motion.div layout="position" className="flex shrink-0 items-center gap-0.5 text-white/60">
+                <motion.div layout="position" className="flex shrink-0 items-center gap-0.5 txt-3">
                     <LikeButton track={current} iconClass="h-4 w-4" className="h-9 w-9 hover:bg-white/10" />
                     <button type="button" title="上一首" onClick={prev} className="grid h-9 w-9 place-items-center rounded-full hover:bg-white/10 hover:text-white"><SkipBack className="h-4 w-4" fill="currentColor" /></button>
                     <button type="button" title="下一首" onClick={() => next()} className="grid h-9 w-9 place-items-center rounded-full hover:bg-white/10 hover:text-white"><SkipForward className="h-4 w-4" fill="currentColor" /></button>
@@ -124,18 +124,18 @@ function CompactPill({ variant, idle }: { variant: 'home' | 'player'; idle?: boo
     const time = usePlaybackTime(250);
     const duration = useDuration();
     const playing = status === 'playing';
-    const shell = 'no-drag pointer-events-auto w-full overflow-hidden rounded-[30px] border border-white/[0.08] bg-black/45 lite:bg-black/70 shadow-[var(--shadow-float)] backdrop-blur-2xl transition-opacity duration-500';
+    const shell = 'no-drag pointer-events-auto w-full overflow-hidden rounded-[30px] border ln-weak bg-black/45 lite:bg-black/70 shadow-[var(--shadow-float)] backdrop-blur-2xl transition-opacity duration-500';
     if (!current) {
         return (
             <div className={cx(shell, 'flex h-12 items-center justify-center')}>
-                <button type="button" onClick={() => ui.openSearch()} className="flex h-full items-center gap-2 px-6 text-[12.5px] text-white/50 active:text-white/80">
+                <button type="button" onClick={() => ui.openSearch()} className="flex h-full items-center gap-2 px-6 text-[12.5px] txt-4 active:txt-2">
                     <Music2 className="h-3.5 w-3.5" />
                     搜索或打开歌单，开始播放
                 </button>
             </div>
         );
     }
-    const iconButton = 'grid h-9 w-9 shrink-0 place-items-center rounded-full text-white/70 active:bg-white/10 active:text-white';
+    const iconButton = 'grid h-9 w-9 shrink-0 place-items-center rounded-full txt-3 active:bg-white/10 active:text-white';
     return (
         <div className={cx(shell, 'px-2.5 pb-2 pt-2.5', idle && playing ? 'opacity-60' : 'opacity-100')}>
             <div className="flex items-center gap-1.5">
@@ -156,7 +156,7 @@ function CompactPill({ variant, idle }: { variant: 'home' | 'player'; idle?: boo
                     <span className={cx('block truncate text-[14px] font-semibold', status === 'error' ? 'text-red-200' : 'text-white')}>
                         {status === 'loading' && statusText ? statusText : status === 'error' && error ? error : current.name}
                     </span>
-                    <span className="mt-0.5 block truncate text-[12px] text-white/45">{current.singer}</span>
+                    <span className="mt-0.5 block truncate text-[12px] txt-4">{current.singer}</span>
                 </button>
                 <LikeButton track={current} iconClass="h-[18px] w-[18px]" className="h-9 w-9 active:bg-white/10" />
                 <button type="button" aria-label="上一首" onClick={prev} className={iconButton}><SkipBack className="h-[18px] w-[18px]" fill="currentColor" /></button>
@@ -176,9 +176,9 @@ function CompactPill({ variant, idle }: { variant: 'home' | 'player'; idle?: boo
                 </button>
             </div>
             <div className="mt-0.5 flex items-center gap-2 px-1.5">
-                <span className="w-9 shrink-0 text-right font-mono text-[10px] text-white/45">{formatTime(time)}</span>
+                <span className="w-9 shrink-0 text-right font-mono text-[10px] txt-4">{formatTime(time)}</span>
                 <Slider value={time} max={duration || 1} onCommit={v => seek(v)} className="flex-1" trackClass="h-[4px]" fillClass="bg-white" thumb={false} label="播放进度" valueText={`${formatTime(time)} / ${formatTime(duration)}`} />
-                <span className="w-9 shrink-0 font-mono text-[10px] text-white/45">{formatTime(duration)}</span>
+                <span className="w-9 shrink-0 font-mono text-[10px] txt-4">{formatTime(duration)}</span>
             </div>
         </div>
     );

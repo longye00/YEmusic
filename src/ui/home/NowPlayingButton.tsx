@@ -20,7 +20,7 @@ export function NowPlayingButton() {
         >
             <Cover src={current.cover} size={44} seed={current.name} className={`h-11 w-11 ${status === 'playing' ? 'spin-slow' : ''}`} rounded="rounded-full" />
             <span className="h-6 w-px bg-white/15" />
-            <ChevronRight className="h-5 w-5 text-white/85" />
+            <ChevronRight className="h-5 w-5 txt-1" />
         </motion.button>
     );
 }

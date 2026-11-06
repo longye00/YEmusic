@@ -43,9 +43,9 @@ const LYRIC_STYLES: { id: Settings['lyricStyle']; name: string; en: string }[] =
 function Section({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
     return (
         <section className="mb-7">
-            <h3 className="text-[13px] font-semibold text-white/50">{title}</h3>
-            {desc && <p className="mt-1 text-[12px] leading-relaxed text-white/35">{desc}</p>}
-            <div className="mt-3 divide-y divide-white/[0.06] overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03]">{children}</div>
+            <h3 className="text-[13px] font-semibold txt-4">{title}</h3>
+            {desc && <p className="mt-1 text-[12px] leading-relaxed txt-4">{desc}</p>}
+            <div className="mt-3 divide-y divide-white/[0.06] overflow-hidden rounded-2xl border ln-weak bg-white/[0.03]">{children}</div>
         </section>
     );
 }
@@ -54,8 +54,8 @@ function Item({ title, desc, children, column }: { title: ReactNode; desc?: Reac
     return (
         <div className={cx('flex gap-4 px-4 py-3.5', column ? 'flex-col' : 'items-center max-sm:flex-wrap max-sm:gap-y-2.5 max-sm:[&>:not(:first-child)]:ml-auto')}>
             <div className={cx('min-w-0 flex-1', !column && 'max-sm:min-w-[55%]')}>
-                <div className="text-[13.5px] font-medium text-white/90">{title}</div>
-                {desc && <div className="mt-0.5 text-[12px] leading-relaxed text-white/40">{desc}</div>}
+                <div className="text-[13.5px] font-medium txt-1">{title}</div>
+                {desc && <div className="mt-0.5 text-[12px] leading-relaxed txt-4">{desc}</div>}
             </div>
             {children}
         </div>
@@ -96,7 +96,7 @@ function PlaybackTab() {
                     <div className="flex w-56 items-center gap-3"><Slider value={s.crossfade} min={0} max={10} step={1} onChange={v => setSetting('crossfade', v)} className="flex-1" thumb /><span className="w-8 text-right font-mono text-[12px]">{s.crossfade}s</span></div>
                 </Item>
                 <Item title="音频输出设备">
-                    <select value={s.outputDevice} onChange={e => setSetting('outputDevice', e.target.value)} className="no-drag h-9 max-w-[260px] rounded-xl border border-white/10 bg-black/30 px-3 text-[13px] outline-none">
+                    <select value={s.outputDevice} onChange={e => setSetting('outputDevice', e.target.value)} className="no-drag h-9 max-w-[260px] rounded-xl border ln bg-black/30 px-3 text-[13px] outline-none">
                         <option value="default">系统默认</option>
                         {devices.filter(d => d.deviceId && d.deviceId !== 'default').map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `设备 ${d.deviceId.slice(0, 6)}`}</option>)}
                     </select>
@@ -106,15 +106,15 @@ function PlaybackTab() {
                     <div className="px-4 pb-4 pt-1">
                         <div className="mb-4 flex flex-wrap gap-1.5">
                             {Object.entries(EQ_PRESETS).map(([name, gains]) => (
-                                <button key={name} type="button" onClick={() => setSetting('eqGains', [...gains])} className={cx('h-7 rounded-full px-3 text-[12px]', presetName === name ? 'bg-white text-black' : 'bg-white/[0.08] text-white/70 hover:bg-white/15')}>{name}</button>
+                                <button key={name} type="button" onClick={() => setSetting('eqGains', [...gains])} className={cx('h-7 rounded-full px-3 text-[12px]', presetName === name ? 'bg-white text-black' : 'bg-white/[0.08] txt-3 hover:bg-white/15')}>{name}</button>
                             ))}
                         </div>
                         <div className="grid grid-cols-5 gap-4">
                             {EQ_BANDS.map((band, i) => (
                                 <div key={band} className="flex flex-col items-center gap-2">
-                                    <span className="font-mono text-[11px] text-white/70">{s.eqGains[i] > 0 ? '+' : ''}{s.eqGains[i]}dB</span>
+                                    <span className="font-mono text-[11px] txt-3">{s.eqGains[i] > 0 ? '+' : ''}{s.eqGains[i]}dB</span>
                                     <Slider value={s.eqGains[i]} min={-12} max={12} step={1} onChange={v => { const g = [...s.eqGains]; g[i] = v; setSetting('eqGains', g); }} className="w-full" thumb />
-                                    <span className="font-mono text-[10px] text-white/40">{band >= 1000 ? `${band / 1000}k` : band}Hz</span>
+                                    <span className="font-mono text-[10px] txt-4">{band >= 1000 ? `${band / 1000}k` : band}Hz</span>
                                 </div>
                             ))}
                         </div>
@@ -142,17 +142,17 @@ function SourceCard({ record, index, count }: { record: SourceRecord; index: num
                 <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-22px)]">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <span className="text-[14px] font-semibold">{record.name}</span>
-                        {record.version && <span className="font-mono text-[11px] text-white/40">{/^v/i.test(record.version) ? record.version : `v${record.version}`}</span>}
-                        {record.builtin && <span className="rounded-full bg-white/10 px-1.5 py-px text-[10px] text-white/55">内置</span>}
+                        {record.version && <span className="font-mono text-[11px] txt-4">{/^v/i.test(record.version) ? record.version : `v${record.version}`}</span>}
+                        {record.builtin && <span className="rounded-full bg-white/10 px-1.5 py-px text-[10px] txt-3">内置</span>}
                         {isAggregateSource(record.id) && <span className="rounded-full bg-sky-300/15 px-1.5 py-px text-[10px] text-sky-200/85" title="内含多个子音源，按平台竞速取链、失败自动换用其他子源">聚合</span>}
-                        <span className={cx('text-[11px]', status === 'error' ? 'text-red-300' : 'text-white/40')}>{statusText}</span>
+                        <span className={cx('text-[11px]', status === 'error' ? 'text-red-300' : 'txt-4')}>{statusText}</span>
                     </div>
-                    <div className="mt-0.5 truncate text-[12px] text-white/40">{[record.author && `作者 ${record.author}`, record.description].filter(Boolean).join(' · ') || '—'}</div>
+                    <div className="mt-0.5 truncate text-[12px] txt-4">{[record.author && `作者 ${record.author}`, record.description].filter(Boolean).join(' · ') || '—'}</div>
                     {runtime?.error && <div className="mt-1 text-[12px] text-red-300/90">{runtime.error}</div>}
                     {runtime?.sources && (
                         <div className="mt-2 flex flex-wrap gap-1">
                             {Object.entries(runtime.sources).filter(([p]) => p !== 'local').map(([p, cap]) => (
-                                <span key={p} className={cx('rounded-md px-1.5 py-0.5 font-mono text-[10px]', (runtime.platformFailures?.[p] || 0) >= 3 ? 'bg-amber-400/10 text-amber-200/80' : 'bg-white/[0.07] text-white/60')} title={(runtime.platformFailures?.[p] || 0) >= 3 ? '最近多次取链失败，已自动降低优先级' : ''}>
+                                <span key={p} className={cx('rounded-md px-1.5 py-0.5 font-mono text-[10px]', (runtime.platformFailures?.[p] || 0) >= 3 ? 'bg-amber-400/10 text-amber-200/80' : 'bg-white/[0.07] txt-3')} title={(runtime.platformFailures?.[p] || 0) >= 3 ? '最近多次取链失败，已自动降低优先级' : ''}>
                                     {PLATFORM_NAMES[p as keyof typeof PLATFORM_NAMES] || p} {(cap?.qualitys || []).map(q => q.replace('flac24bit', 'HR').replace('flac', 'SQ')).join('/')}
                                 </span>
                             ))}
@@ -175,7 +175,7 @@ function SourceCard({ record, index, count }: { record: SourceRecord; index: num
                 </div>
             </div>
             {showLogs && (
-                <div className="scroll-thin mt-3 max-h-48 overflow-y-auto rounded-xl bg-black/35 p-3 font-mono text-[10.5px] leading-relaxed text-white/55">
+                <div className="scroll-thin mt-3 max-h-48 overflow-y-auto rounded-xl bg-black/35 p-3 font-mono text-[10.5px] leading-relaxed txt-3">
                     {myLogs.length ? myLogs.map((l, i) => <div key={i} className={l.level === 'error' ? 'text-red-300/80' : l.level === 'warn' ? 'text-amber-200/80' : ''}>[{new Date(l.time).toLocaleTimeString()}] {l.text}</div>) : '暂无日志'}
                 </div>
             )}
@@ -242,9 +242,9 @@ function SourcesTab() {
                 {mode !== 'none' && (
                     <div className="space-y-2 px-4 pb-4">
                         {mode === 'url' ? (
-                            <input value={input} onChange={e => setInput(e.target.value)} placeholder="https://…/source.js" className="h-10 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-[13px] outline-none focus:border-white/25" />
+                            <input value={input} onChange={e => setInput(e.target.value)} placeholder="https://…/source.js" className="h-10 w-full rounded-xl border ln bg-black/30 px-3 text-[13px] outline-none focus:ln-strong" />
                         ) : (
-                            <textarea value={input} onChange={e => setInput(e.target.value)} placeholder={'/**\n * @name 音源名称\n * @version 1.0.0\n */\n…'} className="scroll-thin h-40 w-full resize-none rounded-xl border border-white/10 bg-black/30 p-3 font-mono text-[12px] outline-none focus:border-white/25" />
+                            <textarea value={input} onChange={e => setInput(e.target.value)} placeholder={'/**\n * @name 音源名称\n * @version 1.0.0\n */\n…'} className="scroll-thin h-40 w-full resize-none rounded-xl border ln bg-black/30 p-3 font-mono text-[12px] outline-none focus:ln-strong" />
                         )}
                         <div className="flex justify-end gap-2">
                             <Button variant="ghost" onClick={() => setMode('none')}>取消</Button>
@@ -258,7 +258,7 @@ function SourcesTab() {
             </Section>
             <Section title="网络限制" desc="禁止音源脚本访问的域名（每行一个，含子域名）。脚本只能访问公网地址，本机与局域网地址始终被拦截。">
                 <div className="space-y-2 px-4 py-3.5">
-                    <textarea value={blockText} onChange={e => setBlockText(e.target.value)} placeholder="example.com" className="scroll-thin h-24 w-full resize-none rounded-xl border border-white/10 bg-black/30 p-3 font-mono text-[12px] outline-none focus:border-white/25" />
+                    <textarea value={blockText} onChange={e => setBlockText(e.target.value)} placeholder="example.com" className="scroll-thin h-24 w-full resize-none rounded-xl border ln bg-black/30 p-3 font-mono text-[12px] outline-none focus:ln-strong" />
                     <div className="flex justify-between">
                         <Button variant="ghost" onClick={clearLogs}>清空全部日志</Button>
                         <Button onClick={() => { const hosts = blockText.split(/\s+/).map(h => h.trim().toLowerCase()).filter(Boolean); setSetting('blockedHosts', hosts); setBlockedHosts(hosts); toast('已保存', 'success'); }}>保存</Button>
@@ -277,9 +277,9 @@ function LyricsTab() {
                 <Item column title="歌词样式" desc="Luminous：逐字飞入、辉光高亮；Flow：经典滚动歌词；其余 8 种是风格各异的动态歌词，每种动画的细节参数在播放页「设置」面板里调整。">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                         {LYRIC_STYLES.map(o => (
-                            <button key={o.id} type="button" onClick={() => setSetting('lyricStyle', o.id)} className={cx('flex min-w-0 flex-col items-start rounded-xl px-3 py-2 text-left transition-colors', s.lyricStyle === o.id ? 'bg-[var(--ui-selected)] text-white' : 'bg-[var(--ui-idle)] text-white/70 hover:bg-[var(--ui-hover)] hover:text-white')}>
+                            <button key={o.id} type="button" onClick={() => setSetting('lyricStyle', o.id)} className={cx('flex min-w-0 flex-col items-start rounded-xl px-3 py-2 text-left transition-colors', s.lyricStyle === o.id ? 'bg-[var(--ui-selected)] text-white' : 'bg-[var(--ui-idle)] txt-3 hover:bg-[var(--ui-hover)] hover:text-white')}>
                                 <span className="max-w-full truncate text-[13px] font-semibold leading-tight">{o.name}</span>
-                                <span className="max-w-full truncate text-[10.5px] leading-tight text-white/40">{o.en}</span>
+                                <span className="max-w-full truncate text-[10.5px] leading-tight txt-4">{o.en}</span>
                             </button>
                         ))}
                     </div>
@@ -337,7 +337,7 @@ function AccountsSection() {
                             <span className="flex items-center gap-2.5">
                                 <PlatformBadge platform={p} size={22} />
                                 {meta.name}
-                                {profile && current === p && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-white/70">乐库显示中</span>}
+                                {profile && current === p && <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold txt-3">乐库显示中</span>}
                             </span>
                         }
                         desc={profile ? (status === 'expired' ? `${profile.nickname} · 登录已失效，请重新登录` : status === 'checking' ? `${profile.nickname} · 正在校验登录状态…` : `${profile.nickname} · ID ${profile.id}`) : `未登录 · 点击登录${isAndroid ? '（手机验证码 / Cookie）' : `（${meta.scanWith}扫码）`}`}
@@ -370,7 +370,7 @@ function DownloadTab() {
                 </Item>
                 <Item title="下载音质"><Segmented size="sm" value={s.downloadQuality} onChange={v => setSetting('downloadQuality', v)} options={QUALITY_OPTIONS} /></Item>
                 <Item title="文件名格式">
-                    <select value={s.fileNameTemplate} onChange={e => setSetting('fileNameTemplate', e.target.value)} className="no-drag h-9 rounded-xl border border-white/10 bg-black/30 px-3 text-[13px] outline-none">
+                    <select value={s.fileNameTemplate} onChange={e => setSetting('fileNameTemplate', e.target.value)} className="no-drag h-9 rounded-xl border ln bg-black/30 px-3 text-[13px] outline-none">
                         <option value="{name} - {singer}">歌名 - 歌手</option>
                         <option value="{singer} - {name}">歌手 - 歌名</option>
                         <option value="{name}">歌名</option>
@@ -386,8 +386,8 @@ function DownloadTab() {
                         {items.slice(0, 100).map(item => (
                             <div key={item.id} className="flex items-center gap-3 px-4 py-3">
                                 <div className="min-w-0 flex-1">
-                                    <div className="truncate text-[13px] font-medium">{item.track.name} <span className="text-white/40">· {item.track.singer}</span></div>
-                                    <div className="mt-1 flex items-center gap-2 font-mono text-[11px] text-white/40">
+                                    <div className="truncate text-[13px] font-medium">{item.track.name} <span className="txt-4">· {item.track.singer}</span></div>
+                                    <div className="mt-1 flex items-center gap-2 font-mono text-[11px] txt-4">
                                         {item.status === 'downloading' && item.total > 0 && <div className="h-1 w-32 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-white" style={{ width: `${(item.received / item.total) * 100}%` }} /></div>}
                                         <span className={item.status === 'error' ? 'text-red-300' : item.status === 'done' ? 'text-emerald-300/80' : ''}>
                                             {{ resolving: '获取链接中…', downloading: item.total ? `${formatSize(item.received)} / ${formatSize(item.total)}` : formatSize(item.received), done: `已完成${item.quality ? ` · ${QUALITY_NAMES[item.quality]}` : ''}`, error: item.error || '失败', cancelled: '已取消' }[item.status]}
@@ -438,8 +438,8 @@ function LibraryTab() {
             <Section title="本地音乐文件夹" desc="支持 MP3 / FLAC / M4A / OGG / OPUS / WAV 等格式，自动读取标签、内嵌封面与歌词；再次扫描只处理有变化的文件。">
                 {folders.map(f => (
                     <div key={f} className="flex items-center gap-3 px-4 py-3">
-                        <FolderOpen className="h-4 w-4 shrink-0 text-white/45" />
-                        <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-white/75">{displayPath(f)}</span>
+                        <FolderOpen className="h-4 w-4 shrink-0 txt-4" />
+                        <span className="min-w-0 flex-1 truncate font-mono text-[12px] txt-2">{displayPath(f)}</span>
                         {!isAndroid && <IconButton size="sm" label="打开" onClick={() => host.openPath(f)}><ExternalLink className="h-4 w-4" /></IconButton>}
                         <IconButton size="sm" label="移除" onClick={() => removeLocalFolder(f)}><Trash2 className="h-4 w-4" /></IconButton>
                     </div>
@@ -500,8 +500,8 @@ function AboutTab() {
                 <img src={appIcon} alt="" draggable={false} className="h-16 w-16 rounded-[18px]" style={{ boxShadow: `0 12px 40px ${css(theme.accent, 0.32)}` }} />
                 <div>
                     <div className="text-[22px] font-bold tracking-tight">YEmusic</div>
-                    <div className="font-mono text-[12px] text-white/45">v{version || '—'} · 融合洛雪音源生态与沉浸式界面的音乐播放器（Windows / Android）</div>
-                    {chromeMajor() > 0 && <div className="mt-0.5 text-[11.5px] text-white/35">{isAndroid ? 'Android System WebView' : 'Chromium'} {chromeMajor()}{OLD_WEBVIEW ? '（版本较旧，部分界面效果已自动降级；可在应用商店更新「Android System WebView」与 Chrome）' : ''}</div>}
+                    <div className="font-mono text-[12px] txt-4">v{version || '—'} · 融合洛雪音源生态与沉浸式界面的音乐播放器（Windows / Android）</div>
+                    {chromeMajor() > 0 && <div className="mt-0.5 text-[11.5px] txt-4">{isAndroid ? 'Android System WebView' : 'Chromium'} {chromeMajor()}{OLD_WEBVIEW ? '（版本较旧，部分界面效果已自动降级；可在应用商店更新「Android System WebView」与 Chrome）' : ''}</div>}
                 </div>
             </div>
             <Section title="更新">
@@ -510,13 +510,13 @@ function AboutTab() {
                 </Item>
             </Section>
             {!isAndroid && <Section title="快捷键">
-                {SHORTCUTS.map(([k, v]) => <div key={k} className="flex items-center justify-between px-4 py-2.5 text-[13px]"><span className="text-white/70">{v}</span><kbd>{k}</kbd></div>)}
+                {SHORTCUTS.map(([k, v]) => <div key={k} className="flex items-center justify-between px-4 py-2.5 text-[13px]"><span className="txt-3">{v}</span><kbd>{k}</kbd></div>)}
             </Section>}
             <Section title="开源许可与致谢">
-                <div className="space-y-2.5 px-4 py-3.5 text-[12.5px] leading-relaxed text-white/55">
+                <div className="space-y-2.5 px-4 py-3.5 text-[12.5px] leading-relaxed txt-3">
                     <p>YEmusic 自有代码以 Apache License 2.0 发布。自 0.5.0 起集成了 Folia 的歌词动画代码（AGPL-3.0），因此包含这些代码的整体程序（安装包 / APK）按 AGPL-3.0 分发：分发时必须同时向接收者提供对应的完整源码与许可文本（见源码中的 LICENSE-AGPL-3.0.txt）。</p>
-                    <p>洛雪自定义源兼容层（lx API 语义）与各平台元数据接口的实现参考了 <button type="button" className="text-white/80 underline-offset-2 hover:underline" onClick={() => host.openExternal('https://github.com/lyswhut/lx-music-desktop')}>lx-music-desktop</button>（Apache-2.0，© lyswhut），相关代码已按许可保留版权声明。</p>
-                    <p>歌词动画“莫奈 / 回环 / 镜台 / 时计 / 商籁 / 凝彩 / 静止 / 绘光”及其渲染器、参数面板源自 <button type="button" className="text-white/80 underline-offset-2 hover:underline" onClick={() => host.openExternal('https://github.com/chthollyphile/folia-major')}>Folia</button> v0.7.20（AGPL-3.0，© chthollyphile 及贡献者），已保留版权声明与许可，适配改动记录在源码的 VENDOR.md 中。其余界面（乐库拼贴墙、封面流首页、悬浮面板等）为独立编写，设计上致敬 Folia。</p>
+                    <p>洛雪自定义源兼容层（lx API 语义）与各平台元数据接口的实现参考了 <button type="button" className="txt-2 underline-offset-2 hover:underline" onClick={() => host.openExternal('https://github.com/lyswhut/lx-music-desktop')}>lx-music-desktop</button>（Apache-2.0，© lyswhut），相关代码已按许可保留版权声明。</p>
+                    <p>歌词动画“莫奈 / 回环 / 镜台 / 时计 / 商籁 / 凝彩 / 静止 / 绘光”及其渲染器、参数面板源自 <button type="button" className="txt-2 underline-offset-2 hover:underline" onClick={() => host.openExternal('https://github.com/chthollyphile/folia-major')}>Folia</button> v0.7.20（AGPL-3.0，© chthollyphile 及贡献者），已保留版权声明与许可，适配改动记录在源码的 VENDOR.md 中。其余界面（乐库拼贴墙、封面流首页、悬浮面板等）为独立编写，设计上致敬 Folia。</p>
                     <p>扫码登录的二维码由 QRCode for JavaScript 生成（MIT，© Kazuhiko Arase）。“QR Code”是 DENSO WAVE 的注册商标。</p>
                     <p>内置音源脚本（含 YEmusic 聚合音源中的子音源）由各自作者提供，版权归原作者；YEmusic 不提供、不存储任何音乐内容，请支持正版音乐。</p>
                 </div>
@@ -538,16 +538,16 @@ export function SettingsModal() {
         <AnimatePresence>
             {open && (
                 <motion.div className="fixed inset-0 z-[70] grid place-items-center bg-black/55 p-6 backdrop-blur-md max-sm:p-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onPointerDown={e => { if (e.target === e.currentTarget) ui.closeSettings(); }}>
-                    <motion.div className="relative flex h-[min(680px,100%)] w-[min(980px,100%)] overflow-hidden rounded-[var(--radius-card)] border border-white/10 bg-[var(--surface-card)] shadow-[var(--shadow-card)] max-sm:h-full max-sm:flex-col max-sm:rounded-none max-sm:border-0" initial={{ scale: 0.95, y: 16, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }} transition={{ type: 'spring', stiffness: 360, damping: 32 }}>
-                        <nav className="scroll-none flex w-[200px] shrink-0 flex-col gap-0.5 border-r border-white/[0.06] p-4 max-sm:mr-12 max-sm:w-auto max-sm:flex-row max-sm:gap-1 max-sm:overflow-x-auto max-sm:border-r-0 max-sm:p-2">
+                    <motion.div className="relative flex h-[min(680px,100%)] w-[min(980px,100%)] overflow-hidden rounded-[var(--radius-card)] border ln bg-[var(--surface-card)] shadow-[var(--shadow-card)] max-sm:h-full max-sm:flex-col max-sm:rounded-none max-sm:border-0" initial={{ scale: 0.95, y: 16, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }} transition={{ type: 'spring', stiffness: 360, damping: 32 }}>
+                        <nav className="scroll-none flex w-[200px] shrink-0 flex-col gap-0.5 border-r ln-weak p-4 max-sm:mr-12 max-sm:w-auto max-sm:flex-row max-sm:gap-1 max-sm:overflow-x-auto max-sm:border-r-0 max-sm:p-2">
                             <div className="mb-4 px-3 pt-2 text-[20px] font-bold tracking-tight max-sm:hidden">设置</div>
                             {TABS.map(t => (
-                                <button key={t.id} type="button" onClick={() => useUi.setState({ settingsTab: t.id })} className={cx('flex h-10 items-center gap-3 rounded-xl px-3 text-[13.5px] transition-colors max-sm:shrink-0 max-sm:gap-2 max-sm:whitespace-nowrap', tab === t.id ? 'bg-[var(--ui-selected)] font-semibold text-white' : 'text-white/55 hover:bg-[var(--ui-idle)] hover:text-white/85')}>
+                                <button key={t.id} type="button" onClick={() => useUi.setState({ settingsTab: t.id })} className={cx('flex h-10 items-center gap-3 rounded-xl px-3 text-[13.5px] transition-colors max-sm:shrink-0 max-sm:gap-2 max-sm:whitespace-nowrap', tab === t.id ? 'bg-[var(--ui-selected)] font-semibold text-white' : 'txt-3 hover:bg-[var(--ui-idle)] hover:txt-1')}>
                                     <t.icon className="h-4 w-4" />{t.label}
                                 </button>
                             ))}
                         </nav>
-                        <div className="scroll-thin min-w-0 flex-1 overflow-y-auto px-8 pb-6 pt-7 max-sm:border-t max-sm:border-white/[0.06] max-sm:px-4 max-sm:pb-[calc(3rem+var(--safe-bottom))] max-sm:pt-4">
+                        <div className="scroll-thin min-w-0 flex-1 overflow-y-auto px-8 pb-6 pt-7 max-sm:border-t max-sm:ln-weak max-sm:px-4 max-sm:pb-[calc(3rem+var(--safe-bottom))] max-sm:pt-4">
                             {tab === 'playback' && <PlaybackTab />}
                             {tab === 'sources' && <SourcesTab />}
                             {tab === 'lyrics' && <LyricsTab />}
