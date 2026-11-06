@@ -69,7 +69,7 @@ export function AccountList({ placement, onClose, onLogin }: { placement: PopPla
     const current = useSettings(s => s.libraryAccount);
     return (
         <PopShell placement={placement} onClose={onClose} label="在线平台账号">
-            <div className="px-2.5 pb-1 pt-2 text-[11px] font-bold tracking-[0.14em] text-white/45">在线平台</div>
+            <div className="px-2.5 pb-1 pt-2 text-[11px] font-bold tracking-[0.14em] txt-4">在线平台</div>
             {ACCOUNT_PLATFORMS.map(p => {
                 const state = accounts[p];
                 const meta = ACCOUNT_META[p];
@@ -106,7 +106,7 @@ export function AccountList({ placement, onClose, onLogin }: { placement: PopPla
                         </span>
                         <span className="min-w-0 flex-1">
                             <span className="block truncate text-[13px] font-bold text-[#f7f4ee]">{meta.name}</span>
-                            <span className={cx('block truncate text-[11.5px]', expired ? 'text-amber-300/90' : 'text-white/50')}>
+                            <span className={cx('block truncate text-[11.5px]', expired ? 'text-amber-300/90' : 'txt-4')}>
                                 {expired ? '登录已失效，点击重新登录' : state.profile ? state.profile.nickname : state.status === 'checking' ? '正在检查登录…' : '未登录 · 点击登录'}
                             </span>
                         </span>
@@ -120,17 +120,17 @@ export function AccountList({ placement, onClose, onLogin }: { placement: PopPla
                                     onClose();
                                     ui.confirm(`退出${meta.name}`, `退出后乐库将不再显示你的${meta.name}歌单与收藏${p === 'wy' ? '，私人FM / 每日推荐变为通用推荐' : ''}。`, () => void logoutAccount(p), { confirmText: '退出', danger: true });
                                 }}
-                                className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-white/45 opacity-0 transition-opacity hover:bg-white/10 hover:text-red-300 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-80 [&>svg]:h-3.5 [&>svg]:w-3.5"
+                                className="grid h-7 w-7 shrink-0 place-items-center rounded-md txt-4 opacity-0 transition-opacity hover:bg-white/10 hover:text-red-300 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-80 [&>svg]:h-3.5 [&>svg]:w-3.5"
                             >
                                 <LogOut />
                             </button>
                         )}
-                        {isCurrent ? <Check className="text-[rgb(var(--accent-soft))]" /> : !usable ? <LogIn className="text-white/40" /> : <span className="w-4 shrink-0" />}
+                        {isCurrent ? <Check className="text-[rgb(var(--accent-soft))]" /> : !usable ? <LogIn className="txt-4" /> : <span className="w-4 shrink-0" />}
                     </div>
                 );
             })}
             <div className="seam-pop-sep" />
-            <p className="px-2.5 pb-2 pt-1 text-[11px] leading-relaxed text-white/40">乐库的歌单与专辑来自当前选中的平台。登录是可选的，凭据只保存在本机。</p>
+            <p className="px-2.5 pb-2 pt-1 text-[11px] leading-relaxed txt-4">乐库的歌单与专辑来自当前选中的平台。登录是可选的，凭据只保存在本机。</p>
         </PopShell>
     );
 }

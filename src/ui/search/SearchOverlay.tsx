@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown, Clock, CornerDownLeft, Flame, ListPlus, Loader2, Search, Trash2, X } from 'lucide-react';
+import { ChevronDown, Clock, CornerDownLeft, Flame, ListPlus, Loader2, Play, Search, Trash2, X } from 'lucide-react';
 import { sdks } from '@/sdk';
 import { PLATFORM_NAMES, PLATFORMS, type Platform, type Track } from '@/sdk/types';
 import { useLibrary } from '@/store/library';
@@ -60,23 +60,46 @@ function ResultRow({ track, index, active, onHover, onPlay, onQueue }: {
             aria-selected={active}
             onPointerMove={onHover}
             onClick={onPlay}
+            style={{ animationDelay: `${Math.min(index, 12) * 32}ms` }}
             className={cx(
-                'group flex h-[56px] cursor-pointer items-center gap-3 rounded-2xl border px-3 transition-colors duration-100',
-                active ? 'border-white/[0.22] bg-[var(--ui-hover)]' : isCurrent ? 'border-white/15 bg-[var(--ui-idle)]' : 'border-transparent hover:bg-white/[0.06]',
+                // search-row-in：逐行波浪入场（index.css）。裁切/位移只在挂载时跑一次，
+                // 高亮切换只改 opacity 与背景色，不会让动画重放。
+                'search-row-in group relative flex h-[56px] cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border px-3 transition-colors duration-100',
+                active ? 'ln-strong bg-[var(--ui-hover)]' : isCurrent ? 'ln-strong bg-[var(--ui-idle)]' : 'border-transparent hover:bg-white/[0.06]',
             )}
         >
-            <div className="w-6 shrink-0 text-center font-mono text-[11px] text-white/30">
+            {/* 左侧 3px 主题色竖条：借 Folia 的 .search-row:before —— 高亮时从底部展开，
+                比整行换底色更安静，也让键盘上下移动时有个明确的「当前」标记 */}
+            <span
+                aria-hidden
+                className={cx(
+                    'absolute bottom-2 left-0.5 top-2 w-[3px] origin-bottom rounded-full bg-[rgb(var(--accent))] transition-transform duration-200 ease-[var(--ease-standard)]',
+                    active ? 'scale-y-100' : 'scale-y-0',
+                )}
+            />
+            <div className="w-6 shrink-0 text-center font-mono text-[11px] txt-5 transition-colors group-hover:text-[rgb(var(--accent-soft))]">
                 {isCurrent ? <PlayingBars paused={status !== 'playing'} className="text-white" /> : index + 1}
             </div>
-            <Cover src={track.cover} size={40} seed={track.name} className="h-10 w-10 shrink-0" rounded="rounded-[10px]" />
+            {/* 封面：悬停/高亮时压一层播放遮罩（Folia 的 .search-row-play） */}
+            <Cover src={track.cover} size={40} seed={track.name} className="h-10 w-10 shrink-0" rounded="rounded-[10px]">
+                <span
+                    aria-hidden
+                    className={cx(
+                        'absolute inset-0 grid place-items-center bg-black/55 text-white transition-opacity duration-200',
+                        active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+                    )}
+                >
+                    <Play className="ml-0.5 h-3.5 w-3.5" fill="currentColor" />
+                </span>
+            </Cover>
             <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-2">
-                    <span className={cx('truncate text-[13.5px] font-semibold', active || isCurrent ? 'text-white' : 'text-white/[0.88]')}>{track.name}</span>
+                    <span className={cx('truncate text-[13.5px] font-semibold', active || isCurrent ? 'text-white' : 'txt-1')}>{track.name}</span>
                     <QualityTag track={track} />
                 </div>
-                <div className="mt-0.5 truncate text-[11.5px] text-white/45">
+                <div className="mt-0.5 truncate text-[11.5px] txt-4">
                     {track.singer}
-                    {track.album ? <span className="text-white/[0.28]"> • {track.album}</span> : null}
+                    {track.album ? <span className="txt-5"> • {track.album}</span> : null}
                 </div>
             </div>
             {/* 高亮时才露出手柄：比每行常驻一排按钮安静，也和键盘操作对上 */}
@@ -86,7 +109,7 @@ function ResultRow({ track, index, active, onHover, onPlay, onQueue }: {
                         type="button"
                         onClick={event => { event.stopPropagation(); onQueue(); }}
                         title="加入队列 (Shift + Enter)"
-                        className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-white/75 hover:bg-white/25 hover:text-white"
+                        className="grid h-7 w-7 place-items-center rounded-full bg-white/10 txt-2 hover:bg-white/25 hover:text-white"
                     >
                         <ListPlus className="h-3.5 w-3.5" />
                     </button>
@@ -95,7 +118,7 @@ function ResultRow({ track, index, active, onHover, onPlay, onQueue }: {
                     </span>
                 </div>
             ) : (
-                <span className="shrink-0 font-mono text-[11px] text-white/25">{track.duration ? `${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : ''}</span>
+                <span className="shrink-0 font-mono text-[11px] txt-5">{track.duration ? `${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : ''}</span>
             )}
         </div>
     );
@@ -253,8 +276,8 @@ export function SearchOverlay() {
             <div className="drag absolute inset-x-0 top-0 h-10 touch:hidden" />
             <motion.div className="mx-auto flex w-full max-w-[900px] min-h-0 flex-1 flex-col px-8 pt-12 max-sm:px-4 max-sm:pt-4" initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 32 }}>
                 <div className="flex items-center gap-2.5">
-                    <div className="flex h-[52px] flex-1 items-center gap-3 rounded-2xl border border-white/[0.12] bg-white/[0.05] px-4 transition-colors focus-within:border-white/30 focus-within:bg-white/[0.07]">
-                        {searching ? <Loader2 className="h-[18px] w-[18px] shrink-0 animate-spin text-white/55" /> : <Search className="h-[18px] w-[18px] shrink-0 text-white/45" />}
+                    <div className="flex h-[52px] flex-1 items-center gap-3 rounded-2xl border ln bg-white/[0.05] px-4 transition-colors focus-within:ln-strong focus-within:bg-white/[0.07]">
+                        {searching ? <Loader2 className="h-[18px] w-[18px] shrink-0 animate-spin txt-3" /> : <Search className="h-[18px] w-[18px] shrink-0 txt-4" />}
                         <input
                             ref={inputRef}
                             value={text}
@@ -265,12 +288,12 @@ export function SearchOverlay() {
                             role="combobox"
                             aria-expanded={flat.length > 0}
                             aria-controls="search-results"
-                            className="h-full flex-1 bg-transparent text-[15px] font-medium outline-none placeholder:font-normal placeholder:text-white/[0.28]"
+                            className="h-full flex-1 bg-transparent text-[15px] font-medium outline-none placeholder:font-normal placeholder:txt-5"
                         />
                         {text ? (
-                            <button type="button" onClick={() => { setText(''); inputRef.current?.focus(); }} title="清空" className="shrink-0 text-white/40 hover:text-white"><X className="h-4 w-4" /></button>
+                            <button type="button" onClick={() => { setText(''); inputRef.current?.focus(); }} title="清空" className="shrink-0 txt-4 hover:text-white"><X className="h-4 w-4" /></button>
                         ) : (
-                            <kbd className="shrink-0 text-white/25">Esc</kbd>
+                            <kbd className="shrink-0 txt-5">Esc</kbd>
                         )}
                     </div>
                     <IconButton variant="glass" size="lg" label="关闭搜索 (Esc)" onClick={ui.closeSearch}><X className="h-5 w-5" /></IconButton>
@@ -284,13 +307,13 @@ export function SearchOverlay() {
                             onClick={() => changeScope(p)}
                             className={cx(
                                 'h-7 rounded-full px-3 text-[12px] font-medium transition-colors',
-                                scope === p ? 'bg-white text-black' : 'bg-[var(--ui-idle)] text-white/65 hover:bg-[var(--ui-hover)] hover:text-white',
+                                scope === p ? 'bg-white text-black' : 'bg-[var(--ui-idle)] txt-3 hover:bg-[var(--ui-hover)] hover:text-white',
                             )}
                         >
                             {scopeLabel(p)}
                         </button>
                     ))}
-                    {!empty && totalCount > 0 && <span className="ml-auto font-mono text-[11px] text-white/30">共 {totalCount} 首</span>}
+                    {!empty && totalCount > 0 && <span className="ml-auto font-mono text-[11px] txt-5">共 {totalCount} 首</span>}
                 </div>
 
                 <div id="search-results" className="mt-4 flex min-h-0 flex-1 flex-col">
@@ -299,23 +322,23 @@ export function SearchOverlay() {
                             {history.length > 0 && (
                                 <section>
                                     <div className="mb-2.5 flex items-center justify-between">
-                                        <h3 className="flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.14em] text-white/40"><Clock className="h-3.5 w-3.5" />最近搜索</h3>
-                                        <button type="button" onClick={() => { try { localStorage.removeItem(HISTORY_KEY); } catch { /* ignore */ } setHistory([]); }} className="flex items-center gap-1 text-[11.5px] text-white/30 hover:text-white/70"><Trash2 className="h-3 w-3" />清空</button>
+                                        <h3 className="flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.14em] txt-4"><Clock className="h-3.5 w-3.5" />最近搜索</h3>
+                                        <button type="button" onClick={() => { try { localStorage.removeItem(HISTORY_KEY); } catch { /* ignore */ } setHistory([]); }} className="flex items-center gap-1 text-[11.5px] txt-5 hover:txt-3"><Trash2 className="h-3 w-3" />清空</button>
                                     </div>
                                     <div className="flex flex-wrap gap-1.5">
                                         {history.map(h => (
-                                            <button key={h} type="button" onClick={() => pickKeyword(h)} className="h-7 max-w-[240px] truncate rounded-full bg-[var(--ui-idle)] px-3 text-[12px] text-white/70 hover:bg-[var(--ui-hover)] hover:text-white">{h}</button>
+                                            <button key={h} type="button" onClick={() => pickKeyword(h)} className="h-7 max-w-[240px] truncate rounded-full bg-[var(--ui-idle)] px-3 text-[12px] txt-3 hover:bg-[var(--ui-hover)] hover:text-white">{h}</button>
                                         ))}
                                     </div>
                                 </section>
                             )}
                             {hot.length > 0 && (
                                 <section>
-                                    <h3 className="mb-2.5 flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.14em] text-white/40"><Flame className="h-3.5 w-3.5" />{scopeLabel(scope)}热搜</h3>
+                                    <h3 className="mb-2.5 flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.14em] txt-4"><Flame className="h-3.5 w-3.5" />{scopeLabel(scope)}热搜</h3>
                                     <div className="grid grid-cols-2 gap-x-5 gap-y-0.5 md:grid-cols-3">
                                         {hot.map((h, i) => (
-                                            <button key={h} type="button" onClick={() => pickKeyword(h)} className="flex h-8 items-center gap-2.5 rounded-lg px-1.5 text-left text-[12.5px] text-white/70 hover:bg-[var(--ui-idle)] hover:text-white">
-                                                <span className={cx('w-4 shrink-0 font-mono text-[11px]', i < 3 ? 'text-rose-300/90' : 'text-white/25')}>{i + 1}</span>
+                                            <button key={h} type="button" onClick={() => pickKeyword(h)} className="flex h-8 items-center gap-2.5 rounded-lg px-1.5 text-left text-[12.5px] txt-3 hover:bg-[var(--ui-idle)] hover:text-white">
+                                                <span className={cx('w-4 shrink-0 font-mono text-[11px]', i < 3 ? 'text-rose-300/90' : 'txt-5')}>{i + 1}</span>
                                                 <span className="truncate">{h}</span>
                                             </button>
                                         ))}
@@ -340,7 +363,7 @@ export function SearchOverlay() {
                                             <button
                                                 type="button"
                                                 onClick={() => setExpanded(e => ({ ...e, local: !e.local }))}
-                                                className="flex h-8 items-center gap-1 rounded-lg px-3 text-[11.5px] text-white/40 hover:bg-[var(--ui-idle)] hover:text-white/80"
+                                                className="flex h-8 items-center gap-1 rounded-lg px-3 text-[11.5px] txt-4 hover:bg-[var(--ui-idle)] hover:txt-2"
                                             >
                                                 {expanded.local ? '收起' : `展开其余 ${localList.length - LOCAL_INITIAL} 首`}
                                                 <ChevronDown className={cx('h-3 w-3 transition-transform', expanded.local && 'rotate-180')} />
@@ -356,16 +379,18 @@ export function SearchOverlay() {
                                         const shown = expanded[group.key] ? group.list : group.list.slice(0, GROUP_INITIAL);
                                         return (
                                             <section key={group.key}>
-                                                <div className="mb-1.5 flex items-center gap-2 px-1">
-                                                    <h3 className="text-[11.5px] font-semibold uppercase tracking-[0.14em] text-white/40">{PLATFORM_NAMES[group.key]}</h3>
+                                                {/* 分组标题：Folia 的 .search-meta —— 等宽 11px / 字重 600 / 字距 .1em，
+                                                    后面拖一条渐隐细线到右边缘，把「标题 + 计数」和结果区隔开 */}
+                                                <div className="mb-1.5 flex items-center gap-3 px-1">
+                                                    <h3 className="shrink-0 font-mono text-[10.5px] font-semibold uppercase tracking-[0.12em] txt-3">{PLATFORM_NAMES[group.key]}</h3>
                                                     {group.loading ? (
-                                                        <Spinner className="h-3 w-3 text-white/30" />
+                                                        <Spinner className="h-3 w-3 txt-5" />
                                                     ) : group.error ? (
                                                         <span className="truncate text-[11px] text-rose-300/80">{group.error}</span>
                                                     ) : (
-                                                        <span className="font-mono text-[10.5px] text-white/[0.22]">{group.total || group.list.length}</span>
+                                                        <span className="shrink-0 font-mono text-[10.5px] txt-5">{group.total || group.list.length}</span>
                                                     )}
-                                                    <span className="h-px flex-1 bg-white/[0.06]" />
+                                                    <span className="h-px flex-1 bg-gradient-to-r from-white/[0.09] to-transparent" />
                                                 </div>
                                                 {group.loading ? (
                                                     <div className="space-y-1">{Array.from({ length: 3 }, (_, i) => <div key={i} className="skeleton h-[56px] rounded-2xl" />)}</div>
@@ -380,7 +405,7 @@ export function SearchOverlay() {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setExpanded(e => ({ ...e, [group.key]: !e[group.key] }))}
-                                                                className="flex h-8 items-center gap-1 rounded-lg px-3 text-[11.5px] text-white/40 hover:bg-[var(--ui-idle)] hover:text-white/80"
+                                                                className="flex h-8 items-center gap-1 rounded-lg px-3 text-[11.5px] txt-4 hover:bg-[var(--ui-idle)] hover:txt-2"
                                                             >
                                                                 {expanded[group.key] ? '收起' : `展开其余 ${group.list.length - GROUP_INITIAL} 首`}
                                                                 <ChevronDown className={cx('h-3 w-3 transition-transform', expanded[group.key] && 'rotate-180')} />
@@ -388,7 +413,7 @@ export function SearchOverlay() {
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    <div className="px-3 py-2 text-[12px] text-white/[0.28]">没有结果</div>
+                                                    <div className="px-3 py-2 text-[12px] txt-5">没有结果</div>
                                                 )}
                                             </section>
                                         );
@@ -402,7 +427,7 @@ export function SearchOverlay() {
 
                 {/* 按键提示条：Folia 搜索面板底部那一条，随状态换文案。
                     放在输入区下方而不是视口底部，避免压住右下角的 MiniPlayer。 */}
-                <div className="mt-2 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/[0.06] pt-2.5 text-[11px] text-white/35">
+                <div className="mt-2 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-t ln-weak pt-2.5 text-[11px] txt-4">
                     {empty ? (
                         <>
                             <span className="flex items-center gap-1"><Search className="h-3 w-3" />边打边搜</span>

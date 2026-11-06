@@ -41,6 +41,24 @@ export interface ContextMenuState {
     playlistId?: string;
 }
 
+/**
+ * 共享元素过渡的起点：点开某张海报时这张海报在屏幕上的矩形。
+ *
+ * 为什么不用 framer-motion 的 layoutId：墙面（Home）在详情页打开时并没有卸载，只是被
+ * 淡出隐藏，两个同 layoutId 的元素会同时存在，framer 会把动画派给错误的那一个。
+ * 所以这里只记录一个「起点矩形 + 时间戳」，由详情页在挂载时量出终点、算出差值自己飞过去。
+ *
+ * t 用来判断这个矩形还新不新鲜：轮播首页、搜索页这些入口也走 openDetail()，
+ * 但它们的来源不是墙面，如果沿用上一次遗留的矩形，封面会从莫名其妙的位置飞进来。
+ */
+export interface CoverFlight {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    t: number;
+}
+
 interface UiState {
     detail: DetailTarget | null;
     searchOpen: boolean;
@@ -53,6 +71,8 @@ interface UiState {
     dialog: Dialog | null;
     menu: ContextMenuState | null;
     idle: boolean;
+    /** 墙面 → 详情页的封面飞行起点（见 CoverFlight 注释） */
+    coverFlight: CoverFlight | null;
     /** 首页 / 详情页当前焦点封面的调色板，用于背景 */
     bgPalette: Palette | null;
 }
@@ -69,11 +89,23 @@ export const useUi = create<UiState>(() => ({
     dialog: null,
     menu: null,
     idle: false,
+    coverFlight: null,
     bgPalette: null,
 }));
 
 export const ui = {
-    openDetail: (detail: DetailTarget) => useUi.setState({ detail, searchOpen: false, playerOpen: false }),
+    // 保留 1.2 秒内的飞行起点，更早的丢弃（其他入口不该凭空飞封面）
+    openDetail: (detail: DetailTarget) =>
+        useUi.setState(s => ({
+            detail,
+            searchOpen: false,
+            playerOpen: false,
+            coverFlight: s.coverFlight && Date.now() - s.coverFlight.t < 1200 ? s.coverFlight : null,
+        })),
+    /** 记录共享元素的起点矩形（墙面海报点击时调用）；传 null 清空 */
+    setCoverFlight: (rect: { x: number; y: number; width: number; height: number } | null) =>
+        useUi.setState({ coverFlight: rect ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height, t: Date.now() } : null }),
+    clearCoverFlight: () => useUi.setState({ coverFlight: null }),
     closeDetail: () => useUi.setState({ detail: null }),
     openSearch: (query?: string) => useUi.setState(s => ({ searchOpen: true, searchQuery: query ?? s.searchQuery })),
     closeSearch: () => useUi.setState({ searchOpen: false }),

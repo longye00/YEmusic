@@ -205,7 +205,7 @@ function CarouselHome() {
             {compact ? (
                 <header className="relative z-20 shrink-0 px-4 pt-3">
                     <div className="flex h-11 items-center justify-between">
-                        <span className="text-[24px] font-bold leading-none tracking-[-0.02em] text-white/95">YEmusic</span>
+                        <span className="text-[24px] font-bold leading-none tracking-[-0.02em] txt-1">YEmusic</span>
                         <div className="flex items-center gap-0.5">
                             <IconButton label="搜索" onClick={() => ui.openSearch()}><Search className="h-5 w-5" /></IconButton>
                             <IconButton label="设置" onClick={() => ui.openSettings()}><Settings className="h-5 w-5" /></IconButton>
@@ -217,7 +217,7 @@ function CarouselHome() {
             ) : (
             <header className="drag relative z-20 flex h-[100px] shrink-0 items-start justify-between px-8 pt-[30px]">
                 <div className="flex items-center gap-2">
-                    <span className="mr-2 text-[26px] font-bold leading-none tracking-[-0.02em] text-white/95">YEmusic</span>
+                    <span className="mr-2 text-[26px] font-bold leading-none tracking-[-0.02em] txt-1">YEmusic</span>
                     <IconButton label="设置（Ctrl ,）" size="sm" onClick={() => ui.openSettings()}><Settings className="h-[18px] w-[18px]" /></IconButton>
                     <IconButton label="切换为乐库布局" size="sm" onClick={() => setSetting('homeLayout', 'library')}><LayoutDashboard className="h-[18px] w-[18px]" /></IconButton>
                 </div>
@@ -225,9 +225,9 @@ function CarouselHome() {
                 <button
                     type="button"
                     onClick={() => ui.openSearch()}
-                    className="no-drag flex h-10 w-[248px] items-center gap-2.5 rounded-full border border-white/[0.14] bg-white/[0.04] lite:bg-white/[0.1] px-4 text-left text-[13px] text-white/40 lite:text-white/60 backdrop-blur-xl transition-colors hover:border-white/25 hover:bg-white/[0.08]"
+                    className="no-drag flex h-10 w-[248px] items-center gap-2.5 rounded-full border ln-strong bg-white/[0.04] lite:bg-white/[0.1] px-4 text-left text-[13px] txt-4 lite:txt-3 backdrop-blur-xl transition-colors hover:ln-strong hover:bg-white/[0.08]"
                 >
-                    <Search className="h-4 w-4 text-white/55" />
+                    <Search className="h-4 w-4 txt-3" />
                     <span className="flex-1 truncate">搜索歌曲、歌手…</span>
                     <kbd>Ctrl K</kbd>
                 </button>
@@ -250,7 +250,7 @@ function CarouselHome() {
                                 <button type="button" onClick={plaza.reload} className="no-drag h-9 rounded-full bg-white px-5 text-[13px] font-medium text-black">重试</button>
                             </EmptyState>
                         ) : (
-                            <div className="flex items-center gap-2 text-[13px] text-white/50"><Spinner />正在载入歌单…</div>
+                            <div className="flex items-center gap-2 text-[13px] txt-4"><Spinner />正在载入歌单…</div>
                         )}
                     </div>
                 ) : (
@@ -263,7 +263,7 @@ function CarouselHome() {
                     {item && (
                         <motion.div key={item.key} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.22 }} className={cx('flex flex-col items-center', compact ? 'max-w-[90vw]' : 'max-w-[70vw]')}>
                             <div className={cx('max-w-full truncate font-bold tracking-tight text-white text-shadow-soft', compact ? 'text-[22px]' : 'text-[26px]')}>{item.title}</div>
-                            <div className="mt-1.5 max-w-full truncate font-mono text-[12px] text-white/40">{item.meta}{tab === 'plaza' && plaza.loading ? ' • 加载中…' : ''}</div>
+                            <div className="mt-1.5 max-w-full truncate font-mono text-[12px] txt-4">{item.meta}{tab === 'plaza' && plaza.loading ? ' • 加载中…' : ''}</div>
                         </motion.div>
                     )}
                 </AnimatePresence>

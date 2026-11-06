@@ -30,24 +30,24 @@ export function MiniPlayer({ className = '' }: { className?: string }) {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 14 }}
-            className={cx('no-drag absolute z-30 flex h-[60px] items-center gap-1 overflow-hidden rounded-full border border-white/[0.07] bg-black/60 lite:bg-black/80 pl-2 pr-1.5 shadow-[var(--shadow-float)] backdrop-blur-2xl', compact ? 'inset-x-3 bottom-[calc(0.75rem+var(--safe-bottom))]' : 'bottom-6 right-6', className)}
+            className={cx('no-drag absolute z-30 flex h-[60px] items-center gap-1 overflow-hidden rounded-full border ln-weak bg-black/60 lite:bg-black/80 pl-2 pr-1.5 shadow-[var(--shadow-float)] backdrop-blur-2xl', compact ? 'inset-x-3 bottom-[calc(0.75rem+var(--safe-bottom))]' : 'bottom-6 right-6', className)}
         >
             <button type="button" onClick={ui.openPlayer} title="打开播放页 (Ctrl+P)" className={cx('flex min-w-0 items-center gap-3 rounded-full pr-2 text-left', compact && 'flex-1')}>
                 <Cover src={current.cover || coverUrl} size={44} seed={current.name} className={cx('h-11 w-11 shrink-0', playing && 'spin-slow')} rounded="rounded-full" />
                 <span className={cx('min-w-0 leading-tight', compact ? 'flex-1' : 'max-w-[180px]')}>
-                    <span className="block truncate text-[13px] font-semibold text-white/90">{current.name}</span>
-                    <span className="block truncate text-[11.5px] text-white/45">{status === 'error' ? '播放失败' : current.singer}</span>
+                    <span className="block truncate text-[13px] font-semibold txt-1">{current.name}</span>
+                    <span className="block truncate text-[11.5px] txt-4">{status === 'error' ? '播放失败' : current.singer}</span>
                 </span>
             </button>
             <LikeButton track={current} className="h-9 w-9 hover:bg-white/10" />
-            <button type="button" onClick={toggle} title={playing ? '暂停 (空格)' : '播放 (空格)'} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/90 transition-colors hover:bg-white/10">
+            <button type="button" onClick={toggle} title={playing ? '暂停 (空格)' : '播放 (空格)'} className="grid h-10 w-10 shrink-0 place-items-center rounded-full txt-1 transition-colors hover:bg-white/10">
                 {status === 'loading' ? <Spinner /> : status === 'error' ? <AlertTriangle className="h-4 w-4 text-amber-300" /> : playing ? <Pause className="h-[18px] w-[18px]" fill="currentColor" /> : <Play className="h-[18px] w-[18px]" fill="currentColor" />}
             </button>
-            <button type="button" onClick={() => next()} title="下一首 (Ctrl+→)" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/75 transition-colors hover:bg-white/10 hover:text-white">
+            <button type="button" onClick={() => next()} title="下一首 (Ctrl+→)" className="grid h-10 w-10 shrink-0 place-items-center rounded-full txt-2 transition-colors hover:bg-white/10 hover:text-white">
                 <SkipForward className="h-[17px] w-[17px]" fill="currentColor" />
             </button>
             <span className="mx-0.5 h-6 w-px bg-white/15" />
-            <button type="button" onClick={ui.openPlayer} title="打开播放页" className="grid h-10 w-9 shrink-0 place-items-center rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white">
+            <button type="button" onClick={ui.openPlayer} title="打开播放页" className="grid h-10 w-9 shrink-0 place-items-center rounded-full txt-2 transition-colors hover:bg-white/10 hover:text-white">
                 <ChevronRight className="h-5 w-5" />
             </button>
             <Progress />

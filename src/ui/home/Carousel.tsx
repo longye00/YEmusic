@@ -96,7 +96,7 @@ export function Carousel({ items, focus, onFocus, keyboard = true, reduceMotion 
         >
             {/* 装饰：中心圆环与水平细线 */}
             <div className="pointer-events-none absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-[linear-gradient(to_right,rgba(255,255,255,0),rgba(255,255,255,0.09),rgba(255,255,255,0))]" />
-            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.06]" style={{ width: size * 1.75, height: size * 1.75 }} />
+            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border ln-weak" style={{ width: size * 1.75, height: size * 1.75 }} />
             {items.map((item, index) => {
                 const d = index - focus;
                 if (Math.abs(d) > 4) return null;
@@ -157,11 +157,11 @@ export function PosterArt({ title, subtitle, seed, icon, tone }: { title: string
     return (
         <div className="relative h-full w-full overflow-hidden" style={{ background: `radial-gradient(120% 90% at 85% 10%, hsl(${hue2} 75% 62% / .85), transparent 55%), radial-gradient(90% 90% at 10% 100%, hsl(${hue} 70% 40%), transparent 70%), linear-gradient(160deg, hsl(${hue} 55% 22%), hsl(${hue2} 50% 12%))` }}>
             <div className="halftone absolute inset-0 opacity-30" />
-            <div className="absolute -right-6 -top-6 h-1/2 w-1/2 rounded-full border border-white/20" />
-            <div className="absolute -right-2 top-6 h-1/3 w-1/3 rounded-full border border-white/10" />
-            {icon && <div className="absolute left-[9%] top-[9%] text-white/85 [&>svg]:h-[22%] [&>svg]:w-[22%]">{icon}</div>}
+            <div className="absolute -right-6 -top-6 h-1/2 w-1/2 rounded-full border ln-strong" />
+            <div className="absolute -right-2 top-6 h-1/3 w-1/3 rounded-full border ln" />
+            {icon && <div className="absolute left-[9%] top-[9%] txt-1 [&>svg]:h-[22%] [&>svg]:w-[22%]">{icon}</div>}
             <div className="absolute inset-x-[9%] bottom-[9%]">
-                {subtitle && <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.2em] text-white/60">{subtitle}</div>}
+                {subtitle && <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.2em] txt-3">{subtitle}</div>}
                 <div className="text-[clamp(20px,2.4vw,34px)] font-black leading-[1.05] tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,.3)]">{title}</div>
             </div>
         </div>

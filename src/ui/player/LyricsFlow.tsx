@@ -21,7 +21,7 @@ const Line = memo(function Line({ line, active, distance, accent, showTrans, sho
             className="pointer-events-auto origin-left cursor-pointer rounded-2xl px-4 py-3 transition-[transform,opacity,filter] duration-500 ease-[cubic-bezier(.22,1,.36,1)] hover:bg-white/[0.06]"
             style={{ transform: `scale(${active ? 1 : 0.92})`, opacity: active ? 1 : Math.max(0.16, 0.5 - Math.abs(distance) * 0.07), filter: `blur(${blur}px)` }}
         >
-            <div style={{ fontSize, fontFamily: family, fontWeight: 800, lineHeight: 1.3 }} className={active ? 'text-white' : 'text-white/80'}>
+            <div style={{ fontSize, fontFamily: family, fontWeight: 800, lineHeight: 1.3 }} className={active ? 'text-white' : 'txt-2'}>
                 {units ? units.map((u, i) => {
                     if (u.space) return <span key={i}> </span>;
                     const done = time >= u.end;
@@ -45,7 +45,7 @@ const Line = memo(function Line({ line, active, distance, accent, showTrans, sho
                     );
                 }) : line.text || '♪'}
             </div>
-            {showRoma && line.roma && <div className="mt-1 text-[14px] font-medium text-white/45">{line.roma}</div>}
+            {showRoma && line.roma && <div className="mt-1 text-[14px] font-medium txt-4">{line.roma}</div>}
             {showTrans && line.trans && <div className="mt-1 text-[16px] font-semibold" style={{ color: active ? css(accent) : undefined }}>{line.trans}</div>}
         </div>
     );

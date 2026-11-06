@@ -15,6 +15,7 @@ import { imageStatus, queueImage, type ImageStatus } from '@/lib/imageQueue';
 import { useCover } from '../hooks';
 import { PlayingBars, cx } from '../components/common';
 import { PatternArt } from './art';
+import { ui } from '@/store/ui';
 
 export interface WallCard {
     key: string;
@@ -232,7 +233,12 @@ const Tile = memo(function Tile({ card, x, y, w, h, delay, priority, ignoreClick
                 role="button"
                 tabIndex={-1}
                 title={card.desc ? `${card.title}\n${card.desc}` : card.title}
-                onClick={() => { if (!ignoreClick()) card.onOpen(); }}
+                onClick={event => {
+                    if (ignoreClick()) return;
+                    // 记下海报此刻的矩形，详情页封面会从这里「长出来」（见 store/ui.ts 的 CoverFlight）
+                    ui.setCoverFlight(event.currentTarget.getBoundingClientRect());
+                    card.onOpen();
+                }}
                 onDoubleClick={() => { if (!ignoreClick()) card.onPlay?.(); }}
                 className={cx('wall-poster', card.stack && 'is-stack', card.active && 'is-current', card.action && 'is-action', enterDelay !== undefined && 'wall-flip-in')}
                 style={enterDelay !== undefined ? { animationDelay: `${enterDelay}ms` } : undefined}

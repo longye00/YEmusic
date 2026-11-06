@@ -18,8 +18,8 @@ import { LoginDialog } from './library/LoginDialog';
 // ---------------- 右键菜单 ----------------
 function MenuItem({ icon, children, onClick, danger }: { icon: ReactNode; children: ReactNode; onClick: () => void; danger?: boolean }) {
     return (
-        <button type="button" onClick={onClick} className={cx('flex h-9 w-full items-center gap-3 rounded-xl px-3 text-left text-[13px] transition-colors', danger ? 'text-red-300 hover:bg-red-500/15' : 'text-white/85 hover:bg-white/10 hover:text-white')}>
-            <span className="text-white/55 [&>svg]:h-4 [&>svg]:w-4">{icon}</span>
+        <button type="button" onClick={onClick} className={cx('flex h-9 w-full items-center gap-3 rounded-xl px-3 text-left text-[13px] transition-colors', danger ? 'text-red-300 hover:bg-red-500/15' : 'txt-1 hover:bg-white/10 hover:text-white')}>
+            <span className="txt-3 [&>svg]:h-4 [&>svg]:w-4">{icon}</span>
             {children}
         </button>
     );
@@ -59,8 +59,8 @@ export function ContextMenu() {
         fn();
     };
     return (
-        <div ref={ref} onPointerDown={event => event.stopPropagation()} className="fixed z-[90] w-56 rounded-2xl border border-white/10 bg-[var(--surface-float)] p-1.5 shadow-[var(--shadow-float)] backdrop-blur-2xl" style={{ left: pos.x, top: pos.y }}>
-            <div className="mb-1 truncate px-3 pb-1.5 pt-1 text-[12px] text-white/40">{track.name} · {track.singer}</div>
+        <div ref={ref} onPointerDown={event => event.stopPropagation()} className="fixed z-[90] w-56 rounded-2xl border ln bg-[var(--surface-float)] p-1.5 shadow-[var(--shadow-float)] backdrop-blur-2xl" style={{ left: pos.x, top: pos.y }}>
+            <div className="mb-1 truncate px-3 pb-1.5 pt-1 text-[12px] txt-4">{track.name} · {track.singer}</div>
             <MenuItem icon={<Play />} onClick={run(() => playTrack(track, list))}>播放</MenuItem>
             <MenuItem icon={<ListEnd />} onClick={run(() => playNext(track))}>下一首播放</MenuItem>
             <MenuItem icon={<ListVideo />} onClick={run(() => addToQueue([track]))}>添加到播放队列</MenuItem>
@@ -91,7 +91,7 @@ function TextInput({ value, onChange, placeholder, autoFocus, onEnter }: { value
             onChange={event => onChange(event.target.value)}
             onKeyDown={event => { if (event.key === 'Enter') onEnter?.(); }}
             placeholder={placeholder}
-            className="h-11 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-[14px] outline-none transition-colors placeholder:text-white/30 focus:border-white/30"
+            className="h-11 w-full rounded-2xl border ln bg-black/30 px-4 text-[14px] outline-none transition-colors placeholder:txt-5 focus:ln-strong"
         />
     );
 }
@@ -135,12 +135,12 @@ function AddToPlaylistDialog({ tracks, onClose }: { tracks: import('@/sdk/types'
                         <PlaylistThumb id={p.id} />
                         <div className="min-w-0 flex-1">
                             <div className="truncate text-[14px] font-semibold">{p.name}</div>
-                            <div className="font-mono text-[11px] text-white/40">{p.trackIds.length} 首</div>
+                            <div className="font-mono text-[11px] txt-4">{p.trackIds.length} 首</div>
                         </div>
                     </button>
                 ))}
             </div>
-            <div className="border-t border-white/[0.07] px-7 py-5 max-sm:px-5">
+            <div className="border-t ln-weak px-7 py-5 max-sm:px-5">
                 {creating ? (
                     <div className="flex gap-2">
                         <TextInput value={name} onChange={setName} placeholder="新歌单名称" autoFocus={!isAndroid} onEnter={() => { if (name.trim()) add(createPlaylist(name).id); }} />
@@ -184,7 +184,7 @@ function LinkField({ value, onChange, fallback, placeholder, autoFocus, onSubmit
         }
     };
     let hint = '';
-    let tone = 'text-white/45';
+    let tone = 'txt-4';
     if (pasteNote) { hint = pasteNote; tone = 'text-amber-300'; }
     else if (value.trim()) {
         if (parsed.ref) { hint = `识别到：${PLATFORM_NAMES[parsed.ref.platform]} · 歌单 ${parsed.ref.id}`; tone = 'text-emerald-300'; }
@@ -204,9 +204,9 @@ function LinkField({ value, onChange, fallback, placeholder, autoFocus, onSubmit
                     onChange={event => onChange(event.target.value)}
                     onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); onSubmit?.(); } }}
                     placeholder={placeholder}
-                    className="scroll-thin block w-full resize-none rounded-2xl border border-white/10 bg-black/30 py-3 pl-4 pr-16 text-[14px] leading-snug outline-none transition-colors placeholder:text-white/30 focus:border-white/30"
+                    className="scroll-thin block w-full resize-none rounded-2xl border ln bg-black/30 py-3 pl-4 pr-16 text-[14px] leading-snug outline-none transition-colors placeholder:txt-5 focus:ln-strong"
                 />
-                <button type="button" onClick={paste} className="no-drag absolute right-2 top-2 inline-flex h-8 items-center gap-1 rounded-full bg-white/10 px-2.5 text-[12px] font-medium text-white/80 active:bg-white/20">
+                <button type="button" onClick={paste} className="no-drag absolute right-2 top-2 inline-flex h-8 items-center gap-1 rounded-full bg-white/10 px-2.5 text-[12px] font-medium txt-2 active:bg-white/20">
                     <ClipboardPaste className="h-3.5 w-3.5" />粘贴
                 </button>
             </div>
@@ -219,14 +219,14 @@ function PlatformChips({ value, active, onChange }: { value: Platform; active?: 
     return (
         <div className="flex flex-wrap items-center gap-1.5">
             {PLATFORMS.map(p => (
-                <button key={p} type="button" onClick={() => onChange(p)} className={cx('h-7 rounded-full px-3 text-[12px] font-medium transition-colors', (active || value) === p ? 'bg-white text-black' : 'bg-white/[0.08] text-white/70')}>{PLATFORM_NAMES[p]}</button>
+                <button key={p} type="button" onClick={() => onChange(p)} className={cx('h-7 rounded-full px-3 text-[12px] font-medium transition-colors', (active || value) === p ? 'bg-white text-black' : 'bg-white/[0.08] txt-3')}>{PLATFORM_NAMES[p]}</button>
             ))}
         </div>
     );
 }
 
 function CheckBox({ on }: { on: boolean }) {
-    return <span className={cx('grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-colors', on ? 'border-white bg-white text-black' : 'border-white/30 text-transparent')}><Check className="h-3.5 w-3.5" strokeWidth={3} /></span>;
+    return <span className={cx('grid h-5 w-5 shrink-0 place-items-center rounded-md border transition-colors', on ? 'border-white bg-white text-black' : 'ln-strong text-transparent')}><Check className="h-3.5 w-3.5" strokeWidth={3} /></span>;
 }
 
 /** 新建歌单：可顺便把已有歌单 / 在线歌单链接里的歌曲导进来 */
@@ -279,20 +279,20 @@ function CreatePlaylistDialog({ trackIds, onClose }: { trackIds?: string[]; onCl
                 <TextInput value={name} onChange={setName} placeholder={importing ? '歌单名称（留空则沿用导入歌单的名称）' : '歌单名称'} autoFocus={!isAndroid} onEnter={submit} />
                 {sources.length > 0 && (
                     <div>
-                        <button type="button" onClick={() => setOpen(o => !o)} className="no-drag flex w-full items-center gap-2 text-left text-[13px] font-semibold text-white/75">
-                            <ListPlus className="h-4 w-4 text-white/50" />
+                        <button type="button" onClick={() => setOpen(o => !o)} className="no-drag flex w-full items-center gap-2 text-left text-[13px] font-semibold txt-2">
+                            <ListPlus className="h-4 w-4 txt-4" />
                             <span className="flex-1">从我的歌单导入歌曲</span>
-                            <span className="text-[12px] font-normal text-white/40">{picked.length ? `已选 ${picked.length} 个 · ${pickedCount} 首` : '可选'}</span>
-                            <ChevronDown className={cx('h-4 w-4 text-white/40 transition-transform', open && 'rotate-180')} />
+                            <span className="text-[12px] font-normal txt-4">{picked.length ? `已选 ${picked.length} 个 · ${pickedCount} 首` : '可选'}</span>
+                            <ChevronDown className={cx('h-4 w-4 txt-4 transition-transform', open && 'rotate-180')} />
                         </button>
                         {open && (
-                            <div className="scroll-thin mt-2 max-h-[30vh] space-y-0.5 overflow-y-auto rounded-2xl border border-white/10 bg-black/25 p-1.5">
+                            <div className="scroll-thin mt-2 max-h-[30vh] space-y-0.5 overflow-y-auto rounded-2xl border ln bg-black/25 p-1.5">
                                 {sources.map(p => (
                                     <button key={p.id} type="button" aria-pressed={picked.includes(p.id)} onClick={() => toggle(p.id)} className="no-drag flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left active:bg-white/10">
                                         <PlaylistThumb id={p.id} className="h-10 w-10" />
                                         <div className="min-w-0 flex-1">
                                             <div className="truncate text-[13.5px] font-semibold">{p.name}</div>
-                                            <div className="font-mono text-[11px] text-white/40">{p.trackIds.length} 首</div>
+                                            <div className="font-mono text-[11px] txt-4">{p.trackIds.length} 首</div>
                                         </div>
                                         <CheckBox on={picked.includes(p.id)} />
                                     </button>
@@ -302,12 +302,12 @@ function CreatePlaylistDialog({ trackIds, onClose }: { trackIds?: string[]; onCl
                     </div>
                 )}
                 <div>
-                    <div className="mb-1.5 flex items-center gap-2 text-[13px] font-semibold text-white/75"><Link2 className="h-4 w-4 text-white/50" />导入在线歌单<span className="text-[12px] font-normal text-white/40">可选 · 粘贴分享链接</span></div>
+                    <div className="mb-1.5 flex items-center gap-2 text-[13px] font-semibold txt-2"><Link2 className="h-4 w-4 txt-4" />导入在线歌单<span className="text-[12px] font-normal txt-4">可选 · 粘贴分享链接</span></div>
                     <LinkField value={link} onChange={v => { setLink(v); setError(''); }} fallback="wy" placeholder="网易云 / QQ音乐 / 酷狗 / 酷我 / 咪咕的歌单分享链接（可直接粘贴整段分享文字）" onSubmit={submit} failed={Boolean(error)} />
                 </div>
                 {error && <p className="break-words rounded-xl bg-red-500/10 px-3 py-2 text-[12.5px] leading-relaxed text-red-300">{error}</p>}
                 <div className="flex items-center justify-end gap-2">
-                    {busy && <span className="mr-auto flex items-center gap-2 text-[12px] text-white/50"><Spinner />{busy}</span>}
+                    {busy && <span className="mr-auto flex items-center gap-2 text-[12px] txt-4"><Spinner />{busy}</span>}
                     <Button variant="ghost" onClick={onClose}>取消</Button>
                     <Button variant="white" onClick={submit} disabled={!canSubmit}>{busy && <Spinner />}创建{importing ? '并导入' : ''}</Button>
                 </div>
@@ -357,16 +357,16 @@ function ImportPlaylistDialog({ onClose }: { onClose: () => void }) {
     return (
         <Modal open onClose={onClose} title="导入在线歌单">
             <div className="scroll-thin max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto px-7 pb-7 pt-3 max-sm:px-5">
-                <p className="text-[13px] leading-relaxed text-white/50">在 QQ音乐 / 网易云 / 酷狗 / 酷我 / 咪咕 里把歌单「分享 → 复制链接」，回到这里粘贴整段文字即可（短链接也行），也可以只输入歌单 ID。</p>
+                <p className="text-[13px] leading-relaxed txt-4">在 QQ音乐 / 网易云 / 酷狗 / 酷我 / 咪咕 里把歌单「分享 → 复制链接」，回到这里粘贴整段文字即可（短链接也行），也可以只输入歌单 ID。</p>
                 <LinkField value={text} onChange={v => { setText(v); setError(''); }} fallback={platform} placeholder="例如 https://music.163.com/playlist?id=3778678" autoFocus={!isAndroid} onSubmit={submit} failed={Boolean(error)} />
                 <div className="space-y-1.5">
-                    <div className="text-[12px] text-white/40">只输入歌单 ID 时，请选择它属于哪个平台</div>
+                    <div className="text-[12px] txt-4">只输入歌单 ID 时，请选择它属于哪个平台</div>
                     <PlatformChips value={platform} active={parsed.ref?.platform} onChange={setPlatform} />
                 </div>
                 {targets.length > 0 && (
                     <label className="flex items-center gap-3 text-[13px]">
-                        <span className="shrink-0 font-semibold text-white/75">导入到</span>
-                        <select value={target} onChange={event => setTarget(event.target.value)} className="no-drag h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-[var(--surface-input)] px-3 text-[13px] text-white/85 outline-none focus:border-white/30">
+                        <span className="shrink-0 font-semibold txt-2">导入到</span>
+                        <select value={target} onChange={event => setTarget(event.target.value)} className="no-drag h-10 min-w-0 flex-1 rounded-xl border ln bg-[var(--surface-input)] px-3 text-[13px] txt-1 outline-none focus:ln-strong">
                             <option value="">新歌单（保留来源，可刷新）</option>
                             {targets.map(p => <option key={p.id} value={p.id}>并入「{p.name}」</option>)}
                         </select>
@@ -374,7 +374,7 @@ function ImportPlaylistDialog({ onClose }: { onClose: () => void }) {
                 )}
                 {error && <p className="break-words rounded-xl bg-red-500/10 px-3 py-2 text-[12.5px] leading-relaxed text-red-300">{error}</p>}
                 <div className="flex items-center justify-end gap-2">
-                    {busy && <span className="mr-auto flex items-center gap-2 text-[12px] text-white/50"><Spinner />{busy}</span>}
+                    {busy && <span className="mr-auto flex items-center gap-2 text-[12px] txt-4"><Spinner />{busy}</span>}
                     <Button variant="ghost" onClick={onClose}>取消</Button>
                     <Button variant="white" onClick={submit} disabled={!text.trim() || Boolean(busy)}>{busy && <Spinner />}导入</Button>
                 </div>
@@ -411,8 +411,8 @@ function TrackInfoDialog({ track, onClose }: { track: import('@/sdk/types').Trac
                 <div className="space-y-2.5">
                     {rows.map(([k, v]) => (
                         <div key={k} className="flex gap-4 text-[13px]">
-                            <span className="w-16 shrink-0 text-white/40">{k}</span>
-                            <span className="min-w-0 flex-1 text-white/85">{v}</span>
+                            <span className="w-16 shrink-0 txt-4">{k}</span>
+                            <span className="min-w-0 flex-1 txt-1">{v}</span>
                         </div>
                     ))}
                 </div>
@@ -442,7 +442,7 @@ export function Dialogs() {
             return (
                 <Modal open onClose={close} title={dialog.title}>
                     <div className="space-y-6 px-7 pb-7 pt-2 max-sm:px-5 max-sm:pb-5">
-                        <p className="whitespace-pre-line text-[14px] leading-relaxed text-white/65">{dialog.message}</p>
+                        <p className="whitespace-pre-line text-[14px] leading-relaxed txt-3">{dialog.message}</p>
                         <div className="flex justify-end gap-2">
                             <Button variant="ghost" onClick={close}>取消</Button>
                             <Button variant={dialog.danger ? 'danger' : 'white'} onClick={() => { close(); dialog.onConfirm(); }}>{dialog.confirmText || '确定'}</Button>
@@ -468,7 +468,7 @@ export function Toasts() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -8, scale: 0.96 }}
                         transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                        className="pointer-events-auto flex max-w-[640px] items-center gap-2.5 rounded-full border border-white/10 bg-[var(--surface-float)] py-2 pl-3 pr-4 text-[13px] text-white/90 shadow-[var(--shadow-float)] backdrop-blur-2xl"
+                        className="pointer-events-auto flex max-w-[640px] items-center gap-2.5 rounded-full border ln bg-[var(--surface-float)] py-2 pl-3 pr-4 text-[13px] txt-1 shadow-[var(--shadow-float)] backdrop-blur-2xl"
                         onClick={() => dismiss(t.id)}
                     >
                         {t.kind === 'success' ? <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" /> : t.kind === 'error' ? <XCircle className="h-4 w-4 shrink-0 text-red-300" /> : t.kind === 'warning' ? <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" /> : <Info className="h-4 w-4 shrink-0 text-sky-300" />}

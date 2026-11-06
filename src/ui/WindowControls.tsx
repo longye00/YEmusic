@@ -40,7 +40,7 @@ function DesktopWindowControls() {
         };
     }, []);
     if (!isDesktop || host.platform === 'darwin') return null;
-    const base = 'no-drag grid h-8 w-[46px] place-items-center text-white/60 transition-colors duration-150 hover:text-white';
+    const base = 'no-drag grid h-8 w-[46px] place-items-center txt-3 transition-colors duration-150 hover:text-white';
     // z-[220]：Folia 移植过来的 ThemedDialog（凝彩的图层弹窗）是 z-[200]，
     // 窗口按钮压在它上面，否则弹窗一开最小化 / 关闭就点不到了。
     return (

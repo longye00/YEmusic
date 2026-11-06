@@ -1,6 +1,6 @@
 /** 歌单 / 排行榜详情页 */
-import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { motion, useAnimationControls } from 'framer-motion';
 import { BookmarkPlus, CalendarDays, Check, ChevronLeft, Clock, Download, FilePlus2, FolderPlus, Heart, ListEnd, Pencil, Play, RefreshCw, Search, Shuffle, Sparkles, Trash2 } from 'lucide-react';
 import { extractPalette } from '@/lib/color';
 import { isAndroid } from '@/lib/host';
@@ -145,6 +145,34 @@ export function DetailView() {
 
     useEffect(() => setFilter(''), [target]);
 
+    /**
+     * 从乐库拼贴墙点进来时，封面从被点的那张海报「长」到详情页的位置。
+     * 起点矩形由 Wall.tsx 在点击时写进 store（CoverFlight），这里量出终点、算差值，
+     * 用关键帧直接从起点开始，避免先渲染终点再跳过去的闪烁。
+     */
+    const coverBoxRef = useRef<HTMLDivElement>(null);
+    const coverAnim = useAnimationControls();
+    useLayoutEffect(() => {
+        const flight = useUi.getState().coverFlight;
+        if (!flight) return;
+        ui.clearCoverFlight();
+        const box = coverBoxRef.current?.getBoundingClientRect();
+        if (!box || box.width < 1) return;
+        const scale = Math.min(2.6, Math.max(0.24, flight.w / box.width));
+        const dx = flight.x + flight.w / 2 - (box.x + box.width / 2);
+        const dy = flight.y + flight.h / 2 - (box.y + box.height / 2);
+        if (!Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(scale)) return;
+        void coverAnim.start({
+            x: [dx, 0],
+            y: [dy, 0],
+            scale: [scale, 1],
+            opacity: [0.4, 1],
+            transition: { duration: 0.42, ease: [0.2, 0.8, 0.2, 1] },
+        });
+        // 只在挂载时跑一次；flight 本身是一次性的
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     if (!target) return null;
     if (target.kind === 'user' && !playlist && !isRecent) {
         return (
@@ -213,7 +241,7 @@ export function DetailView() {
         <Shell>
             <div className="flex h-full min-h-0 gap-10 px-10 pb-8 pt-20 max-lg:flex-col max-lg:gap-5 max-sm:gap-3 max-sm:px-4 max-sm:pb-3 max-sm:pt-[68px] short:flex-row short:gap-5 short:px-4 short:pb-2 short:pt-14">
                 <motion.aside initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 30 }} className="flex w-[300px] shrink-0 flex-col max-lg:w-full max-lg:flex-row max-lg:items-end max-lg:gap-6 max-sm:grid max-sm:grid-cols-[88px_1fr] max-sm:gap-x-4 max-sm:gap-y-3 short:w-[230px] short:flex-col short:items-stretch short:gap-3 short:overflow-y-auto">
-                    <div className="aspect-square w-full overflow-hidden rounded-[26px] shadow-[var(--shadow-panel)] ring-1 ring-white/15 max-lg:w-40 max-sm:w-full max-sm:rounded-[18px] short:w-24 short:shrink-0 short:rounded-[18px]">
+                    <motion.div ref={coverBoxRef} animate={coverAnim} className="aspect-square w-full overflow-hidden rounded-[26px] shadow-[var(--shadow-panel)] ring-1 ring-white/15 max-lg:w-40 max-sm:w-full max-sm:rounded-[18px] short:w-24 short:shrink-0 short:rounded-[18px]">
                         {playlist?.id === FAVORITES_ID ? (
                             <PosterArt title="我喜欢" subtitle="Favorites" seed="fav" tone={[330, 280]} icon={<Heart fill="currentColor" />} />
                         ) : target.kind === 'daily' ? (
@@ -227,12 +255,12 @@ export function DetailView() {
                         ) : (
                             <Cover src={cover} seed={title} className="h-full w-full" rounded="rounded-[26px]" eager />
                         )}
-                    </div>
+                    </motion.div>
                     <div className="min-w-0 max-lg:flex-1 max-sm:contents">
                         <div className="min-w-0">
                             <h1 className="mt-6 line-clamp-2 text-[28px] font-bold leading-tight tracking-tight max-lg:mt-0 max-sm:text-[21px]">{title}</h1>
-                            <div className="mt-2 font-mono text-[12px] text-white/45 max-sm:mt-1.5 max-sm:text-[11px]">{meta}</div>
-                            {(remote.desc || playlist?.desc) && <p className="scroll-thin mt-3 max-h-[84px] overflow-y-auto whitespace-pre-line text-[12.5px] leading-relaxed text-white/45 max-lg:hidden">{remote.desc || playlist?.desc}</p>}
+                            <div className="mt-2 font-mono text-[12px] txt-4 max-sm:mt-1.5 max-sm:text-[11px]">{meta}</div>
+                            {(remote.desc || playlist?.desc) && <p className="scroll-thin mt-3 max-h-[84px] overflow-y-auto whitespace-pre-line text-[12.5px] leading-relaxed txt-4 max-lg:hidden">{remote.desc || playlist?.desc}</p>}
                         </div>
                         <div className="min-w-0 max-sm:col-span-full">
                         <div className="mt-5 flex flex-wrap items-center gap-1.5 max-sm:mt-0">
@@ -263,16 +291,16 @@ export function DetailView() {
                                 {localFolders.length > 0 && <Button onClick={() => rescanLocal()} disabled={scan.active}>{scan.active ? <Spinner /> : <RefreshCw className="h-4 w-4" />}重新扫描</Button>}
                             </div>
                         )}
-                        {scan.active && isLocal && <div className="mt-3 truncate font-mono text-[11px] text-white/40">扫描中 {scan.done}/{scan.total || '…'} {scan.current ? `· ${scan.current.split(/[\\/]/).pop()}` : ''}</div>}
+                        {scan.active && isLocal && <div className="mt-3 truncate font-mono text-[11px] txt-4">扫描中 {scan.done}/{scan.total || '…'} {scan.current ? `· ${scan.current.split(/[\\/]/).pop()}` : ''}</div>}
                         </div>
                     </div>
                 </motion.aside>
 
                 <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 240, damping: 30, delay: 0.04 }} className="flex min-h-0 min-w-0 flex-1 flex-col">
                     <div className="mb-3 flex items-center gap-3">
-                        <div className="flex h-10 flex-1 items-center gap-2 rounded-full border border-white/10 bg-black/20 lite:bg-black/60 px-4 backdrop-blur-xl focus-within:border-white/25">
-                            <Search className="h-4 w-4 text-white/40" />
-                            <input value={filter} onChange={e => setFilter(e.target.value)} placeholder={`在「${title}」中搜索`} className="h-full flex-1 bg-transparent text-[13px] outline-none placeholder:text-white/30" />
+                        <div className="flex h-10 flex-1 items-center gap-2 rounded-full border ln bg-black/20 lite:bg-black/60 px-4 backdrop-blur-xl focus-within:ln-strong">
+                            <Search className="h-4 w-4 txt-4" />
+                            <input value={filter} onChange={e => setFilter(e.target.value)} placeholder={`在「${title}」中搜索`} className="h-full flex-1 bg-transparent text-[13px] outline-none placeholder:txt-5" />
                         </div>
                     </div>
                     {remote.error && !tracks.length ? (
@@ -296,7 +324,7 @@ export function DetailView() {
                             playlistId={playlist?.id}
                             onPlay={(_, index) => playList(shown, index)}
                             onEndReached={!filter ? remote.loadMore : undefined}
-                            footer={<>{remote.loading && tracks.length ? <div className="flex justify-center py-4 text-white/40"><Spinner /></div> : null}<div className="h-16" /></>}
+                            footer={<>{remote.loading && tracks.length ? <div className="flex justify-center py-4 txt-4"><Spinner /></div> : null}<div className="h-16" /></>}
                         />
                     )}
                 </motion.section>

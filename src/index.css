@@ -814,3 +814,60 @@
     outline-offset: 4px;
     border-radius: 6px;
 }
+
+/* 语义色阶 utility：把「第几档文字」「多强的描边」「多长的过渡」从字面值里抽出来，
+   取值见 :root（第 68 行起）与 .lite 覆写（第 700 行起）。
+   必须写在顶层（不能包在 @layer 里），Tailwind 才会为 hover: / group-hover: /
+   focus-visible: 等变体生成对应规则。
+   档位对照：
+   | 文字 | 常规 | lite（去毛玻璃后提亮一档） |
+   |---|---|---|
+   | txt-1 主文字 | .94 | .96 |
+   | txt-2 次级 | .78 | .86 |
+   | txt-3 辅助 | .62 | .72 |
+   | txt-4 弱化 | .44 | .58 |
+   | txt-5 最弱 | .30 | .42 |
+   | 描边 | ln-weak .06 / ln .10 / ln-strong .16 | .09 / .14 / .20 | */
+@utility txt-1 { color: var(--text-1); }
+@utility txt-2 { color: var(--text-2); }
+@utility txt-3 { color: var(--text-3); }
+@utility txt-4 { color: var(--text-4); }
+@utility txt-5 { color: var(--text-5); }
+@utility ln-weak { border-color: var(--line-weak); }
+@utility ln { border-color: var(--line); }
+@utility ln-strong { border-color: var(--line-strong); }
+@utility dur-micro { transition-duration: var(--motion-micro); }
+@utility dur-base { transition-duration: var(--motion-base); }
+@utility dur-enter { transition-duration: var(--motion-enter); }
+
+/* ---------------- 搜索结果行（借 Folia 的 search-row-in） ---------------- */
+/* 行从左侧「刷」出来：先被裁掉右半边、整体左移 18px，60% 处裁切完成，末尾归位。
+   逐行延迟由 TSX 用内联 animation-delay 写入（min(序号,12) * 32ms），
+   这样一整组结果是一次波浪，而不是二十行同时闪。 */
+@keyframes search-row-in {
+    from {
+        opacity: 0;
+        transform: translateX(-18px);
+        clip-path: inset(0 100% 0 0);
+    }
+    60% {
+        clip-path: inset(0);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+        clip-path: inset(0);
+    }
+}
+.search-row-in {
+    animation: search-row-in 0.5s var(--ease-standard) both;
+}
+/* 精简模式：不做裁切（裁切每帧都要重算绘制区域），只留淡入 */
+@keyframes search-row-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.lite .search-row-in {
+    animation: search-row-fade 0.2s ease-out both;
+    animation-delay: 0ms !important;
+}
