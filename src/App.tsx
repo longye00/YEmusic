@@ -2,6 +2,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect } from 'react';
 import { engine } from '@/player/engine';
+import { useLite } from '@/lib/lite';
 import { usePlayer } from '@/store/player';
 import { useSettings } from '@/store/settings';
 import { useUi } from '@/store/ui';
@@ -32,12 +33,14 @@ function SharedBackground() {
     const homeTheme = useTheme(bgPalette || playerPalette);
     const playerTheme = useTheme(playerPalette);
     const theme = playerOpen ? playerTheme : homeTheme;
+    // 精简模式关掉了毛玻璃，浮层底色要跟着加深，否则亮背景下文字发虚（见 theme.ts）
+    const lite = useLite();
 
     // 主题 → CSS 变量：乐库拼贴墙的辉光、书签焦点环、::selection 读的是这几个变量，
     // 不同步的话换封面 / 自定义配色后它们仍停在默认紫（见 ui/theme.ts 的 syncThemeVars）
     useEffect(() => {
-        syncThemeVars(theme);
-    }, [theme]);
+        syncThemeVars(theme, lite);
+    }, [theme, lite]);
 
     const energy = useCallback(() => engine.energy(), []);
     const covered = playerOpen && background !== 'latent';

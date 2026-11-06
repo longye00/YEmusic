@@ -277,7 +277,7 @@ function LyricsTab() {
                 <Item column title="歌词样式" desc="Luminous：逐字飞入、辉光高亮；Flow：经典滚动歌词；其余 8 种是风格各异的动态歌词，每种动画的细节参数在播放页「设置」面板里调整。">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                         {LYRIC_STYLES.map(o => (
-                            <button key={o.id} type="button" onClick={() => setSetting('lyricStyle', o.id)} className={cx('flex min-w-0 flex-col items-start rounded-xl px-3 py-2 text-left transition-colors', s.lyricStyle === o.id ? 'bg-white/[0.2] text-white' : 'bg-white/[0.06] text-white/70 hover:bg-white/[0.12] hover:text-white')}>
+                            <button key={o.id} type="button" onClick={() => setSetting('lyricStyle', o.id)} className={cx('flex min-w-0 flex-col items-start rounded-xl px-3 py-2 text-left transition-colors', s.lyricStyle === o.id ? 'bg-[var(--ui-selected)] text-white' : 'bg-[var(--ui-idle)] text-white/70 hover:bg-[var(--ui-hover)] hover:text-white')}>
                                 <span className="max-w-full truncate text-[13px] font-semibold leading-tight">{o.name}</span>
                                 <span className="max-w-full truncate text-[10.5px] leading-tight text-white/40">{o.en}</span>
                             </button>
@@ -542,7 +542,7 @@ export function SettingsModal() {
                         <nav className="scroll-none flex w-[200px] shrink-0 flex-col gap-0.5 border-r border-white/[0.06] p-4 max-sm:mr-12 max-sm:w-auto max-sm:flex-row max-sm:gap-1 max-sm:overflow-x-auto max-sm:border-r-0 max-sm:p-2">
                             <div className="mb-4 px-3 pt-2 text-[20px] font-bold tracking-tight max-sm:hidden">设置</div>
                             {TABS.map(t => (
-                                <button key={t.id} type="button" onClick={() => useUi.setState({ settingsTab: t.id })} className={cx('flex h-10 items-center gap-3 rounded-xl px-3 text-[13.5px] transition-colors max-sm:shrink-0 max-sm:gap-2 max-sm:whitespace-nowrap', tab === t.id ? 'bg-white/[0.1] font-semibold text-white' : 'text-white/55 hover:bg-white/[0.05] hover:text-white/85')}>
+                                <button key={t.id} type="button" onClick={() => useUi.setState({ settingsTab: t.id })} className={cx('flex h-10 items-center gap-3 rounded-xl px-3 text-[13.5px] transition-colors max-sm:shrink-0 max-sm:gap-2 max-sm:whitespace-nowrap', tab === t.id ? 'bg-[var(--ui-selected)] font-semibold text-white' : 'text-white/55 hover:bg-[var(--ui-idle)] hover:text-white/85')}>
                                     <t.icon className="h-4 w-4" />{t.label}
                                 </button>
                             ))}
