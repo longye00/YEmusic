@@ -220,7 +220,7 @@ function ControlsTab({ theme }: { theme: Theme }) {
             </div>
             <div className="h-px bg-white/[0.08]" />
             <Row className="bg-black/20">
-                <button type="button" onClick={() => setSetting('muted', !s.muted)} className="txt-3 hover:text-white" title={s.muted ? '取消静音' : '静音'}><VolumeIcon className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setSetting('muted', !s.muted)} className="txt-3 hover:text-white" title={s.muted ? '取消静音（M）' : '静音（M）'}><VolumeIcon className="h-4 w-4" /></button>
                 <Slider value={s.muted ? 0 : s.volume} onChange={v => { setSetting('volume', v); if (s.muted) setSetting('muted', false); }} className="flex-1" thumb label="音量" valueText={`${Math.round((s.muted ? 0 : s.volume) * 100)}%`} />
                 <span className="w-9 text-right font-mono text-[11px] font-semibold">{Math.round((s.muted ? 0 : s.volume) * 100)}%</span>
                 <button type="button" title="均衡器" onClick={() => ui.openSettings('playback')} className={cx('hover:text-white', s.eqEnabled ? 'text-white' : 'txt-4')}><AudioLines className="h-4 w-4" /></button>

@@ -1,7 +1,7 @@
 /** 歌单 / 排行榜详情页 */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion, useAnimationControls } from 'framer-motion';
-import { BookmarkPlus, CalendarDays, Check, ChevronLeft, Clock, Download, FilePlus2, FolderPlus, Heart, ListEnd, Pencil, Play, RefreshCw, Search, Shuffle, Sparkles, Trash2 } from 'lucide-react';
+import { BookmarkPlus, CalendarDays, Check, ChevronLeft, Clock, Download, FilePlus2, FolderOpen, FolderPlus, Heart, LayoutGrid, ListEnd, Pencil, Play, RefreshCw, Search, Shuffle, Sparkles, Trash2 } from 'lucide-react';
 import { extractPalette } from '@/lib/color';
 import { isAndroid } from '@/lib/host';
 import { formatCount } from '@/lib/util';
@@ -12,14 +12,22 @@ import { albumDetail, dailySongs } from '@/sdk/wyApi';
 import { txAlbumDetail } from '@/sdk/tx';
 import { downloadMany } from '@/store/downloads';
 import { addLocalFolder, clearRecent, createPlaylist, deletePlaylist, FAVORITES_ID, LOCAL_ID, pickAudioFiles, playlistTracks, RECENT_ID, rescanLocal, resolveCover, saveOnlinePlaylist, upsertTracks, useLibrary } from '@/store/library';
-import { playList, playNext } from '@/store/player';
-import { useSettings } from '@/store/settings';
+import { addToQueue, playList, playNext } from '@/store/player';
+import { setSetting, useSettings } from '@/store/settings';
 import { toast } from '@/store/toast';
 import { isRemoteTarget, ui, useUi, type DetailTarget, type RemoteTarget } from '@/store/ui';
 import { Button, Cover, EmptyState, IconButton, Spinner, cx } from '../components/common';
 import { VirtualTrackList } from '../components/TrackList';
+import { useWindowSize } from '../hooks';
 import { PosterArt } from '../home/Carousel';
+import { DailyArt, PatternArt } from '../library/art';
 import { MiniPlayer } from '../player/MiniPlayer';
+import { DetailWall, type DetailAction } from './DetailWall';
+
+/** 拼贴墙模式最多铺这么多首（远程歌单会自动续载到这个数）；更多的在列表模式里看 */
+const WALL_CAP = 300;
+/** 窗口至少这么宽才用拼贴墙（书签 300px + 两侧的海报），再窄就用列表 */
+const WALL_MIN_WIDTH = 900;
 
 interface RemoteState { list: Track[]; total: number; page: number; loading: boolean; error?: string; name?: string; cover?: string; desc?: string; author?: string; playCount?: number }
 
@@ -102,6 +110,18 @@ export function DetailView() {
     const localFolders = useSettings(s => s.localFolders);
     const remote = useRemoteList(target);
     const [filter, setFilter] = useState('');
+    const layout = useSettings(s => s.detailLayout);
+    const { w: winW } = useWindowSize();
+    const wall = layout === 'wall' && winW >= WALL_MIN_WIDTH;
+
+    // 拼贴墙没有「滚到底再加载」，远程歌单在墙模式下自动续载到上限
+    useEffect(() => {
+        if (!wall || !isRemoteTarget(target) || remote.loading || remote.error || !remote.page) return;
+        if (remote.list.length >= remote.total || remote.list.length >= WALL_CAP) return;
+        remote.loadMore();
+        // loadMore 每次渲染都是新函数，依赖里只放它读取的状态
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [wall, target, remote.loading, remote.error, remote.page, remote.list.length, remote.total]);
 
     const playlist = target?.kind === 'user' ? playlists.find(p => p.id === target.id) : undefined;
     const isRecent = target?.kind === 'user' && target.id === RECENT_ID;
@@ -237,6 +257,81 @@ export function DetailView() {
         toast(`已收藏到「我的」：${saved.name}`, 'success');
     };
 
+    /** 列表布局与拼贴墙的书签共用的操作：按钮、顺序、可用条件只在这里定义一份 */
+    const actions: DetailAction[] = [
+        { key: 'shuffle', label: '随机播放', icon: <Shuffle className="h-4 w-4" />, disabled: !tracks.length, run: () => playList(shown, 0, { shuffle: true }) },
+        { key: 'next', label: '全部加入下一首播放', icon: <ListEnd className="h-4 w-4" />, disabled: !tracks.length, run: () => playNext(shown) },
+        ...(!isLocal && !isGroup ? [{ key: 'download', label: '下载全部', icon: <Download className="h-4 w-4" />, disabled: !tracks.length, run: () => ui.confirm('下载全部', `将下载 ${shown.length} 首歌曲到下载目录，确定吗？`, () => downloadMany(shown)) }] : []),
+        ...(target.kind === 'guess' ? [{ key: 'reroll', label: '换一批', icon: <RefreshCw className={cx('h-4 w-4', remote.loading && 'animate-spin')} />, disabled: remote.loading, run: remote.reload }] : []),
+        ...(target.kind === 'album' || target.kind === 'daily' || target.kind === 'guess' ? [{ key: 'snapshot', label: '保存为我的歌单', icon: <BookmarkPlus className="h-4 w-4" />, disabled: !tracks.length, run: saveSnapshot }] : []),
+        ...(canSaveOrigin
+            ? [savedOnline
+                ? { key: 'saved', label: '已收藏（点击打开）', icon: <Check className="h-4 w-4" />, active: true, run: () => ui.openDetail({ kind: 'user', id: savedOnline.id }) }
+                : { key: 'save', label: '收藏到我的歌单', icon: <BookmarkPlus className="h-4 w-4" />, disabled: !tracks.length, run: saveRemote }]
+            : []),
+        ...(playlist?.origin ? [{ key: 'refresh', label: '从平台刷新', icon: <RefreshCw className="h-4 w-4" />, run: refreshImported }] : []),
+        ...(playlist && playlist.kind !== 'favorites' && playlist.kind !== 'local'
+            ? [
+                { key: 'rename', label: '重命名', icon: <Pencil className="h-4 w-4" />, run: () => ui.dialog({ type: 'renamePlaylist', id: playlist.id, name: playlist.name }) },
+                { key: 'delete', label: '删除歌单', icon: <Trash2 className="h-4 w-4" />, run: () => ui.confirm('删除歌单', `确定删除「${playlist.name}」吗？歌曲本身不会被删除。`, () => { deletePlaylist(playlist.id); ui.closeDetail(); }, { danger: true, confirmText: '删除' }) },
+            ]
+            : []),
+        ...(isRecent && recent.length > 0 ? [{ key: 'clear', label: '清空最近播放', icon: <Trash2 className="h-4 w-4" />, run: () => ui.confirm('清空最近播放', '确定清空播放历史吗？', clearRecent, { danger: true, confirmText: '清空' }) }] : []),
+    ];
+
+    const localExtra = isLocal ? (
+        <>
+            <div className="mt-4 flex flex-wrap gap-2">
+                <Button onClick={addLocalFolder}><FolderPlus className="h-4 w-4" />添加文件夹</Button>
+                <Button onClick={pickAudioFiles}><FilePlus2 className="h-4 w-4" />添加文件</Button>
+                {localFolders.length > 0 && <Button onClick={() => rescanLocal()} disabled={scan.active}>{scan.active ? <Spinner /> : <RefreshCw className="h-4 w-4" />}重新扫描</Button>}
+            </div>
+            {scan.active && <div className="mt-3 truncate font-mono text-[11px] txt-4">扫描中 {scan.done}/{scan.total || '…'} {scan.current ? `· ${scan.current.split(/[\\/]/).pop()}` : ''}</div>}
+        </>
+    ) : null;
+
+    if (wall) {
+        // 没有封面的特殊歌单：与乐库首页里同一张卡片的生成式封面一致
+        const wallArt = playlist?.id === FAVORITES_ID
+            ? <PatternArt seed="fav" tone={[330, 280]} icon={<Heart fill="currentColor" />} />
+            : target.kind === 'daily' ? <DailyArt />
+            : target.kind === 'guess' ? <PatternArt seed="guess" tone={[275, 330]} icon={<Sparkles />} />
+            : isRecent ? <PatternArt seed="recent" tone={[205, 250]} icon={<Clock />} />
+            : isLocal && !cover ? <PatternArt seed="local" tone={[160, 200]} icon={<FolderOpen />} />
+            : undefined;
+        const onWall = shown.slice(0, WALL_CAP);
+        const capped = shown.length > onWall.length;
+        const waiting = isRemoteTarget(target) && !remote.error && (remote.loading || !remote.page || remote.list.length < Math.min(remote.total, WALL_CAP)) && !filter;
+        return (
+            <motion.div className="pointer-events-auto absolute inset-0 z-40" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+                <DetailWall
+                    id={`${target.kind}:${isRemoteTarget(target) ? target.platform : ''}:${target.id}`}
+                    title={title}
+                    meta={capped ? `${meta} • 墙上只铺前 ${WALL_CAP} 首，全部歌曲请切换到列表` : meta}
+                    cover={cover}
+                    art={wallArt}
+                    tracks={onWall}
+                    playlistId={playlist?.id}
+                    filter={filter}
+                    onFilter={setFilter}
+                    loading={remote.loading || (isRemoteTarget(target) && !remote.page && !remote.error)}
+                    error={remote.error && !tracks.length ? remote.error : undefined}
+                    status={waiting && tracks.length ? `正在载入 ${tracks.length}/${Math.min(remote.total, WALL_CAP)}…` : undefined}
+                    onRetry={remote.reload}
+                    emptyTitle={filter ? '没有匹配的歌曲' : isLocal ? '还没有本地音乐' : '这里还是空的'}
+                    emptyDesc={filter ? '换个关键词试试' : isLocal ? '添加音乐文件夹后会自动扫描歌曲、读取标签与封面。' : `在搜索结果或歌单里${isAndroid ? '长按' : '右键'}歌曲即可添加。`}
+                    emptyActions={isLocal && !filter ? <Button variant="white" onClick={addLocalFolder}><FolderPlus className="h-4 w-4" />添加文件夹</Button> : undefined}
+                    play={index => playList(shown, index)}
+                    playAll={() => playList(shown, 0)}
+                    queueAll={() => addToQueue(shown)}
+                    actions={actions}
+                    extra={localExtra}
+                    onList={() => setSetting('detailLayout', 'list')}
+                />
+            </motion.div>
+        );
+    }
+
     return (
         <Shell>
             <div className="flex h-full min-h-0 gap-10 px-10 pb-8 pt-20 max-lg:flex-col max-lg:gap-5 max-sm:gap-3 max-sm:px-4 max-sm:pb-3 max-sm:pt-[68px] short:flex-row short:gap-5 short:px-4 short:pb-2 short:pt-14">
@@ -265,33 +360,11 @@ export function DetailView() {
                         <div className="min-w-0 max-sm:col-span-full">
                         <div className="mt-5 flex flex-wrap items-center gap-1.5 max-sm:mt-0">
                             <Button variant="white" disabled={!tracks.length} onClick={() => playList(shown, 0)} className="h-10 px-4"><Play className="h-4 w-4" fill="currentColor" />播放全部</Button>
-                            <IconButton variant="glass" label="随机播放" disabled={!tracks.length} onClick={() => playList(shown, 0, { shuffle: true })}><Shuffle className="h-4 w-4" /></IconButton>
-                            <IconButton variant="glass" label="全部加入下一首播放" disabled={!tracks.length} onClick={() => playNext(shown)}><ListEnd className="h-4 w-4" /></IconButton>
-                            {!isLocal && !isGroup && <IconButton variant="glass" label="下载全部" disabled={!tracks.length} onClick={() => ui.confirm('下载全部', `将下载 ${shown.length} 首歌曲到下载目录，确定吗？`, () => downloadMany(shown))}><Download className="h-4 w-4" /></IconButton>}
-                            {target.kind === 'guess' && <IconButton variant="glass" label="换一批" disabled={remote.loading} onClick={remote.reload}><RefreshCw className={cx('h-4 w-4', remote.loading && 'animate-spin')} /></IconButton>}
-                            {(target.kind === 'album' || target.kind === 'daily' || target.kind === 'guess') && <IconButton variant="glass" label="保存为我的歌单" disabled={!tracks.length} onClick={saveSnapshot}><BookmarkPlus className="h-4 w-4" /></IconButton>}
-                            {canSaveOrigin && (
-                                savedOnline
-                                    ? <IconButton variant="glass" label="已收藏（点击打开）" active onClick={() => ui.openDetail({ kind: 'user', id: savedOnline.id })}><Check className="h-4 w-4" /></IconButton>
-                                    : <IconButton variant="glass" label="收藏到我的歌单" disabled={!tracks.length} onClick={saveRemote}><BookmarkPlus className="h-4 w-4" /></IconButton>
-                            )}
-                            {playlist?.origin && <IconButton variant="glass" label="从平台刷新" onClick={refreshImported}><RefreshCw className="h-4 w-4" /></IconButton>}
-                            {playlist && playlist.kind !== 'favorites' && playlist.kind !== 'local' && (
-                                <>
-                                    <IconButton variant="glass" label="重命名" onClick={() => ui.dialog({ type: 'renamePlaylist', id: playlist.id, name: playlist.name })}><Pencil className="h-4 w-4" /></IconButton>
-                                    <IconButton variant="glass" label="删除歌单" onClick={() => ui.confirm('删除歌单', `确定删除「${playlist.name}」吗？歌曲本身不会被删除。`, () => { deletePlaylist(playlist.id); ui.closeDetail(); }, { danger: true, confirmText: '删除' })}><Trash2 className="h-4 w-4" /></IconButton>
-                                </>
-                            )}
-                            {isRecent && recent.length > 0 && <IconButton variant="glass" label="清空最近播放" onClick={() => ui.confirm('清空最近播放', '确定清空播放历史吗？', clearRecent, { danger: true, confirmText: '清空' })}><Trash2 className="h-4 w-4" /></IconButton>}
+                            {actions.map(action => (
+                                <IconButton key={action.key} variant="glass" label={action.label} active={action.active} disabled={action.disabled} onClick={action.run}>{action.icon}</IconButton>
+                            ))}
                         </div>
-                        {isLocal && (
-                            <div className="mt-4 flex flex-wrap gap-2">
-                                <Button onClick={addLocalFolder}><FolderPlus className="h-4 w-4" />添加文件夹</Button>
-                                <Button onClick={pickAudioFiles}><FilePlus2 className="h-4 w-4" />添加文件</Button>
-                                {localFolders.length > 0 && <Button onClick={() => rescanLocal()} disabled={scan.active}>{scan.active ? <Spinner /> : <RefreshCw className="h-4 w-4" />}重新扫描</Button>}
-                            </div>
-                        )}
-                        {scan.active && isLocal && <div className="mt-3 truncate font-mono text-[11px] txt-4">扫描中 {scan.done}/{scan.total || '…'} {scan.current ? `· ${scan.current.split(/[\\/]/).pop()}` : ''}</div>}
+                        {localExtra}
                         </div>
                     </div>
                 </motion.aside>
@@ -302,6 +375,7 @@ export function DetailView() {
                             <Search className="h-4 w-4 txt-4" />
                             <input value={filter} onChange={e => setFilter(e.target.value)} placeholder={`在「${title}」中搜索`} className="h-full flex-1 bg-transparent text-[13px] outline-none placeholder:txt-5" />
                         </div>
+                        {winW >= WALL_MIN_WIDTH && <IconButton variant="glass" label="切换为拼贴墙布局" onClick={() => setSetting('detailLayout', 'wall')}><LayoutGrid className="h-4 w-4" /></IconButton>}
                     </div>
                     {remote.error && !tracks.length ? (
                         <EmptyState title="加载失败" desc={remote.error}><Button onClick={remote.reload}><RefreshCw className="h-4 w-4" />重试</Button></EmptyState>

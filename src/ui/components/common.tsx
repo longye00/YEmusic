@@ -159,10 +159,11 @@ export function Slider({ value, max = 1, min = 0, step = 0, onChange, onCommit, 
     );
 }
 
-export function Switch({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+/** 开关：打开时用主题色（Folia 的紫色开关同理，随封面取色 / 自定义配色变化），圆点在深色轨道上留深色 */
+export function Switch({ checked, onChange, disabled, label }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; label?: string }) {
     return (
-        <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)} className={cx('no-drag relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-40', checked ? 'bg-white' : 'bg-white/15')}>
-            <span className={cx('absolute top-0.5 h-5 w-5 rounded-full transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)]', checked ? 'left-[22px] bg-black' : 'left-0.5 bg-white/80')} />
+        <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)} className={cx('no-drag relative h-6 w-[42px] shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40', checked ? 'bg-[rgb(var(--accent))]' : 'bg-white/[0.16]')}>
+            <span className={cx('absolute top-[3px] h-[18px] w-[18px] rounded-full transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)]', checked ? 'left-[21px] bg-[#15141b]' : 'left-[3px] bg-white/85')} />
         </button>
     );
 }

@@ -1,7 +1,9 @@
-/** 设置中心 */
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowDown, ArrowUp, ClipboardPaste, Database, Download, ExternalLink, FileCode2, FolderOpen, FolderPlus, Info, Link2, Palette, Play, Plug, RefreshCw, RotateCcw, ScrollText, Trash2, Type, X } from 'lucide-react';
+/**
+ * 设置中心（Folia 式）：左侧分组导航 + 顶部搜索，右侧是带标题的内容页。
+ * 搜索不维护单独的索引：搜索时把所有页签一起渲染，Section / Item 按搜索词自己决定显不显示（见 SettingsQuery）。
+ */
+import { createContext, isValidElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { ArrowDown, ArrowUp, ClipboardPaste, Database, Download, ExternalLink, FileCode2, FolderOpen, FolderPlus, Info, Link2, Palette, Play, Plug, RefreshCw, RotateCcw, ScrollText, Search, Trash2, Type, X } from 'lucide-react';
 import appIcon from '@/assets/icon.png';
 import { displayPath, host, isAndroid, isDesktop } from '@/lib/host';
 import { requestText } from '@/lib/http';
@@ -23,16 +25,45 @@ import { PlatformBadge } from '../library/LoginPanel';
 import { FOLIA_MODES } from '../player/folia/modes';
 import { css, useTheme } from '../theme';
 import { Button, EmptyState, IconButton, Segmented, Slider, Spinner, Switch, cx } from '../components/common';
+import { Keys, type KeyCombo } from '../components/Kbd';
+import { Surface } from '../components/Surface';
 
-const TABS: { id: SettingsTab; label: string; icon: typeof Play }[] = [
-    { id: 'playback', label: '播放', icon: Play },
-    { id: 'sources', label: '音源', icon: Plug },
-    { id: 'lyrics', label: '歌词', icon: Type },
-    { id: 'appearance', label: '外观', icon: Palette },
-    { id: 'download', label: '下载', icon: Download },
-    { id: 'library', label: '曲库与数据', icon: Database },
-    { id: 'about', label: '关于', icon: Info },
+const TABS: { id: SettingsTab; label: string; desc: string; icon: typeof Play }[] = [
+    { id: 'playback', label: '播放', desc: '音质与容错、输出设备、均衡器与窗口行为', icon: Play },
+    { id: 'sources', label: '音源', desc: '洛雪自定义源脚本与网络限制', icon: Plug },
+    { id: 'lyrics', label: '歌词', desc: '歌词样式、字体字号与歌词来源', icon: Type },
+    { id: 'download', label: '下载', desc: '保存位置、下载音质、文件名与歌曲标签', icon: Download },
+    { id: 'appearance', label: '外观', desc: '首页布局、播放页背景与配色', icon: Palette },
+    { id: 'library', label: '曲库与数据', desc: '在线平台账号、本地音乐、备份与缓存', icon: Database },
+    { id: 'about', label: '关于与帮助', desc: '版本、更新、快捷键与开源许可', icon: Info },
 ];
+const TAB_BY_ID = Object.fromEntries(TABS.map(t => [t.id, t])) as Record<SettingsTab, (typeof TABS)[number]>;
+
+/** 桌面端导航分组；关于固定在导航底部（与 Folia 的「帮助」同位） */
+const NAV_GROUPS: { title: string; tabs: SettingsTab[] }[] = [
+    { title: '音乐', tabs: ['playback', 'sources', 'lyrics', 'download'] },
+    { title: '应用', tabs: ['appearance', 'library'] },
+];
+const PINNED_TAB: SettingsTab = 'about';
+
+/** 当前搜索词（空串 = 没在搜索）与「所在分区的标题 / 说明已命中，整组显示」 */
+const SettingsQuery = createContext('');
+const SectionHit = createContext(false);
+
+/** 把标题 / 说明里的 ReactNode 压成纯文字，用来匹配搜索词 */
+function textOf(node: ReactNode): string {
+    if (node == null || typeof node === 'boolean') return '';
+    if (typeof node === 'string' || typeof node === 'number') return String(node);
+    if (Array.isArray(node)) return node.map(textOf).join('');
+    if (isValidElement(node)) return textOf((node.props as { children?: ReactNode }).children);
+    return '';
+}
+
+/** 每个空格分隔的词都要出现（不分大小写） */
+const matches = (query: string, text: string) => {
+    const hay = text.toLowerCase();
+    return query.toLowerCase().split(/\s+/).filter(Boolean).every(word => hay.includes(word));
+};
 
 const LYRIC_STYLES: { id: Settings['lyricStyle']; name: string; en: string }[] = [
     { id: 'luminous', name: '光晕', en: 'Luminous' },
@@ -41,20 +72,27 @@ const LYRIC_STYLES: { id: Settings['lyricStyle']; name: string; en: string }[] =
 ];
 
 function Section({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
+    const query = useContext(SettingsQuery);
+    const hit = Boolean(query) && matches(query, `${title} ${desc ?? ''}`);
     return (
-        <section className="mb-7">
-            <h3 className="text-[13px] font-semibold txt-4">{title}</h3>
+        <section className={cx('settings-section mb-7', hit && 'is-hit')}>
+            <h3 className="text-[12.5px] font-semibold tracking-wide txt-3">{title}</h3>
             {desc && <p className="mt-1 text-[12px] leading-relaxed txt-4">{desc}</p>}
-            <div className="mt-3 divide-y divide-white/[0.06] overflow-hidden rounded-2xl border ln-weak bg-white/[0.03]">{children}</div>
+            <div className="mt-3 divide-y divide-white/[0.06] overflow-hidden rounded-2xl border ln-weak bg-white/[0.03]">
+                <SectionHit.Provider value={hit}>{children}</SectionHit.Provider>
+            </div>
         </section>
     );
 }
 
-function Item({ title, desc, children, column }: { title: ReactNode; desc?: ReactNode; children?: ReactNode; column?: boolean }) {
+function Item({ title, desc, children, column, dense }: { title: ReactNode; desc?: ReactNode; children?: ReactNode; column?: boolean; dense?: boolean }) {
+    const query = useContext(SettingsQuery);
+    const sectionHit = useContext(SectionHit);
+    if (query && !sectionHit && !matches(query, `${textOf(title)} ${textOf(desc)}`)) return null;
     return (
-        <div className={cx('flex gap-4 px-4 py-3.5', column ? 'flex-col' : 'items-center max-sm:flex-wrap max-sm:gap-y-2.5 max-sm:[&>:not(:first-child)]:ml-auto')}>
+        <div data-item className={cx('flex gap-4 px-4', dense ? 'py-2.5' : 'py-3.5', column ? 'flex-col' : 'items-center max-sm:flex-wrap max-sm:gap-y-2.5 max-sm:[&>:not(:first-child)]:ml-auto')}>
             <div className={cx('min-w-0 flex-1', !column && 'max-sm:min-w-[55%]')}>
-                <div className="text-[13.5px] font-medium txt-1">{title}</div>
+                <div className={dense ? 'text-[13px] txt-2' : 'text-[13.5px] font-medium txt-1'}>{title}</div>
                 {desc && <div className="mt-0.5 text-[12px] leading-relaxed txt-4">{desc}</div>}
             </div>
             {children}
@@ -64,7 +102,18 @@ function Item({ title, desc, children, column }: { title: ReactNode; desc?: Reac
 
 function Toggle({ k, title, desc }: { k: keyof Settings; title: string; desc?: string }) {
     const value = useSettings(s => s[k]) as boolean;
-    return <Item title={title} desc={desc}><Switch checked={value} onChange={v => setSetting(k, v as never)} /></Item>;
+    return <Item title={title} desc={desc}><Switch checked={value} label={title} onChange={v => setSetting(k, v as never)} /></Item>;
+}
+
+/** 搜索时每个页签的小标题；整组没有命中就由 CSS 隐藏（.settings-group） */
+function TabGroup({ id, children }: { id: SettingsTab; children: ReactNode }) {
+    const { label, icon: Icon } = TAB_BY_ID[id];
+    return (
+        <div className="settings-group mb-2">
+            <h2 className="mb-4 flex items-center gap-2 text-[15px] font-bold tracking-tight txt-1"><Icon className="h-4 w-4 txt-3" />{label}</h2>
+            {children}
+        </div>
+    );
 }
 
 const QUALITY_OPTIONS: { value: Quality; label: string }[] = [
@@ -306,6 +355,9 @@ function AppearanceTab() {
             <Item title="首页布局" desc={s.homeLayout === 'library' ? '乐库：可拖动的封面拼贴墙，中间的书签切换歌单 / 电台 / 专辑 / 本地 / 广场 / 榜单' : '封面流：3D 封面轮播，在“我的 / 歌单广场 / 排行榜”间切换'}>
                 <Segmented size="sm" value={s.homeLayout} onChange={v => setSetting('homeLayout', v)} options={[{ value: 'library', label: '乐库' }, { value: 'carousel', label: '封面流' }]} />
             </Item>
+            <Item title="歌单 / 专辑详情页布局" desc={s.detailLayout === 'wall' ? '拼贴墙：歌曲排成可拖动的海报墙，标题、过滤与操作在中间的书签里；窗口窄于 900px 时自动用列表' : '列表：左侧封面与操作，右侧是歌曲列表'}>
+                <Segmented size="sm" value={s.detailLayout} onChange={v => setSetting('detailLayout', v)} options={[{ value: 'wall', label: '拼贴墙' }, { value: 'list', label: '列表' }]} />
+            </Item>
         </Section>
         <Section title="背景与主题">
             <Item title="播放页背景"><Segmented size="sm" value={s.background} onChange={v => setSetting('background', v)} options={[{ value: 'latent', label: 'Latent 流体' }, { value: 'blur', label: '模糊封面' }, { value: 'solid', label: '纯色' }]} /></Item>
@@ -467,24 +519,30 @@ function LibraryTab() {
 const SHORTCUTS: [string, string][] = [
     ['空格', '播放 / 暂停'],
     ['多媒体键', '播放 / 暂停、上一首、下一首、停止、音量、静音（输入框里也生效）'],
-    ['Ctrl + → / ←', '下一首 / 上一首'],
+    ['Ctrl + → / Ctrl + ←', '下一首 / 上一首'],
     ['→ / ←', '播放页：快进 / 快退 5 秒；封面流：切换封面；乐库：平移'],
     ['拖动 / 滚轮', '乐库：平移拼贴墙（Shift + 方向键一次移动 3 格）'],
     ['双击', '乐库 / 封面流：直接播放，不打开详情'],
     ['回车', '封面流：打开当前聚焦的封面'],
     ['Tab + 方向键', '任何滑块：聚焦后用 ← → 微调，PageUp / PageDown 粗调，Home / End 到头'],
-    ['/', '乐库：过滤当前页'],
+    ['/', '乐库：过滤当前页；设置里：搜索设置项'],
     ['Home', '乐库：回到起点'],
     ['↑ / ↓', '播放页：音量 +/- 5%'],
-    ['Ctrl + K / Ctrl + F', '搜索'],
-    ['搜索框内 ↑↓ / Enter', '选择结果 / 播放；Shift + Enter 加入队列，Tab 循环切换平台'],
+    ['Ctrl + K / Ctrl + F', '搜索（设置里是搜索设置项）'],
+    ['↑↓ / Enter', '搜索框内：选择结果 / 播放；Shift + Enter 加入队列，Tab 循环切换平台'],
     ['Ctrl + P', '打开 / 关闭播放页'],
     ['L', '喜欢当前歌曲'],
     ['M', '静音'],
     ['F11', '全屏'],
     ['Ctrl + ,', '设置'],
-    ['Esc', '关闭当前浮层'],
+    ['?', '快捷键与帮助（本页）'],
+    ['Esc', '关闭当前浮层（设置里先清掉搜索词）'],
 ];
+
+/** "Ctrl + → / ←" → [['Ctrl', '→'], ['←']]：按 " / " 分成几个可选组合，再按 "+" 分成键帽；拆出来全是文字说明（拖动、双击）时当作一个键帽 */
+function comboOf(text: string): KeyCombo[] {
+    return text.split(/\s+\/\s+/).map(part => part.split(/\s*\+\s*/).filter(Boolean));
+}
 
 function AboutTab() {
     const [version, setVersion] = useState('');
@@ -496,7 +554,7 @@ function AboutTab() {
     useEffect(() => { host.version().then(setVersion).catch(() => {}); }, []);
     return (
         <>
-            <div className="mb-7 flex items-center gap-4">
+            <div className="settings-no-search mb-7 flex items-center gap-4">
                 <img src={appIcon} alt="" draggable={false} className="h-16 w-16 rounded-[18px]" style={{ boxShadow: `0 12px 40px ${css(theme.accent, 0.32)}` }} />
                 <div>
                     <div className="text-[22px] font-bold tracking-tight">YEmusic</div>
@@ -510,7 +568,7 @@ function AboutTab() {
                 </Item>
             </Section>
             {!isAndroid && <Section title="快捷键">
-                {SHORTCUTS.map(([k, v]) => <div key={k} className="flex items-center justify-between px-4 py-2.5 text-[13px]"><span className="txt-3">{v}</span><kbd>{k}</kbd></div>)}
+                {SHORTCUTS.map(([keys, label]) => <Item dense key={keys} title={label}><Keys combos={comboOf(keys)} className="shrink-0 justify-end" /></Item>)}
             </Section>}
             <Section title="开源许可与致谢">
                 <div className="space-y-2.5 px-4 py-3.5 text-[12.5px] leading-relaxed txt-3">
@@ -525,41 +583,155 @@ function AboutTab() {
     );
 }
 
+function TabBody({ id }: { id: SettingsTab }) {
+    switch (id) {
+        case 'playback': return <PlaybackTab />;
+        case 'sources': return <SourcesTab />;
+        case 'lyrics': return <LyricsTab />;
+        case 'appearance': return <AppearanceTab />;
+        case 'download': return <DownloadTab />;
+        case 'library': return <LibraryTab />;
+        default: return <AboutTab />;
+    }
+}
+
+function NavItem({ id, active, onSelect }: { id: SettingsTab; active: boolean; onSelect: (id: SettingsTab) => void }) {
+    const { label, icon: Icon } = TAB_BY_ID[id];
+    return (
+        <button
+            type="button"
+            aria-current={active ? 'page' : undefined}
+            onClick={() => onSelect(id)}
+            className={cx('flex h-9 w-full shrink-0 items-center gap-2.5 rounded-[10px] px-2.5 text-[13px] transition-colors', active ? 'bg-[var(--ui-hover)] font-semibold text-white' : 'txt-3 hover:bg-[var(--ui-idle)] hover:txt-1')}
+        >
+            <Icon className="h-4 w-4 shrink-0" />{label}
+        </button>
+    );
+}
+
 export function SettingsModal() {
     const open = useUi(s => s.settingsOpen);
     const tab = useUi(s => s.settingsTab);
+    const [query, setQuery] = useState('');
+    const [hits, setHits] = useState(0);
+    const searchRef = useRef<HTMLInputElement>(null);
+    const bodyRef = useRef<HTMLDivElement>(null);
+    const stripRef = useRef<HTMLElement>(null);
+    const queryRef = useRef('');
+    queryRef.current = query;
+    const q = query.trim();
+    const searching = q.length > 0;
+
+    // Surface 在 onClose 的引用变化时会重跑焦点逻辑（还焦点、再抢焦点），所以这里必须是稳定引用
+    const close = useCallback(() => {
+        if (useUi.getState().dialog) return;
+        if (queryRef.current) return setQuery('');
+        ui.closeSettings();
+    }, []);
+    const select = useCallback((id: SettingsTab) => {
+        setQuery('');
+        useUi.setState({ settingsTab: id });
+    }, []);
+
+    useEffect(() => {
+        if (!open) setQuery('');
+    }, [open]);
+
+    // 设置里的 Ctrl + F / Ctrl + K / "/" 搜索设置项，而不是在设置后面打开全局搜索
     useEffect(() => {
         if (!open) return;
-        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !useUi.getState().dialog) { e.stopPropagation(); ui.closeSettings(); } };
+        const onKey = (event: KeyboardEvent) => {
+            const ctrl = event.ctrlKey || event.metaKey;
+            const typing = (event.target as HTMLElement | null)?.closest?.('input,textarea,select');
+            const wanted = (ctrl && !event.shiftKey && /^[kf]$/i.test(event.key)) || (!ctrl && !event.altKey && !typing && event.key === '/');
+            if (!wanted || useUi.getState().dialog) return;
+            event.preventDefault();
+            event.stopPropagation();
+            searchRef.current?.focus();
+            searchRef.current?.select();
+        };
         window.addEventListener('keydown', onKey, true);
         return () => window.removeEventListener('keydown', onKey, true);
     }, [open]);
+
+    // 搜索时 Section / Item 自己按搜索词决定显不显示，这里只数一数留下了几项
+    useLayoutEffect(() => {
+        if (searching) setHits(bodyRef.current?.querySelectorAll('[data-item], .settings-section.is-hit').length ?? 0);
+    });
+    useEffect(() => {
+        bodyRef.current?.scrollTo({ top: 0 });
+    }, [tab, q]);
+    // 手机上页签是横向滚动的一排：打开 / 切换时把当前页签滚到视野里
+    useEffect(() => {
+        if (open) stripRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+    }, [open, tab]);
+
+    const meta = TAB_BY_ID[tab];
     return (
-        <AnimatePresence>
-            {open && (
-                <motion.div className="fixed inset-0 z-[70] grid place-items-center bg-black/55 p-6 backdrop-blur-md max-sm:p-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onPointerDown={e => { if (e.target === e.currentTarget) ui.closeSettings(); }}>
-                    <motion.div className="relative flex h-[min(680px,100%)] w-[min(980px,100%)] overflow-hidden rounded-[var(--radius-card)] border ln bg-[var(--surface-card)] shadow-[var(--shadow-card)] max-sm:h-full max-sm:flex-col max-sm:rounded-none max-sm:border-0" initial={{ scale: 0.95, y: 16, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.97, opacity: 0 }} transition={{ type: 'spring', stiffness: 360, damping: 32 }}>
-                        <nav className="scroll-none flex w-[200px] shrink-0 flex-col gap-0.5 border-r ln-weak p-4 max-sm:mr-12 max-sm:w-auto max-sm:flex-row max-sm:gap-1 max-sm:overflow-x-auto max-sm:border-r-0 max-sm:p-2">
-                            <div className="mb-4 px-3 pt-2 text-[20px] font-bold tracking-tight max-sm:hidden">设置</div>
-                            {TABS.map(t => (
-                                <button key={t.id} type="button" onClick={() => useUi.setState({ settingsTab: t.id })} className={cx('flex h-10 items-center gap-3 rounded-xl px-3 text-[13.5px] transition-colors max-sm:shrink-0 max-sm:gap-2 max-sm:whitespace-nowrap', tab === t.id ? 'bg-[var(--ui-selected)] font-semibold text-white' : 'txt-3 hover:bg-[var(--ui-idle)] hover:txt-1')}>
-                                    <t.icon className="h-4 w-4" />{t.label}
-                                </button>
-                            ))}
-                        </nav>
-                        <div className="scroll-thin min-w-0 flex-1 overflow-y-auto px-8 pb-6 pt-7 max-sm:border-t max-sm:ln-weak max-sm:px-4 max-sm:pb-[calc(3rem+var(--safe-bottom))] max-sm:pt-4">
-                            {tab === 'playback' && <PlaybackTab />}
-                            {tab === 'sources' && <SourcesTab />}
-                            {tab === 'lyrics' && <LyricsTab />}
-                            {tab === 'appearance' && <AppearanceTab />}
-                            {tab === 'download' && <DownloadTab />}
-                            {tab === 'library' && <LibraryTab />}
-                            {tab === 'about' && <AboutTab />}
+        <Surface
+            open={open}
+            onClose={close}
+            label="设置"
+            backdropClassName="bg-black/55 backdrop-blur-md max-sm:p-0"
+            className="flex h-[min(680px,100%)] w-[min(980px,100%)] max-sm:h-full max-sm:flex-col max-sm:rounded-none max-sm:border-0"
+        >
+            <nav className="flex w-[216px] shrink-0 flex-col border-r ln-weak p-3 max-sm:hidden">
+                <label className="no-drag flex h-9 shrink-0 items-center gap-2 rounded-[10px] bg-[var(--ui-idle)] px-2.5 text-[13px] transition-colors focus-within:bg-[var(--ui-hover)]">
+                    <Search className="h-4 w-4 shrink-0 txt-4" />
+                    <input
+                        ref={searchRef}
+                        value={query}
+                        onChange={event => setQuery(event.target.value)}
+                        placeholder="搜索设置"
+                        aria-label="搜索设置"
+                        spellCheck={false}
+                        className="min-w-0 flex-1 bg-transparent outline-none placeholder:txt-5"
+                    />
+                    {query && (
+                        <button type="button" aria-label="清除搜索" onClick={() => { setQuery(''); searchRef.current?.focus(); }} className="grid h-5 w-5 shrink-0 place-items-center rounded-full txt-4 hover:bg-white/10 hover:text-white">
+                            <X className="h-3 w-3" />
+                        </button>
+                    )}
+                </label>
+                <div className="scroll-none -mx-1 mt-1 min-h-0 flex-1 space-y-0.5 overflow-y-auto px-1">
+                    {NAV_GROUPS.map(group => (
+                        <div key={group.title} className="space-y-0.5">
+                            <div className="px-2.5 pb-1 pt-3.5 text-[12px] txt-4">{group.title}</div>
+                            {group.tabs.map(id => <NavItem key={id} id={id} active={!searching && tab === id} onSelect={select} />)}
                         </div>
-                        <IconButton label="关闭 (Esc)" size="sm" className="absolute right-4 top-4 max-sm:right-2.5 max-sm:top-2.5" onClick={ui.closeSettings}><X className="h-4 w-4" /></IconButton>
-                    </motion.div>
-                </motion.div>
-            )}
-        </AnimatePresence>
+                    ))}
+                </div>
+                <div className="shrink-0 border-t ln-weak pt-2">
+                    <NavItem id={PINNED_TAB} active={!searching && tab === PINNED_TAB} onSelect={select} />
+                </div>
+            </nav>
+            <nav ref={stripRef} className="scroll-none hidden shrink-0 gap-1 overflow-x-auto p-2 pr-14 max-sm:flex">
+                {TABS.map(t => (
+                    <button key={t.id} type="button" aria-current={tab === t.id ? 'page' : undefined} onClick={() => select(t.id)} className={cx('flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 text-[13.5px] transition-colors', tab === t.id ? 'bg-[var(--ui-selected)] font-semibold text-white' : 'txt-3 hover:bg-[var(--ui-idle)] hover:txt-1')}>
+                        <t.icon className="h-4 w-4" />{t.label}
+                    </button>
+                ))}
+            </nav>
+            <section className="flex min-w-0 flex-1 flex-col max-sm:border-t max-sm:ln-weak">
+                <header className="flex shrink-0 items-start justify-between gap-4 border-b ln-weak px-8 pb-4 pt-6 max-sm:hidden">
+                    <div className="min-w-0">
+                        <h2 className="truncate text-[22px] font-bold tracking-tight">{searching ? `搜索「${q}」` : meta.label}</h2>
+                        <p className="mt-1 text-[12.5px] txt-4">{searching ? (hits ? `找到 ${hits} 项` : '没有匹配的设置项') : meta.desc}</p>
+                    </div>
+                    <IconButton label="关闭 (Esc)" size="sm" onClick={ui.closeSettings}><X className="h-4 w-4" /></IconButton>
+                </header>
+                <div ref={bodyRef} className={cx('scroll-thin min-h-0 flex-1 overflow-y-auto px-8 pb-6 pt-6 max-sm:px-4 max-sm:pb-[calc(3rem+var(--safe-bottom))] max-sm:pt-4', searching && 'settings-searching')}>
+                    <SettingsQuery.Provider value={q}>
+                        {searching ? (
+                            <>
+                                {TABS.map(t => <TabGroup key={t.id} id={t.id}><TabBody id={t.id} /></TabGroup>)}
+                                {!hits && <EmptyState dense icon={<Search className="h-4 w-4" />} title="没有匹配的设置项" desc="换个关键词试试，例如「音质」「歌词」「下载」「快捷键」" />}
+                            </>
+                        ) : <TabBody id={tab} />}
+                    </SettingsQuery.Provider>
+                </div>
+            </section>
+            <IconButton label="关闭" size="sm" className="absolute right-2.5 top-2.5 sm:hidden" onClick={ui.closeSettings}><X className="h-4 w-4" /></IconButton>
+        </Surface>
     );
 }

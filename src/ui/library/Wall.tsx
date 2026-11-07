@@ -8,7 +8,7 @@
  * - 只渲染视口附近的格子，拖动 / 惯性 / 滚轮 / 方向键都直接改 transform，跨格时才重新计算可见块。
  * （布局与交互为 YEmusic 独立实现，设计参考 Folia 的“乐库”视图。）
  */
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MutableRefObject, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type MutableRefObject, type ReactNode } from 'react';
 import { Play } from 'lucide-react';
 import { seededRandom, thumbUrl } from '@/lib/util';
 import { imageStatus, queueImage, type ImageStatus } from '@/lib/imageQueue';
@@ -37,8 +37,12 @@ export interface WallCard {
     active?: boolean;
     /** 操作卡片（新建 / 导入 / 登录等） */
     action?: boolean;
+    /** 点击时不记录「封面飞行」起点（歌曲海报：点它是播放，不是打开详情页） */
+    noFlight?: boolean;
     onOpen: () => void;
     onPlay?: () => void;
+    /** 右键 / 长按菜单 */
+    onMenu?: (event: ReactMouseEvent) => void;
 }
 
 export interface WallHandle {
@@ -252,13 +256,15 @@ const Tile = memo(function Tile({ card, x, y, w, h, delay, priority, tabbable, i
                     }
                 }}
                 title={card.desc ? `${card.title}\n${card.desc}` : card.title}
+                data-tip-off
                 onClick={event => {
                     if (ignoreClick()) return;
                     // 记下海报此刻的矩形，详情页封面会从这里「长出来」（见 store/ui.ts 的 CoverFlight）
-                    ui.setCoverFlight(event.currentTarget.getBoundingClientRect());
+                    if (!card.noFlight) ui.setCoverFlight(event.currentTarget.getBoundingClientRect());
                     card.onOpen();
                 }}
                 onDoubleClick={() => { if (!ignoreClick()) card.onPlay?.(); }}
+                onContextMenu={card.onMenu ? event => { event.preventDefault(); card.onMenu!(event); } : undefined}
                 className={cx('wall-poster', card.stack && 'is-stack', card.active && 'is-current', card.action && 'is-action', enterDelay !== undefined && 'wall-flip-in')}
                 style={enterDelay !== undefined ? { animationDelay: `${enterDelay}ms` } : undefined}
             >

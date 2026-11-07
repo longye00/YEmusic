@@ -51,7 +51,7 @@ function DesktopPill({ variant, idle, maxWidth }: { variant: 'home' | 'player'; 
                 <motion.button
                     layout="position"
                     type="button"
-                    title={playing ? '暂停' : '播放'}
+                    title={playing ? '暂停（空格）' : '播放（空格）'}
                     onClick={() => (status === 'error' ? retry() : toggle())}
                     className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-black transition-transform hover:scale-105 active:scale-95"
                 >
@@ -86,8 +86,8 @@ function DesktopPill({ variant, idle, maxWidth }: { variant: 'home' | 'player'; 
             {expanded && (
                 <motion.div layout="position" className="flex shrink-0 items-center gap-0.5 txt-3">
                     <LikeButton track={current} iconClass="h-4 w-4" className="h-9 w-9 hover:bg-white/10" />
-                    <button type="button" title="上一首" onClick={prev} className="grid h-9 w-9 place-items-center rounded-full hover:bg-white/10 hover:text-white"><SkipBack className="h-4 w-4" fill="currentColor" /></button>
-                    <button type="button" title="下一首" onClick={() => next()} className="grid h-9 w-9 place-items-center rounded-full hover:bg-white/10 hover:text-white"><SkipForward className="h-4 w-4" fill="currentColor" /></button>
+                    <button type="button" title="上一首（Ctrl ←）" onClick={prev} className="grid h-9 w-9 place-items-center rounded-full hover:bg-white/10 hover:text-white"><SkipBack className="h-4 w-4" fill="currentColor" /></button>
+                    <button type="button" title="下一首（Ctrl →）" onClick={() => next()} className="grid h-9 w-9 place-items-center rounded-full hover:bg-white/10 hover:text-white"><SkipForward className="h-4 w-4" fill="currentColor" /></button>
                     <button
                         type="button"
                         title={MODE_NAMES[mode]}

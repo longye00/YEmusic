@@ -170,6 +170,11 @@ export function useShortcuts() {
                 changeVolume(-0.05);
                 return;
             }
+            if (key === '?') {
+                event.preventDefault();
+                ui.openSettings('about');
+                return;
+            }
             if (key === 'l' || key === 'L') {
                 const current = usePlayer.getState().current;
                 if (current) toggleFavorite(current);

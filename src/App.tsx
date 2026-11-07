@@ -17,6 +17,7 @@ import { useShortcuts } from './ui/shortcuts';
 import { syncThemeVars, useTheme } from './ui/theme';
 import { WindowControls } from './ui/WindowControls';
 import { ErrorBoundary } from './ui/components/ErrorBoundary';
+import { Tooltips } from './ui/components/Tooltip';
 
 function SharedBackground() {
     const playerOpen = useUi(s => s.playerOpen);
@@ -132,6 +133,7 @@ export function App() {
             </ErrorBoundary>
             <Toasts />
             <WindowControls />
+            <Tooltips />
         </div>
         </MotionConfig>
     );

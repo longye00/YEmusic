@@ -11,7 +11,7 @@ export function LikeButton({ track, className, iconClass = 'h-[18px] w-[18px]' }
     return (
         <button
             type="button"
-            title={liked ? '取消喜欢' : '喜欢'}
+            title={liked ? '取消喜欢（L）' : '喜欢（L）'}
             aria-label={liked ? '取消喜欢' : '喜欢'}
             aria-pressed={liked}
             disabled={!track}
