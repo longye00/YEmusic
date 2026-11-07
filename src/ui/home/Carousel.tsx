@@ -96,7 +96,7 @@ export function Carousel({ items, focus, onFocus, keyboard = true, reduceMotion 
         >
             {/* 装饰：中心圆环与水平细线 */}
             <div className="pointer-events-none absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-[linear-gradient(to_right,rgba(255,255,255,0),rgba(255,255,255,0.09),rgba(255,255,255,0))]" />
-            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.06]" style={{ width: size * 1.75, height: size * 1.75 }} />
+            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border ln-weak" style={{ width: size * 1.75, height: size * 1.75 }} />
             {items.map((item, index) => {
                 const d = index - focus;
                 if (Math.abs(d) > 4) return null;
@@ -122,7 +122,7 @@ export function Carousel({ items, focus, onFocus, keyboard = true, reduceMotion 
                             onDoubleClick={() => { if (isCenter) item.onPlay?.(); }}
                             className={cx(
                                 'group relative h-full w-full overflow-hidden rounded-[18px] transition-[filter,box-shadow] duration-500',
-                                isCenter ? 'shadow-[0_30px_80px_rgba(0,0,0,.55)] ring-1 ring-white/25' : 'shadow-[0_18px_50px_rgba(0,0,0,.45)] ring-1 ring-white/10',
+                                isCenter ? 'shadow-[0_30px_80px_rgba(0,0,0,.55)] ring-1 ring-white/25' : 'shadow-[var(--shadow-panel)] ring-1 ring-white/10',
                             )}
                             style={{ filter: `brightness(${s.brightness}) saturate(${isCenter ? 1 : 0.85})` }}
                         >
@@ -135,7 +135,7 @@ export function Carousel({ items, focus, onFocus, keyboard = true, reduceMotion 
                                         event.stopPropagation();
                                         item.onPlay?.();
                                     }}
-                                    className="absolute bottom-4 right-4 grid h-12 w-12 translate-y-2 place-items-center rounded-full bg-white text-black opacity-0 shadow-[0_10px_30px_rgba(0,0,0,.4)] transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100"
+                                    className="absolute bottom-4 right-4 grid h-12 w-12 translate-y-2 place-items-center rounded-full bg-white text-black opacity-0 shadow-[var(--shadow-float)] transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100"
                                 >
                                     <Play className="ml-0.5 h-5 w-5" fill="currentColor" />
                                 </button>
@@ -157,11 +157,11 @@ export function PosterArt({ title, subtitle, seed, icon, tone }: { title: string
     return (
         <div className="relative h-full w-full overflow-hidden" style={{ background: `radial-gradient(120% 90% at 85% 10%, hsl(${hue2} 75% 62% / .85), transparent 55%), radial-gradient(90% 90% at 10% 100%, hsl(${hue} 70% 40%), transparent 70%), linear-gradient(160deg, hsl(${hue} 55% 22%), hsl(${hue2} 50% 12%))` }}>
             <div className="halftone absolute inset-0 opacity-30" />
-            <div className="absolute -right-6 -top-6 h-1/2 w-1/2 rounded-full border border-white/20" />
-            <div className="absolute -right-2 top-6 h-1/3 w-1/3 rounded-full border border-white/10" />
-            {icon && <div className="absolute left-[9%] top-[9%] text-white/85 [&>svg]:h-[22%] [&>svg]:w-[22%]">{icon}</div>}
+            <div className="absolute -right-6 -top-6 h-1/2 w-1/2 rounded-full border ln-strong" />
+            <div className="absolute -right-2 top-6 h-1/3 w-1/3 rounded-full border ln" />
+            {icon && <div className="absolute left-[9%] top-[9%] txt-1 [&>svg]:h-[22%] [&>svg]:w-[22%]">{icon}</div>}
             <div className="absolute inset-x-[9%] bottom-[9%]">
-                {subtitle && <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.2em] text-white/60">{subtitle}</div>}
+                {subtitle && <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.2em] txt-3">{subtitle}</div>}
                 <div className="text-[clamp(20px,2.4vw,34px)] font-black leading-[1.05] tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,.3)]">{title}</div>
             </div>
         </div>

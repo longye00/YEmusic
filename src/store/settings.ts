@@ -11,6 +11,8 @@ export type ThemeMode = 'default' | 'cover' | 'custom';
 export type PlayMode = 'loop' | 'one' | 'shuffle' | 'order';
 /** 首页布局：Folia 式“乐库”拼贴墙 / 3D 封面流 */
 export type HomeLayout = 'library' | 'carousel';
+/** 歌单 / 专辑详情页：歌曲排成拼贴墙（Folia 式，窗口宽度够时）/ 左右两栏的列表 */
+export type DetailLayout = 'wall' | 'list';
 export type LibraryTab = 'playlists' | 'radio' | 'albums' | 'local' | 'plaza' | 'boards';
 export type LocalGroup = 'albums' | 'artists' | 'folders';
 /** 乐库中间的“书签”：完整 / 书脊 / 收起（只剩屏幕边上的标签） */
@@ -60,6 +62,7 @@ export interface Settings {
     boardPlatform: Platform;
     homeTab: 'mine' | 'plaza' | 'boards';
     homeLayout: HomeLayout;
+    detailLayout: DetailLayout;
     libraryTab: LibraryTab;
     librarySeam: SeamLevel;
     /** 收起前的等级（点屏幕边上的标签恢复到它） */
@@ -121,6 +124,7 @@ export const DEFAULT_SETTINGS: Settings = {
     boardPlatform: 'tx',
     homeTab: 'mine',
     homeLayout: 'library',
+    detailLayout: 'wall',
     libraryTab: 'playlists',
     librarySeam: typeof window !== 'undefined' && window.innerWidth < 900 ? 'spine' : 'full',
     librarySeamRestore: 'full',

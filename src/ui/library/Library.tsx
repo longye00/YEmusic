@@ -56,7 +56,7 @@ function FilterBar({ value, onChange, onClose, tab }: { value: string; onChange:
             exit={{ opacity: 0, y: -8 }}
             className="no-drag pointer-events-auto flex h-10 w-[300px] max-w-full items-center gap-2 rounded-full bg-[rgba(26,26,25,0.95)] px-4 shadow-[0_0_0_1px_rgb(247_244_238/.14),0_12px_32px_rgb(0_0_0/.34)] backdrop-blur-xl"
         >
-            <ListFilter className="h-4 w-4 shrink-0 text-white/50" />
+            <ListFilter className="h-4 w-4 shrink-0 txt-4" />
             <input
                 autoFocus
                 value={value}
@@ -68,9 +68,9 @@ function FilterBar({ value, onChange, onClose, tab }: { value: string; onChange:
                     }
                 }}
                 placeholder={`过滤「${TAB_NAMES[tab]}」…`}
-                className="h-full min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-white/35"
+                className="h-full min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:txt-4"
             />
-            <button type="button" title="关闭（Esc）" onClick={onClose} className="grid h-6 w-6 place-items-center rounded-full text-white/50 hover:bg-white/10 hover:text-white"><X className="h-3.5 w-3.5" /></button>
+            <button type="button" title="关闭（Esc）" onClick={onClose} className="grid h-6 w-6 place-items-center rounded-full txt-4 hover:bg-white/10 hover:text-white"><X className="h-3.5 w-3.5" /></button>
         </motion.div>
     );
 }
@@ -210,7 +210,7 @@ export function Library() {
                 <div className="pointer-events-none absolute inset-y-0 right-0 z-10 grid place-items-center px-8" style={{ left: rightOf }}>
                     <div className="pointer-events-auto">
                         {d.loading ? (
-                            <div className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-[13px] text-white/60"><Spinner />正在载入{TAB_NAMES[tab]}…</div>
+                            <div className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-[13px] txt-3"><Spinner />正在载入{TAB_NAMES[tab]}…</div>
                         ) : d.error ? (
                             <EmptyState title={`${TAB_NAMES[tab]}加载失败`} desc={d.error}><Button onClick={d.reload}><RefreshCw className="h-4 w-4" />重试</Button></EmptyState>
                         ) : !q && d.empty ? (
@@ -237,7 +237,7 @@ export function Library() {
                             initial={{ opacity: 0, y: -6 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0 }}
-                            className="flex max-w-[min(520px,100%)] items-center gap-2 rounded-full bg-black/70 px-3.5 py-1.5 text-[12px] text-white/70 shadow-[0_8px_30px_rgba(0,0,0,.4)]"
+                            className="flex max-w-[min(520px,100%)] items-center gap-2 rounded-full bg-black/70 px-3.5 py-1.5 text-[12px] txt-3 shadow-[var(--shadow-float)]"
                         >
                             {d.loading && <Spinner className="h-3.5 w-3.5" />}
                             <span className="truncate">{status}</span>

@@ -16,6 +16,7 @@ import { Panel } from './Panel';
 import { FoliaBoundary } from './folia/FoliaBoundary';
 import { isFoliaMode } from './folia/modes';
 import { toast } from '@/store/toast';
+import { MOTION } from '../motion';
 
 // Folia 的动画代码（pixi / three / 各动画）体积不小，选用时才下载
 const FoliaLyrics = lazy(() => import('./folia/FoliaLyrics'));
@@ -46,12 +47,12 @@ function CoverHero({ note, busy }: { note?: string; busy?: boolean }) {
     if (!current) return null;
     return (
         <motion.div className="absolute inset-0 flex flex-col items-center justify-center gap-6 pb-16" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 26 }}>
-            <Cover src={coverUrl || current.cover} seed={current.name} className="aspect-square w-[min(40vh,360px)] shadow-[0_40px_120px_rgba(0,0,0,.55)] ring-1 ring-white/15" rounded="rounded-[28px]" eager />
+            <Cover src={coverUrl || current.cover} seed={current.name} className="aspect-square w-[min(40vh,360px)] shadow-[var(--shadow-card)] ring-1 ring-white/15" rounded="rounded-[28px]" eager />
             <div className="max-w-[70vw] text-center">
                 <div className="truncate text-[30px] font-bold tracking-tight text-shadow-soft">{current.name}</div>
-                <div className="mt-1 truncate text-[15px] text-white/60">{current.singer}{current.album ? ` • ${current.album}` : ''}</div>
+                <div className="mt-1 truncate text-[15px] txt-3">{current.singer}{current.album ? ` • ${current.album}` : ''}</div>
             </div>
-            {note && <div className="flex items-center gap-2 rounded-full bg-black/25 px-4 py-1.5 text-[12px] text-white/60 backdrop-blur-xl">{busy && <Spinner className="h-3.5 w-3.5" />}{note}</div>}
+            {note && <div className="flex items-center gap-2 rounded-full bg-black/25 lite:bg-black/65 px-4 py-1.5 text-[12px] txt-3 lite:txt-2 backdrop-blur-xl">{busy && <Spinner className="h-3.5 w-3.5" />}{note}</div>}
         </motion.div>
     );
 }
@@ -63,12 +64,12 @@ function ErrorCard() {
     const queueLength = usePlayer(s => s.queue.length);
     return (
         <motion.div className="absolute inset-0 grid place-items-center px-6 pb-16" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="w-[min(560px,100%)] rounded-[28px] border border-white/10 bg-black/35 p-7 text-center shadow-[0_30px_90px_rgba(0,0,0,.4)] backdrop-blur-2xl">
+            <div className="w-[min(560px,100%)] rounded-[28px] border ln bg-black/35 p-7 text-center shadow-[var(--shadow-panel)] backdrop-blur-2xl">
                 <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-red-500/15 text-red-200"><AlertTriangle className="h-7 w-7" /></div>
                 <div className="mt-4 text-[20px] font-bold">《{current?.name}》暂时无法播放</div>
-                <div className="mt-2 text-[13px] leading-relaxed text-white/60">{error}</div>
+                <div className="mt-2 text-[13px] leading-relaxed txt-3">{error}</div>
                 {details.length > 0 && (
-                    <ul className="scroll-thin mx-auto mt-4 max-h-36 max-w-[460px] space-y-1 overflow-y-auto rounded-2xl bg-black/25 p-3 text-left font-mono text-[11px] text-white/50">
+                    <ul className="scroll-thin mx-auto mt-4 max-h-36 max-w-[460px] space-y-1 overflow-y-auto rounded-2xl bg-black/25 p-3 text-left font-mono text-[11px] txt-4">
                         {details.slice(0, 12).map((d, i) => <li key={i} className="truncate" title={d}>· {d}</li>)}
                     </ul>
                 )}
@@ -90,6 +91,7 @@ export function PlayerView() {
     const lyricState = usePlayer(s => s.lyricState);
     const palette = usePlayer(s => s.palette);
     const panelOpen = useUi(s => s.panelOpen);
+    const searchOpen = useUi(s => s.searchOpen);
     const style = useSettings(s => s.lyricStyle);
     const theme = useTheme(palette);
     const compact = useCompact();
@@ -98,11 +100,12 @@ export function PlayerView() {
 
     return (
         <motion.div
-            className={cx('absolute inset-0 z-[60] overflow-hidden', idle && 'cursor-none')}
+            className={cx('absolute inset-0 z-[60] overflow-hidden', idle && 'cursor-none', searchOpen && 'invisible')}
+            aria-hidden={searchOpen || undefined}
             initial={{ opacity: 0, scale: 1.03 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.03 }}
-            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: MOTION.dur.show, ease: MOTION.ease.out }}
         >
             <Backdrop />
             <div className="drag absolute inset-x-0 top-0 h-16 touch:hidden" />
@@ -130,15 +133,15 @@ export function PlayerView() {
             </div>
 
             {current && status === 'loading' && hasLyric && (
-                <div className="absolute left-1/2 top-6 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/30 px-4 py-1.5 text-[12px] text-white/70 backdrop-blur-xl"><Spinner className="h-3.5 w-3.5" />{statusText || '正在加载…'}</div>
+                <div className="absolute left-1/2 top-6 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/30 lite:bg-black/70 px-4 py-1.5 text-[12px] txt-3 lite:txt-1 backdrop-blur-xl"><Spinner className="h-3.5 w-3.5" />{statusText || '正在加载…'}</div>
             )}
 
             <motion.div className={cx('absolute z-20 flex items-center gap-3', compact ? 'left-3 top-3' : 'left-6 top-6', idle && 'pointer-events-none')} animate={{ opacity: idle ? 0 : 1 }} transition={{ duration: 0.4 }}>
                 <IconButton variant="solid" label="返回 (Esc)" onClick={ui.closePlayer}><ChevronLeft className="h-5 w-5" /></IconButton>
                 {current && hasLyric && (
                     <div className={cx('leading-tight', compact ? 'max-w-[52vw]' : 'max-w-[40vw]')}>
-                        <div className="truncate text-[13px] font-semibold text-white/85">{current.name}</div>
-                        <div className="truncate text-[12px] text-white/45">{current.singer}</div>
+                        <div className="truncate text-[13px] font-semibold txt-1">{current.name}</div>
+                        <div className="truncate text-[12px] txt-4">{current.singer}</div>
                     </div>
                 )}
             </motion.div>
@@ -155,7 +158,7 @@ export function PlayerView() {
                     variant={panelOpen ? 'white' : 'solid'}
                     label={panelOpen ? '关闭面板' : '播放设置'}
                     onClick={() => ui.togglePanel()}
-                    className="shadow-[0_10px_30px_rgba(0,0,0,.3)]"
+                    className="shadow-[var(--shadow-float)]"
                 >
                     {panelOpen ? <X className="h-5 w-5" /> : <SlidersHorizontal className="h-5 w-5" />}
                 </IconButton>

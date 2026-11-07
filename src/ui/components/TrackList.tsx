@@ -37,11 +37,11 @@ export const TrackRow = memo(function TrackRow({ track, index, showIndex, showPl
             className={cx(
                 'group flex items-center gap-3 rounded-2xl border px-3 transition-colors duration-150',
                 dense ? 'h-[56px]' : 'h-[64px]',
-                isCurrent ? 'border-white/20 bg-white/[0.1]' : 'border-white/[0.07] bg-white/[0.03] hover:border-white/[0.12] hover:bg-white/[0.07]',
+                isCurrent ? 'ln-strong bg-white/[0.1]' : 'ln-weak bg-white/[0.03] hover:ln hover:bg-white/[0.07]',
             )}
         >
             {showIndex && (
-                <div className="w-7 shrink-0 text-center font-mono text-[12px] text-white/35 max-sm:hidden">
+                <div className="w-7 shrink-0 text-center font-mono text-[12px] txt-4 max-sm:hidden">
                     {isCurrent ? <PlayingBars paused={status !== 'playing'} className="text-white" /> : index + 1}
                 </div>
             )}
@@ -54,15 +54,15 @@ export const TrackRow = memo(function TrackRow({ track, index, showIndex, showPl
             </Cover>
             <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-2">
-                    <span className={cx('truncate text-[14px] font-semibold', isCurrent ? 'text-white' : 'text-white/90')}>{track.name}</span>
+                    <span className={cx('truncate text-[14px] font-semibold', isCurrent ? 'text-white' : 'txt-1')}>{track.name}</span>
                     <span className="contents max-sm:hidden">
                         <QualityTag track={track} />
                         {showPlatform && <PlatformTag source={track.source} />}
                     </span>
                 </div>
-                <div className="mt-0.5 truncate text-[12px] text-white/45">
+                <div className="mt-0.5 truncate text-[12px] txt-4">
                     {track.singer}
-                    {track.album ? <span className="text-white/30"> • {track.album}</span> : null}
+                    {track.album ? <span className="txt-5"> • {track.album}</span> : null}
                 </div>
             </div>
             {trailing}
@@ -74,7 +74,7 @@ export const TrackRow = memo(function TrackRow({ track, index, showIndex, showPl
                         event.stopPropagation();
                         toggleFavorite(track);
                     }}
-                    className={cx('grid h-8 w-8 place-items-center rounded-full hover:bg-white/10', favorite ? 'text-rose-400' : 'text-white/60 hover:text-white', 'touch:h-10 touch:w-10')}
+                    className={cx('grid h-8 w-8 place-items-center rounded-full hover:bg-white/10', favorite ? 'text-rose-400' : 'txt-3 hover:text-white', 'touch:h-10 touch:w-10')}
                 >
                     <Heart className="h-4 w-4" fill={favorite ? 'currentColor' : 'none'} />
                 </button>
@@ -85,12 +85,12 @@ export const TrackRow = memo(function TrackRow({ track, index, showIndex, showPl
                         event.stopPropagation();
                         onMenu?.(event, track, index);
                     }}
-                    className="grid h-8 w-8 place-items-center rounded-full text-white/60 opacity-0 hover:bg-white/10 hover:text-white group-hover:opacity-100 touch:h-10 touch:w-10 touch:opacity-100"
+                    className="grid h-8 w-8 place-items-center rounded-full txt-3 opacity-0 hover:bg-white/10 hover:text-white group-hover:opacity-100 touch:h-10 touch:w-10 touch:opacity-100"
                 >
                     <MoreHorizontal className="h-4 w-4" />
                 </button>
             </div>
-            <span className="w-11 shrink-0 text-right font-mono text-[12px] text-white/40 max-sm:hidden">{track.duration ? formatTime(track.duration) : '--:--'}</span>
+            <span className="w-11 shrink-0 text-right font-mono text-[12px] txt-4 max-sm:hidden">{track.duration ? formatTime(track.duration) : '--:--'}</span>
         </div>
     );
 });

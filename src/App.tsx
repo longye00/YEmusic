@@ -1,7 +1,8 @@
 /** 应用外壳：共享流体背景 + 首页 + 详情 / 搜索 / 播放页浮层 + 全局对话框 */
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { useCallback, useEffect } from 'react';
 import { engine } from '@/player/engine';
+import { useLite } from '@/lib/lite';
 import { usePlayer } from '@/store/player';
 import { useSettings } from '@/store/settings';
 import { useUi } from '@/store/ui';
@@ -16,6 +17,7 @@ import { useShortcuts } from './ui/shortcuts';
 import { syncThemeVars, useTheme } from './ui/theme';
 import { WindowControls } from './ui/WindowControls';
 import { ErrorBoundary } from './ui/components/ErrorBoundary';
+import { Tooltips } from './ui/components/Tooltip';
 
 function SharedBackground() {
     const playerOpen = useUi(s => s.playerOpen);
@@ -32,12 +34,14 @@ function SharedBackground() {
     const homeTheme = useTheme(bgPalette || playerPalette);
     const playerTheme = useTheme(playerPalette);
     const theme = playerOpen ? playerTheme : homeTheme;
+    // 精简模式关掉了毛玻璃，浮层底色要跟着加深，否则亮背景下文字发虚（见 theme.ts）
+    const lite = useLite();
 
     // 主题 → CSS 变量：乐库拼贴墙的辉光、书签焦点环、::selection 读的是这几个变量，
     // 不同步的话换封面 / 自定义配色后它们仍停在默认紫（见 ui/theme.ts 的 syncThemeVars）
     useEffect(() => {
-        syncThemeVars(theme);
-    }, [theme]);
+        syncThemeVars(theme, lite);
+    }, [theme, lite]);
 
     const energy = useCallback(() => engine.energy(), []);
     const covered = playerOpen && background !== 'latent';
@@ -67,6 +71,8 @@ export function App() {
 
     const homeHidden = playerOpen || Boolean(detail);
     return (
+        // 减少动效：framer 的位移 / 缩放 / layout 动画统一关掉（CSS 侧见 .reduce-motion）
+        <MotionConfig reducedMotion={reduceMotion ? 'always' : 'never'}>
         <div className="relative h-full w-full overflow-hidden bg-[#050507] text-white antialiased">
             <SharedBackground />
             {/* 首页 / 详情页背景更克制：叠一层暗色晕影，让封面和文字成为视觉中心 */}
@@ -127,6 +133,8 @@ export function App() {
             </ErrorBoundary>
             <Toasts />
             <WindowControls />
+            <Tooltips />
         </div>
+        </MotionConfig>
     );
 }

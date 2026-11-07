@@ -1,9 +1,10 @@
 import { forwardRef, useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Loader2, Music2, X } from 'lucide-react';
 import { seededRandom, thumbUrl } from '@/lib/util';
 import { PLATFORM_NAMES, QUALITY_SHORT, bestQuality, type Track, type TrackSource } from '@/sdk/types';
 import { useCover } from '../hooks';
+import { Surface } from './Surface';
 
 export const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ');
 
@@ -20,7 +21,7 @@ export function Cover({ src, seed = '', className = '', rounded = 'rounded-xl', 
                 <img src={url} alt={alt} draggable={false} loading={eager ? 'eager' : 'lazy'} decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="absolute inset-0 h-full w-full object-cover" />
             ) : (
                 <div className="absolute inset-0 grid place-items-center" style={{ background: `linear-gradient(135deg, hsl(${hue} 45% 32%), hsl(${(hue + 50) % 360} 55% 18%))` }}>
-                    <Music2 className="h-1/3 w-1/3 text-white/35" strokeWidth={1.5} />
+                    <Music2 className="h-1/3 w-1/3 txt-4" strokeWidth={1.5} />
                 </div>
             )}
             {children}
@@ -34,9 +35,9 @@ type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { label?: strin
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton({ label, active, size = 'md', variant = 'ghost', className = '', children, ...rest }, ref) {
     const sizes = { sm: 'h-8 w-8', md: 'h-10 w-10', lg: 'h-12 w-12' };
     const variants = {
-        ghost: active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white',
-        glass: active ? 'bg-white/25 text-white' : 'bg-white/10 text-white/85 backdrop-blur-xl hover:bg-white/20 hover:text-white',
-        solid: 'bg-black/35 text-white/85 backdrop-blur-xl hover:bg-black/50 hover:text-white',
+        ghost: active ? 'bg-[var(--ui-selected)] text-white' : 'txt-3 hover:bg-[var(--ui-hover)] hover:text-white',
+        glass: active ? 'bg-[var(--ui-selected)] text-white' : 'bg-[var(--ui-idle)] txt-1 backdrop-blur-xl hover:bg-[var(--ui-hover)] hover:text-white',
+        solid: 'bg-black/35 txt-1 backdrop-blur-xl hover:bg-black/50 hover:text-white',
         white: 'bg-white text-black hover:bg-white/90',
     };
     return (
@@ -48,10 +49,10 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
 
 export function Button({ children, variant = 'glass', className = '', ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'glass' | 'white' | 'danger' | 'ghost' }) {
     const variants = {
-        glass: 'bg-white/10 hover:bg-white/[0.16] text-white border border-white/10',
+        glass: 'bg-[var(--ui-idle)] hover:bg-[var(--ui-hover)] text-white border ln',
         white: 'bg-white text-black hover:bg-white/90',
         danger: 'bg-red-500/15 text-red-300 hover:bg-red-500/25 border border-red-400/20',
-        ghost: 'text-white/70 hover:text-white hover:bg-white/10',
+        ghost: 'txt-3 hover:text-white hover:bg-[var(--ui-hover)]',
     };
     return (
         <button type="button" className={cx('no-drag inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-40', variants[variant], className)} {...rest}>
@@ -153,22 +154,23 @@ export function Slider({ value, max = 1, min = 0, step = 0, onChange, onCommit, 
                 {buffered !== undefined && <div className="absolute inset-y-0 left-0 rounded-full bg-white/15" style={{ width: `${Math.max(0, Math.min(1, (buffered - min) / range)) * 100}%` }} />}
                 <div className={cx('absolute inset-y-0 left-0 rounded-full', fillClass)} style={{ width: `${pct}%` }} />
             </div>
-            {thumb && <div className={cx('absolute h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,.35)] transition-transform', drag !== null ? 'scale-110' : 'scale-0 group-hover:scale-100 group-focus-visible:scale-100')} style={{ left: `${pct}%` }} />}
+            {thumb && <div className={cx('absolute h-3.5 w-3.5 -translate-x-1/2 rounded-full bg-white shadow-[var(--shadow-inset)] transition-transform', drag !== null ? 'scale-110' : 'scale-0 group-hover:scale-100 group-focus-visible:scale-100')} style={{ left: `${pct}%` }} />}
         </div>
     );
 }
 
-export function Switch({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+/** 开关：打开时用主题色（Folia 的紫色开关同理，随封面取色 / 自定义配色变化），圆点在深色轨道上留深色 */
+export function Switch({ checked, onChange, disabled, label }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; label?: string }) {
     return (
-        <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)} className={cx('no-drag relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-40', checked ? 'bg-white' : 'bg-white/15')}>
-            <span className={cx('absolute top-0.5 h-5 w-5 rounded-full transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)]', checked ? 'left-[22px] bg-black' : 'left-0.5 bg-white/80')} />
+        <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)} className={cx('no-drag relative h-6 w-[42px] shrink-0 rounded-full transition-colors duration-200 disabled:opacity-40', checked ? 'bg-[rgb(var(--accent))]' : 'bg-white/[0.16]')}>
+            <span className={cx('absolute top-[3px] h-[18px] w-[18px] rounded-full transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)]', checked ? 'left-[21px] bg-[#15141b]' : 'left-[3px] bg-white/85')} />
         </button>
     );
 }
 
 export function Segmented<T extends string>({ value, options, onChange, size = 'md', className = '' }: { value: T; options: { value: T; label: ReactNode; icon?: ReactNode }[]; onChange: (v: T) => void; size?: 'sm' | 'md'; className?: string }) {
     return (
-        <div className={cx('no-drag inline-flex items-center gap-0.5 rounded-full bg-white/[0.08] p-1', className)}>
+        <div className={cx('no-drag inline-flex items-center gap-0.5 rounded-full bg-[var(--ui-idle)] p-1', className)}>
             {options.map(option => (
                 <button
                     key={option.value}
@@ -177,7 +179,7 @@ export function Segmented<T extends string>({ value, options, onChange, size = '
                     className={cx(
                         'relative inline-flex items-center justify-center gap-1.5 rounded-full font-medium transition-colors duration-200',
                         size === 'sm' ? 'h-7 px-3 text-[12px]' : 'h-8 px-4 text-[13px]',
-                        value === option.value ? 'text-black' : 'text-white/65 hover:text-white',
+                        value === option.value ? 'text-black' : 'txt-3 hover:text-white',
                     )}
                 >
                     {value === option.value && <motion.span layoutId={`seg-${options.map(o => o.value).join('-')}`} className="absolute inset-0 rounded-full bg-white" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
@@ -190,7 +192,7 @@ export function Segmented<T extends string>({ value, options, onChange, size = '
 
 export function Chip({ active, children, onClick, className = '' }: { active?: boolean; children: ReactNode; onClick?: () => void; className?: string }) {
     return (
-        <button type="button" onClick={onClick} className={cx('no-drag inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium transition-colors', active ? 'bg-white text-black' : 'bg-white/[0.08] text-white/80 hover:bg-white/[0.14]', className)}>
+        <button type="button" onClick={onClick} className={cx('no-drag inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-4 text-[13px] font-medium transition-colors', active ? 'bg-white text-black' : 'bg-[var(--ui-idle)] txt-2 hover:bg-[var(--ui-hover)]', className)}>
             {children}
         </button>
     );
@@ -202,7 +204,7 @@ const PLATFORM_COLORS: Record<TrackSource, string> = {
     kg: 'text-sky-300 border-sky-300/30',
     kw: 'text-amber-300 border-amber-300/30',
     mg: 'text-pink-300 border-pink-300/30',
-    local: 'text-white/60 border-white/20',
+    local: 'txt-3 ln-strong',
 };
 
 export function PlatformTag({ source, className = '' }: { source: TrackSource; className?: string }) {
@@ -212,53 +214,57 @@ export function PlatformTag({ source, className = '' }: { source: TrackSource; c
 export function QualityTag({ track }: { track: Track }) {
     const q = track.source === 'local' ? (track.lossless ? 'flac' : undefined) : bestQuality(track);
     if (!q || q === '128k' || q === '320k') return null;
-    return <span className="inline-flex h-[18px] shrink-0 items-center rounded-[5px] bg-white/[0.12] px-1.5 font-mono text-[9.5px] font-semibold leading-none text-white/80">{QUALITY_SHORT[q]}</span>;
+    return <span className="inline-flex h-[18px] shrink-0 items-center rounded-[5px] bg-white/[0.12] px-1.5 font-mono text-[9.5px] font-semibold leading-none txt-2">{QUALITY_SHORT[q]}</span>;
 }
 
-/** 通用模态框 */
+/**
+ * 通用模态框。
+ *
+ * 行为全部交给 Surface：Esc、遮罩点击、焦点陷阱、关闭后焦点归还。这里只剩外观与标题行，
+ * 所以 Overlays.tsx 里那 8 个对话框不用逐个改，接上 Modal 就都有键盘焦点了。
+ */
 export function Modal({ open, onClose, children, className = '', title, wide }: { open: boolean; onClose: () => void; children: ReactNode; className?: string; title?: ReactNode; wide?: boolean }) {
-    useEffect(() => {
-        if (!open) return;
-        const onKey = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                event.stopPropagation();
-                onClose();
-            }
-        };
-        window.addEventListener('keydown', onKey, true);
-        return () => window.removeEventListener('keydown', onKey, true);
-    }, [open, onClose]);
     return (
-        <AnimatePresence>
-            {open && (
-                <motion.div className="fixed inset-0 z-[80] grid place-items-center bg-black/55 p-6 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-                    <motion.div
-                        className={cx('relative max-h-full overflow-hidden rounded-[28px] border border-white/10 bg-[var(--surface-card)] shadow-[0_40px_120px_rgba(0,0,0,.6)]', wide ? 'w-[min(920px,100%)]' : 'w-[min(440px,100%)]', className)}
-                        initial={{ opacity: 0, scale: 0.94, y: 16 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                    >
-                        {title !== undefined && (
-                            <div className="flex items-center justify-between px-7 pb-2 pt-6">
-                                <h2 className="text-[20px] font-bold tracking-tight">{title}</h2>
-                                <IconButton label="关闭" size="sm" onClick={onClose}><X className="h-4 w-4" /></IconButton>
-                            </div>
-                        )}
-                        {children}
-                    </motion.div>
-                </motion.div>
+        <Surface
+            open={open}
+            onClose={onClose}
+            label={typeof title === 'string' ? title : undefined}
+            className={cx(wide ? 'w-[min(920px,100%)]' : 'w-[min(440px,100%)]', className)}
+        >
+            {title !== undefined && (
+                <div className="flex items-center justify-between px-7 pb-2 pt-6">
+                    <h2 className="text-[20px] font-bold tracking-tight">{title}</h2>
+                    <IconButton label="关闭" size="sm" onClick={onClose}><X className="h-4 w-4" /></IconButton>
+                </div>
             )}
-        </AnimatePresence>
+            {children}
+        </Surface>
     );
 }
 
-export function EmptyState({ icon, title, desc, children }: { icon?: ReactNode; title: string; desc?: string; children?: ReactNode }) {
+/**
+ * 空状态。
+ *
+ * @param dense 窄容器（320px 的播放面板、设置里的单栏）用紧凑版：小图标、小标题、小留白。
+ *   这些地方原先各写一句 `py-6 text-center text-[13px] txt-4`，
+ *   留白 6/8 不一、字色 /40 与 /45 混用、有的带图标有的不带，看着不成一套。
+ */
+export function EmptyState({ icon, title, desc, children, dense }: { icon?: ReactNode; title: string; desc?: string; children?: ReactNode; dense?: boolean }) {
+    if (dense) {
+        return (
+            <div className="flex flex-col items-center justify-center gap-1.5 px-4 py-7 text-center">
+                {icon && <div className="grid h-9 w-9 place-items-center rounded-xl bg-[var(--ui-idle)] txt-4">{icon}</div>}
+                <div className="text-[12.5px] font-semibold txt-3">{title}</div>
+                {desc && <div className="max-w-[240px] break-words text-[11.5px] leading-relaxed txt-4">{desc}</div>}
+                {children && <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">{children}</div>}
+            </div>
+        );
+    }
     return (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-            {icon && <div className="grid h-20 w-20 place-items-center rounded-[22px] border border-white/10 bg-white/[0.05] text-white/55">{icon}</div>}
-            <div className="text-[20px] font-bold tracking-tight text-white/90">{title}</div>
-            {desc && <div className="max-w-md text-[13px] leading-relaxed text-white/50">{desc}</div>}
+            {icon && <div className="grid h-20 w-20 place-items-center rounded-[22px] border ln bg-white/[0.05] txt-3">{icon}</div>}
+            <div className="text-[20px] font-bold tracking-tight txt-1">{title}</div>
+            {desc && <div className="max-w-md text-[13px] leading-relaxed txt-4">{desc}</div>}
             {children && <div className="mt-2 flex flex-wrap items-center justify-center gap-2">{children}</div>}
         </div>
     );

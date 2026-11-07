@@ -103,13 +103,18 @@ const INK: RGB = [9, 9, 13];
  * | --surface-card | 居中卡片（对话框、设置） | panel 22% |
  * | --surface-float | 贴边浮层（右键菜单、Toast、筛选条） | panel 28% |
  * | --surface-input | 浮层里的输入控件（下拉框） | panel 18%，不透明 |
+ *
+ * @param lite 精简模式。该模式全局关掉了 backdrop-filter（手机上最吃 GPU），
+ *   浮层就失去了「压住亮背景」的手段，所以底色整体加深、几乎不透明。
+ *   这组变量是内联写到 <html> 上的，内联样式压不过 .lite 类选择器，
+ *   只能在 JS 里分支（--ui-* 那三档没有内联来源，留在 CSS 的 .lite 里即可）。
  */
-export function surfaceTokens(theme: Theme): Record<string, string> {
+export function surfaceTokens(theme: Theme, lite = false): Record<string, string> {
     return {
-        '--surface-overlay': css(mixRGB(INK, theme.panel, 0.10), 0.88),
-        '--surface-card': css(mixRGB(INK, theme.panel, 0.22), 0.95),
-        '--surface-float': css(mixRGB(INK, theme.panel, 0.28), 0.95),
-        '--surface-input': css(mixRGB(INK, theme.panel, 0.18)),
+        '--surface-overlay': css(mixRGB(INK, theme.panel, lite ? 0.06 : 0.10), lite ? 0.98 : 0.88),
+        '--surface-card': css(mixRGB(INK, theme.panel, lite ? 0.14 : 0.22), lite ? 0.99 : 0.95),
+        '--surface-float': css(mixRGB(INK, theme.panel, lite ? 0.18 : 0.28), lite ? 0.99 : 0.95),
+        '--surface-input': css(mixRGB(INK, theme.panel, lite ? 0.10 : 0.18)),
     };
 }
 
@@ -120,7 +125,7 @@ export function surfaceTokens(theme: Theme): Record<string, string> {
  * 但它们原先只在 :root 写死了一份紫色，没有任何 JS 去更新：换了封面取色 / 自定义主题之后，
  * 拼贴墙和焦点环仍是默认紫，与播放页的主题色明显分叉。这里统一对齐。
  */
-export function syncThemeVars(theme: Theme) {
+export function syncThemeVars(theme: Theme, lite = false) {
     if (typeof document === 'undefined') return;
     const root = document.documentElement.style;
     root.setProperty('--accent', triple(theme.accent));
@@ -130,5 +135,5 @@ export function syncThemeVars(theme: Theme) {
     // Folia 的动画参数面板按这两个变量取字色（见 ui/player/folia/FoliaSettings.tsx）
     root.setProperty('--text-primary', css(theme.accentSoft));
     root.setProperty('--text-secondary', css(theme.accentSoft, 0.62));
-    for (const [name, value] of Object.entries(surfaceTokens(theme))) root.setProperty(name, value);
+    for (const [name, value] of Object.entries(surfaceTokens(theme, lite))) root.setProperty(name, value);
 }

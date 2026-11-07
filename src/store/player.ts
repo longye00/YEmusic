@@ -230,7 +230,7 @@ export async function playRadio(radio: RadioInfo, feeder: () => Promise<Track[]>
     try {
         list = (await feeder()).filter(Boolean);
     } catch (error) {
-        toast(`「${radio.name}」获取失败：${(error as Error).message || '网络错误'}`, 'error', { key: 'radio' });
+        toast(`「${radio.name}」获取失败`, 'error', { key: 'radio', detail: (error as Error).message || '网络错误' });
         return;
     }
     if (!list.length) {
@@ -346,13 +346,14 @@ function failTrack(track: Track, token: number, message: string, details: string
     const { skipOnError } = useSettings.getState();
     const limit = radio ? 4 : Math.min(4, queue.length);
     if (skipOnError && (queue.length > 1 || radio) && consecutiveFailures < limit) {
-        toast(`《${track.name}》无法播放，已跳过：${message}`, 'error');
+        toast(`《${track.name}》暂时无法播放，已跳到下一首`, 'error', { key: 'play-fail', detail: message });
         skipTimer = setTimeout(() => {
             if (token === seq) next({ auto: true });
         }, 1500);
     } else {
-        toast(`《${track.name}》无法播放：${message}`, 'error');
-        if (consecutiveFailures >= limit && queue.length > 1) toast('连续多首无法播放，已停止。请在“设置 → 音源”检查音源状态或网络', 'error');
+        toast(`《${track.name}》暂时无法播放`, 'error', { key: 'play-fail', detail: message });
+        if (consecutiveFailures >= limit && queue.length > 1) toast('连续多首无法播放，已停止', 'error', { key: 'play-fail', detail: `最后一次错误：${message}
+请在“设置 → 音源”检查音源状态或网络`, duration: 8000 });
         consecutiveFailures = 0;
     }
 }
@@ -410,7 +411,7 @@ export async function play() {
         return;
     }
     set({ status: 'playing' });
-    await engine.play().catch(error => toast(`无法播放：${(error as Error).message}`, 'error'));
+    await engine.play().catch(error => toast('无法开始播放', 'error', { key: 'play-fail', detail: (error as Error).message }));
 }
 
 export function pause() {

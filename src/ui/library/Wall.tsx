@@ -8,13 +8,14 @@
  * - 只渲染视口附近的格子，拖动 / 惯性 / 滚轮 / 方向键都直接改 transform，跨格时才重新计算可见块。
  * （布局与交互为 YEmusic 独立实现，设计参考 Folia 的“乐库”视图。）
  */
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type MutableRefObject, type ReactNode } from 'react';
 import { Play } from 'lucide-react';
 import { seededRandom, thumbUrl } from '@/lib/util';
 import { imageStatus, queueImage, type ImageStatus } from '@/lib/imageQueue';
 import { useCover } from '../hooks';
 import { PlayingBars, cx } from '../components/common';
 import { PatternArt } from './art';
+import { ui } from '@/store/ui';
 
 export interface WallCard {
     key: string;
@@ -36,8 +37,12 @@ export interface WallCard {
     active?: boolean;
     /** 操作卡片（新建 / 导入 / 登录等） */
     action?: boolean;
+    /** 点击时不记录「封面飞行」起点（歌曲海报：点它是播放，不是打开详情页） */
+    noFlight?: boolean;
     onOpen: () => void;
     onPlay?: () => void;
+    /** 右键 / 长按菜单 */
+    onMenu?: (event: ReactMouseEvent) => void;
 }
 
 export interface WallHandle {
@@ -221,19 +226,45 @@ interface TileProps {
     delay?: number;
     /** 封面加载优先级（只在挂载时使用） */
     priority: number;
+    /** 渲染时是否完整在视口内：只有视口内的海报是 Tab 停靠点 */
+    tabbable: boolean;
     ignoreClick: () => boolean;
+    /** 键盘聚焦到海报时把它平移进视口 */
+    onFocusTile: (x: number, y: number, w: number, h: number) => void;
 }
 
-const Tile = memo(function Tile({ card, x, y, w, h, delay, priority, ignoreClick }: TileProps) {
+const Tile = memo(function Tile({ card, x, y, w, h, delay, priority, tabbable, ignoreClick, onFocusTile }: TileProps) {
     const [enterDelay] = useState(delay);
+    // 悬停 / 聚焦时海报四边各外扩一个 GAP（海报本身比格子小一个 GAP）
+    const pop = { '--pop-x': 1 + (2 * GAP) / Math.max(1, w - GAP), '--pop-y': 1 + (2 * GAP) / Math.max(1, h - GAP) } as CSSProperties;
     return (
-        <div className="wall-cell" style={{ left: x, top: y, width: w, height: h }}>
+        <div className="wall-cell" style={{ left: x, top: y, width: w, height: h, ...pop }}>
             <div
                 role="button"
-                tabIndex={-1}
+                tabIndex={tabbable ? 0 : -1}
+                aria-label={card.desc ? `${card.title}，${card.desc}` : card.title}
+                onFocus={event => { if (event.target === event.currentTarget) onFocusTile(x, y, w, h); }}
+                onKeyDown={event => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === 'Enter' && event.shiftKey && card.onPlay) {
+                        event.preventDefault();
+                        card.onPlay();
+                    } else if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        card.onOpen();
+                    }
+                }}
                 title={card.desc ? `${card.title}\n${card.desc}` : card.title}
-                onClick={() => { if (!ignoreClick()) card.onOpen(); }}
+                data-tip-off
+                onClick={event => {
+                    if (ignoreClick()) return;
+                    // 记下海报此刻的矩形，详情页封面会从这里「长出来」（见 store/ui.ts 的 CoverFlight）
+                    if (!card.noFlight) ui.setCoverFlight(event.currentTarget.getBoundingClientRect());
+                    card.onOpen();
+                }}
                 onDoubleClick={() => { if (!ignoreClick()) card.onPlay?.(); }}
+                onContextMenu={card.onMenu ? event => { event.preventDefault(); card.onMenu!(event); } : undefined}
                 className={cx('wall-poster', card.stack && 'is-stack', card.active && 'is-current', card.action && 'is-action', enterDelay !== undefined && 'wall-flip-in')}
                 style={enterDelay !== undefined ? { animationDelay: `${enterDelay}ms` } : undefined}
             >
@@ -254,6 +285,9 @@ const Tile = memo(function Tile({ card, x, y, w, h, delay, priority, ignoreClick
                     <button
                         type="button"
                         title="播放"
+                        aria-label={`播放「${card.title}」`}
+                        tabIndex={tabbable ? 0 : -1}
+                        onFocus={() => onFocusTile(x, y, w, h)}
                         onClick={event => {
                             event.stopPropagation();
                             if (!ignoreClick()) card.onPlay?.();
@@ -266,7 +300,7 @@ const Tile = memo(function Tile({ card, x, y, w, h, delay, priority, ignoreClick
             </div>
         </div>
     );
-}, (a, b) => a.card === b.card && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h && a.ignoreClick === b.ignoreClick);
+}, (a, b) => a.card === b.card && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h && a.tabbable === b.tabbable && a.ignoreClick === b.ignoreClick && a.onFocusTile === b.onFocusTile);
 
 const Frame = memo(function Frame({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
     return <div className="wall-cell" style={{ left: x, top: y, width: w, height: h }}><div className="wall-frame" /></div>;
@@ -635,6 +669,22 @@ export function Wall({ cards, seed, cell, keyboard = true, finite = false, handl
 
     const ignoreClick = useCallback(() => performance.now() < suppressUntil.current || Boolean(drag.current?.moved), []);
 
+    /** Tab 到的海报不完整在视口里时平移相机（视口 overflow:hidden，浏览器自己的滚动会和相机打架，见 onScroll） */
+    const revealTile = useCallback((x: number, y: number, w: number, h: number) => {
+        const k = cam.current;
+        const { w: vw, h: vh } = sizeRef.current;
+        const margin = 48;
+        const cx0 = Number.isNaN(k.tx) ? k.x : k.tx;
+        const cy0 = Number.isNaN(k.ty) ? k.y : k.ty;
+        let nx = cx0;
+        let ny = cy0;
+        if (x - margin < cx0) nx = x - margin;
+        else if (x + w + margin > cx0 + vw) nx = x + w + margin - vw;
+        if (y - margin < cy0) ny = y - margin;
+        else if (y + h + margin > cy0 + vh) ny = y + h + margin - vh;
+        if (nx !== cx0 || ny !== cy0) panTo(nx, ny);
+    }, [panTo]);
+
     // ---------- 可见块 ----------
     const fresh = performance.now() - wave.at < 900;
     const left: ReactNode[] = [];
@@ -679,7 +729,7 @@ export function Wall({ cards, seed, cell, keyboard = true, finite = false, handl
                         }
                         const onScreen = x < viewRight && x + w > k.x && y < k.y + size.h && y + h > k.y;
                         const priority = (onScreen ? (x >= anchorX ? 200 : 100) : 0) - Math.hypot(x + w / 2 - (anchorX + size.w / 3), y + h / 2 - midY) / cell;
-                        push(bc, <Tile key={key} card={cards[block.card]} x={x} y={y} w={w} h={h} delay={delayOf(x, y, w, h)} priority={priority} ignoreClick={ignoreClick} />);
+                        push(bc, <Tile key={key} card={cards[block.card]} x={x} y={y} w={w} h={h} delay={delayOf(x, y, w, h)} priority={priority} tabbable={x >= k.x && x + w <= viewRight && y >= k.y && y + h <= k.y + size.h} ignoreClick={ignoreClick} onFocusTile={revealTile} />);
                     });
                 }
             }
@@ -747,6 +797,11 @@ export function Wall({ cards, seed, cell, keyboard = true, finite = false, handl
             onPointerCancel={() => {
                 drag.current = null;
                 setGrabbing(false);
+            }}
+            onScroll={event => {
+                // 浏览器为显示焦点会滚动 overflow:hidden 的容器；位置只由相机决定，滚动一律归零
+                const el = event.currentTarget;
+                if (el.scrollLeft || el.scrollTop) el.scrollTo(0, 0);
             }}
             onWheel={event => {
                 const scale = event.deltaMode === 1 ? 32 : event.deltaMode === 2 ? size.h : 1;

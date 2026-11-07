@@ -159,7 +159,7 @@ function SecondaryNav({ tab, scroll }: { tab: LibraryTab; scroll: boolean }) {
                     onClick={() => setSetting(tab === 'plaza' ? 'plazaPlatform' : 'boardPlatform', p)}
                     className={cx(
                         'h-[26px] truncate rounded-[8px] border border-transparent text-[11.5px] transition-colors',
-                        value === p ? 'bg-[rgba(247,244,238,0.14)] font-extrabold text-[#f7f4ee]' : 'text-[color:var(--seam-ink-soft)] hover:border-white/15 hover:text-[#f7f4ee]',
+                        value === p ? 'bg-[rgba(247,244,238,0.14)] font-extrabold text-[#f7f4ee]' : 'text-[color:var(--seam-ink-soft)] hover:ln-strong hover:text-[#f7f4ee]',
                     )}
                 >
                     {PLATFORM_SHORT[p]}

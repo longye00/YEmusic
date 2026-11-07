@@ -112,7 +112,9 @@ check('登录QQ：officialLoggedIn = true', officialLoggedIn('tx'));
     check('QQ音乐：拼接 sip + purl 得到完整链接', hit?.url === 'https://dl.stream.qqmusic.qq.com/C400abc.mp3?guid=1&vkey=X', JSON.stringify(hit));
     check('QQ音乐：请求带上 qm_keyst 凭据', seen[0].cookie.includes('qm_keyst=WQ_MK_abc'), seen[0].cookie);
     check('QQ音乐：sourceName = QQ音乐官方', hit?.sourceName === 'QQ音乐官方');
-    check('QQ音乐：文件名用 media_mid 优先', seen[0].url.includes('media123'), seen[0].url.slice(0, 160));
+    const fileNames = seen.map(s => /"filename":\["([^"]*)"\]/.exec(s.body)?.[1]);
+    check('QQ音乐：文件名用 media_mid 优先', fileNames[0] === 'F000media123.flac', String(fileNames[0]));
+    check('QQ音乐：同时用歌曲 mid 再发一路兜底', fileNames.includes('F000abc.flac'), fileNames.join(', '));
 }
 // purl 为空 → null
 wyMode = 'empty';
