@@ -6,10 +6,10 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { findLineIndex, type ParsedLyric } from '@/lib/lyric';
 import { seededRandom } from '@/lib/util';
-import { engine } from '@/player/engine';
 import { useSettings, type LyricIntensity } from '@/store/settings';
 import { useWindowSize } from '../hooks';
 import { css, type RGB } from '../theme';
+import { useLyricTime } from './lyricTime';
 import { activeUnitIndex, buildUnits, isCjk, type Unit } from './lyricUnits';
 
 const INTENSITY: Record<LyricIntensity, { rot: number; dy: number; dx: number; scale: number; wave: number }> = {
@@ -62,7 +62,7 @@ export function LyricsLuminous({ lyric, accent, soft, title, singer }: { lyric: 
     const intensity = useSettings(s => s.lyricIntensity);
     const scale = useSettings(s => s.lyricScale);
     const font = useSettings(s => s.lyricFont);
-    const offset = useSettings(s => s.lyricOffset);
+    const timeSource = useLyricTime();
     const showTrans = useSettings(s => s.showTranslation);
     const showRoma = useSettings(s => s.showRoma);
     const reduce = useSettings(s => s.reduceMotion);
@@ -77,7 +77,7 @@ export function LyricsLuminous({ lyric, accent, soft, title, singer }: { lyric: 
         let frame = 0;
         const loop = () => {
             frame = requestAnimationFrame(loop);
-            const t = engine.currentTime + offset / 1000;
+            const t = timeSource.now();
             let line = findLineIndex(lines, t);
             const after = line;
             // 当前行已唱完且距下一行较远时视为间奏（最后一行之后为尾奏）
@@ -92,7 +92,7 @@ export function LyricsLuminous({ lyric, accent, soft, title, singer }: { lyric: 
         };
         frame = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(frame);
-    }, [lines, unitsCache, offset]);
+    }, [lines, unitsCache, timeSource]);
 
     const line = pos.line >= 0 ? lines[pos.line] : undefined;
     const units = pos.line >= 0 ? unitsCache[pos.line] : [];

@@ -1,7 +1,7 @@
 /** 沉浸式播放页：流体背景 + 歌词动画（Luminous / Flow / Folia 的 8 种） + 底部胶囊 + 右下角面板 */
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertTriangle, ChevronLeft, RefreshCw, Settings2, SkipForward, SlidersHorizontal, X } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, RefreshCw, Settings2, SkipForward, SlidersHorizontal } from 'lucide-react';
 import { next, retry, usePlayer } from '@/store/player';
 import { useSettings } from '@/store/settings';
 import { ui, useUi } from '@/store/ui';
@@ -91,6 +91,39 @@ export function PlayerView() {
     const lyricState = usePlayer(s => s.lyricState);
     const palette = usePlayer(s => s.palette);
     const panelOpen = useUi(s => s.panelOpen);
+    // 歌词样式窗口开着时，这里必须一个不剩地卸下所有歌词渲染器（只留 Backdrop）：
+    // Folia 各动画读写模块级的 lyricClock / audioBands MotionValue，预览与播放页各挂一个会互相污染。
+    // 关窗后的 350ms 里继续压着：窗口退场动画里预览还活着，两套 rAF 同写一个 MotionValue 会让歌词抖一下
+    const lyricStyleOpen = useUi(s => Boolean(s.lyricStyle));
+    const [suppressLyrics, setSuppressLyrics] = useState(lyricStyleOpen);
+    useEffect(() => {
+        if (lyricStyleOpen) { setSuppressLyrics(true); return; }
+        const timer = setTimeout(() => setSuppressLyrics(false), 350);
+        return () => clearTimeout(timer);
+    }, [lyricStyleOpen]);
+
+    // 面板轻按外部关闭：落在控件（胶囊、返回键、任何可交互元素）上的点击照常生效；
+    // 落在歌词 / 封面舞台上时吞掉随后的 click，避免误触歌词行 seek（对话框 / 右键菜单开着时不收）
+    useEffect(() => {
+        if (!panelOpen) return;
+        const onPointerDown = (event: PointerEvent) => {
+            // 只有主键收面板：右键留着弹菜单；标题栏拖动带也不收
+            if (event.button !== 0) return;
+            const target = event.target as HTMLElement;
+            if (!target || useUi.getState().dialog || useUi.getState().menu) return;
+            if (target.closest('[data-panel]') || target.closest('.drag') || target.closest('[data-panel-toggle]')) return;
+            ui.togglePanel();
+            if (target.closest('button, input, select, a, [role="button"], [role="slider"], [contenteditable="true"]')) return;
+            const swallow = (e: MouseEvent) => {
+                e.stopPropagation();
+                e.preventDefault();
+            };
+            window.addEventListener('click', swallow, { capture: true, once: true });
+            setTimeout(() => window.removeEventListener('click', swallow, true), 500);
+        };
+        window.addEventListener('pointerdown', onPointerDown, true);
+        return () => window.removeEventListener('pointerdown', onPointerDown, true);
+    }, [panelOpen]);
     const searchOpen = useUi(s => s.searchOpen);
     const style = useSettings(s => s.lyricStyle);
     const theme = useTheme(palette);
@@ -110,8 +143,8 @@ export function PlayerView() {
             <Backdrop />
             <div className="drag absolute inset-x-0 top-0 h-16 touch:hidden" />
 
-            <div className="absolute inset-0">
-                {!current ? (
+            <div className="absolute inset-0" data-player-stage>
+                {suppressLyrics ? null : !current ? (
                     <div className="absolute inset-0 grid place-items-center">
                         <EmptyState title="还没有播放的歌曲" desc="去首页挑一个歌单，或按 Ctrl+K 搜索。"><Button onClick={ui.closePlayer}>返回首页</Button></EmptyState>
                     </div>
@@ -152,17 +185,20 @@ export function PlayerView() {
 
             <AnimatePresence>{panelOpen && <Panel key="panel" theme={theme} />}</AnimatePresence>
 
-            <motion.div className={cx('absolute z-40', compact ? 'right-3 top-3' : 'bottom-8 right-8', idle && 'pointer-events-none')} animate={{ opacity: idle ? 0 : 1 }} transition={{ duration: 0.4 }}>
-                <IconButton
-                    size={compact ? 'md' : 'lg'}
-                    variant={panelOpen ? 'white' : 'solid'}
-                    label={panelOpen ? '关闭面板' : '播放设置'}
-                    onClick={() => ui.togglePanel()}
-                    className="shadow-[var(--shadow-float)]"
-                >
-                    {panelOpen ? <X className="h-5 w-5" /> : <SlidersHorizontal className="h-5 w-5" />}
-                </IconButton>
-            </motion.div>
+            {/* 面板开着时点外面就收掉（见上方 pointerdown 监听），不再提供 X 关闭按钮 */}
+            {!panelOpen && (
+                <motion.div className={cx('absolute z-40', compact ? 'right-3 top-3' : 'bottom-8 right-8', idle && 'pointer-events-none')} animate={{ opacity: idle ? 0 : 1 }} transition={{ duration: 0.4 }}>
+                    <IconButton
+                        size={compact ? 'md' : 'lg'}
+                        variant="solid"
+                        label="播放设置"
+                        onClick={() => ui.togglePanel()}
+                        className="shadow-[var(--shadow-float)]"
+                    >
+                        <SlidersHorizontal className="h-5 w-5" />
+                    </IconButton>
+                </motion.div>
+            )}
         </motion.div>
     );
 }

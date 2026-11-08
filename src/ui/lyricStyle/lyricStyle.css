@@ -1,0 +1,121 @@
+/* 歌词样式窗口（ui/lyricStyle/）：Folia 深色控件配色与 kit 行样式，作用域限定在 .ye-lyst 内。
+   Folia 的 token 用 color-mix 从主文字色派生，这里按规范直接写成 rgb(255 255 255 / a)；
+   强调色不是常量 —— 跟播放页调色板走，由 LyricStyleWindow 以 --lyst-accent 内联写入。 */
+
+.ye-lyst {
+    --st-card: #232327;
+    --st-pv: #151517;
+    --st-knob: #ececee;
+    --st-t1: #ffffff;
+    --st-t2: rgb(255 255 255 / 0.62);
+    --st-t3: rgb(255 255 255 / 0.42);
+    --st-line: rgb(255 255 255 / 0.08);
+    --st-line2: rgb(255 255 255 / 0.16);
+    --st-fill: rgb(255 255 255 / 0.07);
+    --st-fill2: rgb(255 255 255 / 0.12);
+    --st-track: rgb(255 255 255 / 0.17);
+    --st-accent: var(--lyst-accent, #c8b0ff);
+}
+
+/* 键盘焦点环：一粒强调色描边（text 输入控件用边框变色，除外） */
+.ye-lyst :focus-visible:not(input, textarea, select) {
+    outline: 2px solid var(--st-accent);
+    outline-offset: 2px;
+}
+
+/* 卡片内的行：除第一行外，每行上面一根向左缩进 16px 的头发丝 */
+.ye-lyst-row::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 16px;
+    height: 1px;
+    background: var(--st-line);
+}
+.ye-lyst-card > .ye-lyst-row:first-child::before {
+    display: none;
+}
+
+/* ---- 滑杆（kit Slider）：4px 圆角轨道，强调色填充到 --p，16px 白色把手 ---- */
+.ye-lyst-range {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    width: 100%;
+    height: 20px;
+    background: transparent;
+    cursor: pointer;
+    touch-action: none;
+}
+.ye-lyst-range::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(
+        to right,
+        var(--st-accent) var(--p, var(--ye-range-pct, 50%)),
+        var(--st-track) var(--p, var(--ye-range-pct, 50%))
+    );
+}
+.ye-lyst-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    margin-top: -6px;
+    border: 0;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.35);
+    transition: transform 0.15s ease;
+}
+.ye-lyst-range:active::-webkit-slider-thumb {
+    transform: scale(1.15);
+}
+.ye-lyst-range::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--st-track);
+}
+.ye-lyst-range::-moz-range-progress {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--st-accent);
+}
+.ye-lyst-range::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: 0;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.35);
+}
+.ye-lyst-range:focus-visible {
+    outline: none;
+}
+.ye-lyst-range:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 2px var(--st-card), 0 0 0 4px var(--st-accent);
+}
+.ye-lyst-range:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+}
+
+/* 预览舞台只看不许点：Flow 歌词行自带 pointer-events-auto，这里一并压掉（hover / 滚轮都不进预览） */
+[data-lyst-stage],
+[data-lyst-stage] * {
+    pointer-events: none !important;
+}
+
+/* ---- Folia 动画参数面板（renderSettingsPanel）在窗口里的样子：
+   它们的卡片 / 分段 / 开关按自己的变量上色，这里把它们对齐到窗口的深色 token。 ---- */
+.ye-lyst .ye-lyst-folia-panel {
+    /* 面板文字色（FoliaSettings 已经按主题注入 --text-primary/secondary，这里只兜底） */
+    color: var(--st-t1);
+}
+.ye-lyst .ye-lyst-folia-panel input[type='checkbox'],
+.ye-lyst .ye-lyst-folia-panel input[type='radio'] {
+    accent-color: var(--st-accent);
+}
+
+/* 减少动效时：窗口只淡入淡出（framer 的位移 / 缩放由 App 的 MotionConfig 统一关掉） */

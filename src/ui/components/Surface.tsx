@@ -4,6 +4,7 @@
  */
 import { useEffect, useRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useUi } from "@/store/ui";
 
 const FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
 
@@ -33,6 +34,9 @@ export function Surface({ open, onClose, children, className = "", label, backdr
         }
         const onKey = (event: KeyboardEvent) => {
             if (event.key === "Escape") {
+                // 歌词样式窗口（z-85）浮在所有 Surface（z-80）之上：它开着时 Esc 归它自己的 capture 监听处理，
+                // 不然按一次 Esc 会把底下的设置 / 对话框连带关掉
+                if (useUi.getState().lyricStyle) return;
                 event.stopPropagation();
                 onClose();
                 return;

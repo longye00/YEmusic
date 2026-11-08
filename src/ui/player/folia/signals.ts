@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { motionValue } from 'framer-motion';
 import type { AudioBands, Line } from '@/folia/types';
 import { engine } from '@/player/engine';
-import { useSettings } from '@/store/settings';
+import { useLyricTime } from '../lyricTime';
 import { findActiveLineIndex } from './lyricsAdapter';
 
 /** 歌词时钟（秒）= 音频时间 + 歌词偏移，与 YEmusic 自带的 Luminous / Flow 一致 */
@@ -65,23 +65,24 @@ function sampleAudio(playing: boolean) {
 
 /** 启动 rAF 循环，返回当前行下标（仅在换行时触发 React 更新） */
 export function useFoliaSignals(lines: Line[]): number {
+    const timeSource = useLyricTime();
     const [index, setIndex] = useState(-1);
     useEffect(() => {
         let frame = 0;
         let last = -2;
         const tick = () => {
             frame = requestAnimationFrame(tick);
-            const time = engine.currentTime + useSettings.getState().lyricOffset / 1000;
+            const time = timeSource.now();
             lyricClock.set(time);
             const next = findActiveLineIndex(lines, time);
             if (next !== last) {
                 last = next;
                 setIndex(next);
             }
-            sampleAudio(engine.playing);
+            sampleAudio(timeSource.playing());
         };
         tick();
         return () => cancelAnimationFrame(frame);
-    }, [lines]);
+    }, [lines, timeSource]);
     return index;
 }

@@ -6,8 +6,111 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https: file:; media-src 'self' data: blob: http: https: file:; connect-src 'self' data: blob: http: https:; font-src 'self' data:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'" />
     <meta name="color-scheme" content="dark" />
     <title>YEmusic</title>
+    <!-- 启动遮罩：随 HTML 首帧一起绘制，不等 index.css 与 JS bundle。样式值移植自
+         Folia 的 index.html 加载遮罩（AGPL-3.0）；脚本在 public/splash.js（CSP 禁内联脚本）。 -->
+    <style>
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #050507;
+        font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        transition: opacity 420ms ease;
+      }
+      #app-splash.is-hiding {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #app-splash .app-splash-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 28px;
+        opacity: 0;
+        /* 无延迟淡入：快速加载时也要能看清内容 */
+        animation: app-splash-in 420ms ease forwards;
+        transition: transform 420ms ease, filter 420ms ease;
+        transform-origin: center 78%;
+      }
+      #app-splash.is-hiding .app-splash-inner {
+        transform: scale(1.04);
+        filter: blur(6px);
+      }
+      #app-splash .app-splash-title {
+        font-size: clamp(56px, 13vw, 168px);
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: 0.06em;
+      }
+      #app-splash .app-splash-title span {
+        display: inline-block;
+        opacity: 0;
+        animation: app-splash-letter 420ms ease forwards;
+        animation-delay: calc(var(--i, 0) * 50ms);
+      }
+      /* 循环波形：每根竖条只做 transform 动画，合成器线程执行，不占主线程。 */
+      #app-splash .app-splash-wave {
+        display: flex;
+        align-items: center;
+        gap: clamp(6px, 1.1vw, 11px);
+        height: clamp(42px, 7.5vw, 92px);
+      }
+      /* --floor / --peak / --alpha / --glow / --w 由 splash.js 逐条随机化；
+         这里的默认值是脚本失败时的静态兜底。 */
+      #app-splash .app-splash-wave span {
+        width: var(--w, 5px);
+        height: 100%;
+        transform: scaleY(var(--floor, 0.18));
+        background-color: rgba(255, 255, 255, var(--alpha, 0.85));
+        box-shadow: 0 0 var(--glow, 14px) rgba(255, 255, 255, 0.35);
+        animation: app-splash-wave 1100ms ease-in-out infinite;
+      }
+      #app-splash .app-splash-wave span:nth-child(even) {
+        animation-delay: -550ms;
+      }
+      @keyframes app-splash-in {
+        to { opacity: 1; }
+      }
+      @keyframes app-splash-letter {
+        from { opacity: 0; translate: 0 18px; }
+        to { opacity: 1; translate: 0 0; }
+      }
+      @keyframes app-splash-wave {
+        0%, 100% { transform: scaleY(var(--floor, 0.18)); }
+        50% { transform: scaleY(var(--peak, 1)); }
+      }
+      /* 减少动效：直接可见、静态波形、快速淡出（.is-reduced 由 splash.js 按设置打） */
+      #app-splash.is-reduced .app-splash-inner { opacity: 1; animation: none; }
+      #app-splash.is-reduced .app-splash-title span { opacity: 1; animation: none; }
+      #app-splash.is-reduced .app-splash-wave span {
+        transform: scaleY(calc(var(--peak, 0.5) * 0.7));
+        animation: none;
+        opacity: 0.5;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #app-splash .app-splash-inner { opacity: 1; animation: none; }
+        #app-splash .app-splash-title span { opacity: 1; animation: none; }
+        #app-splash .app-splash-wave span {
+          transform: scaleY(calc(var(--peak, 0.5) * 0.7));
+          animation: none;
+          opacity: 0.5;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="app-splash" role="status" aria-label="正在启动 YEmusic">
+      <div class="app-splash-inner">
+        <div class="app-splash-title" aria-label="YEmusic"><span style="--i:0">Y</span><span style="--i:1">E</span><span style="--i:2">m</span><span style="--i:3">u</span><span style="--i:4">s</span><span style="--i:5">i</span><span style="--i:6">c</span></div>
+        <div class="app-splash-wave" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+    <script src="./splash.js"></script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

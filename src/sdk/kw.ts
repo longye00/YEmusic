@@ -34,7 +34,8 @@ const formatSinger = (text: string) => decodeEntities(text).replace(/&/g, '、')
 
 function albumPic(short: string | undefined) {
     if (!short) return undefined;
-    return `https://img1.kwcdn.kuwo.cn/star/albumcover/500/${String(short).replace(/^\d+\//, '')}`;
+    // kwcdn 域名证书签发给了别的主机（ERR_CERT_COMMON_NAME_INVALID）：改用 img*.kuwo.cn，同一路径图片一致
+    return `https://img1.kuwo.cn/star/albumcover/500/${String(short).replace(/^\d+\//, '')}`;
 }
 
 function makeTrack(raw: { id: string; name: string; singer: string; album: string; albumId?: string; duration: number; cover?: string; qualities: QualityInfo[] }): Track {

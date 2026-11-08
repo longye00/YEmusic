@@ -18,16 +18,16 @@ import { toast } from '@/store/toast';
 import { isRemoteTarget, ui, useUi, type DetailTarget, type RemoteTarget } from '@/store/ui';
 import { Button, Cover, EmptyState, IconButton, Spinner, cx } from '../components/common';
 import { VirtualTrackList } from '../components/TrackList';
-import { useWindowSize } from '../hooks';
+import { useCompact, useWindowSize } from '../hooks';
 import { PosterArt } from '../home/Carousel';
 import { DailyArt, PatternArt } from '../library/art';
-import { MiniPlayer } from '../player/MiniPlayer';
+import { ControlPill } from '../player/ControlPill';
 import { DetailWall, type DetailAction } from './DetailWall';
 
 /** 拼贴墙模式最多铺这么多首（远程歌单会自动续载到这个数）；更多的在列表模式里看 */
 const WALL_CAP = 300;
 /** 窗口至少这么宽才用拼贴墙（书签 300px + 两侧的海报），再窄就用列表 */
-const WALL_MIN_WIDTH = 900;
+export const WALL_MIN_WIDTH = 900;
 
 interface RemoteState { list: Track[]; total: number; page: number; loading: boolean; error?: string; name?: string; cover?: string; desc?: string; author?: string; playCount?: number }
 
@@ -363,6 +363,7 @@ export function DetailView() {
                             {actions.map(action => (
                                 <IconButton key={action.key} variant="glass" label={action.label} active={action.active} disabled={action.disabled} onClick={action.run}>{action.icon}</IconButton>
                             ))}
+                            {winW >= WALL_MIN_WIDTH && <IconButton variant="glass" label="切换为拼贴墙布局" onClick={() => setSetting('detailLayout', 'wall')}><LayoutGrid className="h-4 w-4" /></IconButton>}
                         </div>
                         {localExtra}
                         </div>
@@ -375,7 +376,6 @@ export function DetailView() {
                             <Search className="h-4 w-4 txt-4" />
                             <input value={filter} onChange={e => setFilter(e.target.value)} placeholder={`在「${title}」中搜索`} className="h-full flex-1 bg-transparent text-[13px] outline-none placeholder:txt-5" />
                         </div>
-                        {winW >= WALL_MIN_WIDTH && <IconButton variant="glass" label="切换为拼贴墙布局" onClick={() => setSetting('detailLayout', 'wall')}><LayoutGrid className="h-4 w-4" /></IconButton>}
                     </div>
                     {remote.error && !tracks.length ? (
                         <EmptyState title="加载失败" desc={remote.error}><Button onClick={remote.reload}><RefreshCw className="h-4 w-4" />重试</Button></EmptyState>
@@ -398,7 +398,7 @@ export function DetailView() {
                             playlistId={playlist?.id}
                             onPlay={(_, index) => playList(shown, index)}
                             onEndReached={!filter ? remote.loadMore : undefined}
-                            footer={<>{remote.loading && tracks.length ? <div className="flex justify-center py-4 txt-4"><Spinner /></div> : null}<div className="h-16" /></>}
+                            footer={<>{remote.loading && tracks.length ? <div className="flex justify-center py-4 txt-4"><Spinner /></div> : null}<div className="h-24" /></>}
                         />
                     )}
                 </motion.section>
@@ -408,6 +408,7 @@ export function DetailView() {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
+    const compact = useCompact();
     return (
         <motion.div
             className="pointer-events-auto absolute inset-0 z-40 bg-black/45 backdrop-blur-[2px]"
@@ -419,7 +420,10 @@ function Shell({ children }: { children: React.ReactNode }) {
             <div className="drag absolute inset-x-0 top-0 h-14 touch:hidden" />
             <IconButton variant="solid" label="返回" className={cx('absolute left-6 top-6 z-10')} onClick={ui.closeDetail}><ChevronLeft className="h-5 w-5" /></IconButton>
             {children}
-            <MiniPlayer />
+            {/* 底部居中的 Folia 式胶囊播放栏（各页统一，详情页不再有独立的 MiniPlayer） */}
+            <div className={cx('pointer-events-none absolute inset-x-0 z-30 flex justify-center', compact ? 'bottom-[calc(0.5rem+var(--safe-bottom))] px-2' : 'bottom-6 px-4')}>
+                <ControlPill variant="home" />
+            </div>
         </motion.div>
     );
 }

@@ -3,12 +3,15 @@ import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { useCallback, useEffect } from 'react';
 import { engine } from '@/player/engine';
 import { useLite } from '@/lib/lite';
+import { hideSplash } from '@/lib/splash';
 import { usePlayer } from '@/store/player';
 import { useSettings } from '@/store/settings';
 import { useUi } from '@/store/ui';
 import { FluidBackground } from './ui/components/FluidBackground';
-import { DetailView } from './ui/detail/DetailView';
+import { DetailView, WALL_MIN_WIDTH } from './ui/detail/DetailView';
+import { useWindowSize } from './ui/hooks';
 import { Home } from './ui/home/Home';
+import { LyricStyleWindow } from './ui/lyricStyle/LyricStyleWindow';
 import { ContextMenu, Dialogs, Toasts } from './ui/Overlays';
 import { PlayerView } from './ui/player/PlayerView';
 import { SearchOverlay } from './ui/search/SearchOverlay';
@@ -19,9 +22,23 @@ import { WindowControls } from './ui/WindowControls';
 import { ErrorBoundary } from './ui/components/ErrorBoundary';
 import { Tooltips } from './ui/components/Tooltip';
 
+/** 首帧绘制后隐藏启动遮罩（等一个 rAF，确保真实首帧已过） */
+function SplashHider() {
+    useEffect(() => {
+        const raf = requestAnimationFrame(() => hideSplash());
+        return () => cancelAnimationFrame(raf);
+    }, []);
+    return null;
+}
+
 function SharedBackground() {
     const playerOpen = useUi(s => s.playerOpen);
     const detailOpen = useUi(s => Boolean(s.detail));
+    const searchOpen = useUi(s => s.searchOpen);
+    const lyricStyleOpen = useUi(s => Boolean(s.lyricStyle));
+    const detail = useUi(s => s.detail);
+    const detailLayout = useSettings(s => s.detailLayout);
+    const { w: winW } = useWindowSize();
     const bgPalette = useUi(s => s.bgPalette);
     const playerPalette = usePlayer(s => s.palette);
     const playing = usePlayer(s => s.status === 'playing');
@@ -44,6 +61,8 @@ function SharedBackground() {
     }, [theme, lite]);
 
     const energy = useCallback(() => engine.energy(), []);
+    // 不透明整版浮层盖住背景时同样暂停：拼贴墙详情（宽屏）、搜索工作台与歌词样式窗口都不是半透的
+    const opaqueCover = Boolean(detail && detailLayout === 'wall' && winW >= WALL_MIN_WIDTH) || searchOpen || lyricStyleOpen;
     const covered = playerOpen && background !== 'latent';
     return (
         <FluidBackground
@@ -53,7 +72,7 @@ function SharedBackground() {
             grain={playerOpen}
             speed={reduceMotion ? 0.25 : playerOpen ? 1 : 0.6}
             energy={playerOpen && reactive && playing && !reduceMotion ? energy : undefined}
-            paused={covered || reduceMotion || (libraryHome && !playerOpen)}
+            paused={covered || reduceMotion || (!playerOpen && (libraryHome || opaqueCover))}
         />
     );
 }
@@ -63,6 +82,7 @@ export function App() {
     const detail = useUi(s => s.detail);
     const searchOpen = useUi(s => s.searchOpen);
     const playerOpen = useUi(s => s.playerOpen);
+    const lyricStyle = useUi(s => s.lyricStyle);
     const reduceMotion = useSettings(s => s.reduceMotion);
 
     useEffect(() => {
@@ -75,6 +95,7 @@ export function App() {
         <MotionConfig reducedMotion={reduceMotion ? 'always' : 'never'}>
         <div className="relative h-full w-full overflow-hidden bg-[#050507] text-white antialiased">
             <SharedBackground />
+            <SplashHider />
             {/* 首页 / 详情页背景更克制：叠一层暗色晕影，让封面和文字成为视觉中心 */}
             <motion.div
                 className="pointer-events-none absolute inset-0"
@@ -125,6 +146,14 @@ export function App() {
             <ErrorBoundary name="设置" onReset={() => useUi.setState({ settingsOpen: false })}>
                 <SettingsModal />
             </ErrorBoundary>
+            {/* 歌词样式窗口：叠在主页 / 播放页 / 设置之上（z-85），预览里独占一套歌词时钟 */}
+            <AnimatePresence>
+                {lyricStyle && (
+                    <ErrorBoundary key="lyric-style" name="歌词样式" onReset={() => useUi.setState({ lyricStyle: null })}>
+                        <LyricStyleWindow />
+                    </ErrorBoundary>
+                )}
+            </AnimatePresence>
             <ErrorBoundary name="对话框" onReset={() => useUi.setState({ dialog: null })}>
                 <Dialogs />
             </ErrorBoundary>

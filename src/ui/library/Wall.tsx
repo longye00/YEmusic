@@ -269,7 +269,6 @@ const Tile = memo(function Tile({ card, x, y, w, h, delay, priority, tabbable, i
                 style={enterDelay !== undefined ? { animationDelay: `${enterDelay}ms` } : undefined}
             >
                 <div className="wall-art">{card.art || <TileImage src={card.cover} px={Math.max(w, h)} seed={card.title} priority={priority} />}</div>
-                <div className="wall-shade" />
                 {card.badge && (
                     <div className={cx('wall-badge', card.special && 'is-special')}>
                         {card.active ? <PlayingBars className="h-2.5" /> : card.badgeIcon}
@@ -280,7 +279,6 @@ const Tile = memo(function Tile({ card, x, y, w, h, delay, priority, tabbable, i
                     <div className="wall-title">{card.title}</div>
                     {card.desc && <div className="wall-sub">{card.desc}</div>}
                 </div>
-                <div className="wall-tint" />
                 {card.onPlay && (
                     <button
                         type="button"
@@ -426,6 +424,25 @@ export function Wall({ cards, seed, cell, keyboard = true, finite = false, handl
         }
     }, []);
 
+    /** 相机在运动就标 data-moving（滚动中悬停响应挂起，省指针命中测试 + 弹层重绘）；停 150ms 后摘掉 */
+    const movingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const markMoving = useCallback(() => {
+        const el = viewportRef.current;
+        if (el && !el.hasAttribute('data-moving')) el.setAttribute('data-moving', '');
+        clearTimeout(movingTimer.current);
+        movingTimer.current = setTimeout(() => viewportRef.current?.removeAttribute('data-moving'), 150);
+    }, []);
+
+    /** pointermove 里不直接写样式：只合并出一帧 apply，避免拖动时逐事件触发中帧合成器生命周期 */
+    const applyRaf = useRef(0);
+    const scheduleApply = useCallback(() => {
+        if (applyRaf.current) return;
+        applyRaf.current = requestAnimationFrame(() => {
+            applyRaf.current = 0;
+            apply();
+        });
+    }, [apply]);
+
     const frame = useCallback((now: number) => {
         const k = cam.current;
         const s = seamS.current;
@@ -459,9 +476,10 @@ export function Wall({ cards, seed, cell, keyboard = true, finite = false, handl
             k.vy *= decay;
             moving = true;
         }
+        if (moving) markMoving();
         apply();
         raf.current = moving ? requestAnimationFrame(frame) : 0;
-    }, [apply]);
+    }, [apply, markMoving]);
 
     const kick = useCallback(() => {
         if (!raf.current) {
@@ -470,7 +488,11 @@ export function Wall({ cards, seed, cell, keyboard = true, finite = false, handl
         }
     }, [frame]);
 
-    useEffect(() => () => cancelAnimationFrame(raf.current), []);
+    useEffect(() => () => {
+        cancelAnimationFrame(raf.current);
+        cancelAnimationFrame(applyRaf.current);
+        clearTimeout(movingTimer.current);
+    }, []);
 
     const tweenSeam = useCallback((from: number, to: number) => {
         const s = seamS.current;
@@ -779,7 +801,8 @@ export function Wall({ cards, seed, cell, keyboard = true, finite = false, handl
                 d.lt = now;
                 cam.current.x = d.cx - dx;
                 cam.current.y = d.cy - dy;
-                apply();
+                markMoving();
+                scheduleApply();
             }}
             onPointerUp={event => {
                 const d = drag.current;

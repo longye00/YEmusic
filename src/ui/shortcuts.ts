@@ -20,10 +20,12 @@ function changeVolume(delta: number) {
     toast(`音量 ${Math.round(value * 100)}%`, 'info', { duration: 1000, key: 'volume' });
 }
 
-/** Esc：菜单 → 对话框/设置（由各自处理）→ 面板 → 播放页 → 搜索 → 详情 */
+/** Esc：菜单 → 歌词样式窗口 → 对话框/设置（由各自处理）→ 面板 → 播放页 → 搜索 → 详情 */
 function closeTopLayer() {
     const s = useUi.getState();
     if (s.menu) return ui.menu(null);
+    // 歌词样式窗口浮在设置 / 播放页之上（焦点不在窗口内时走到这里；在内时由窗口的 capture 监听先拦下）
+    if (s.lyricStyle) return ui.closeLyricStyle();
     if (s.dialog || s.settingsOpen) return;
     // 搜索浮在播放页之上时先关搜索
     if (s.searchOpen && s.playerOpen) return ui.closeSearch();
@@ -45,6 +47,7 @@ function fireEscape() {
 export function handleBack(): boolean {
     const s = useUi.getState();
     if (s.menu) { ui.menu(null); return true; }
+    if (s.lyricStyle) { ui.closeLyricStyle(); return true; }
     if (s.dialog || s.settingsOpen) { fireEscape(); return true; }
     if (s.searchOpen && s.playerOpen) { ui.closeSearch(); return true; }
     if (s.playerOpen && s.panelOpen) { useUi.setState({ panelOpen: false }); return true; }
@@ -71,18 +74,8 @@ export function useShortcuts() {
                 host.toggleFullscreen();
                 return;
             }
-            if (ctrl && !event.shiftKey && (key === 'k' || key === 'K' || key === 'f' || key === 'F')) {
-                event.preventDefault();
-                ui.openSearch();
-                return;
-            }
-            if (ctrl && key === ',') {
-                event.preventDefault();
-                ui.openSettings();
-                return;
-            }
             /**
-             * 多媒体键：放在 isTyping 之前，输入框里也要能控制播放。
+             * 多媒体键：放在 isTyping 与模态判断之前，输入框里、歌词样式窗口开着时也要能控制播放。
              * 原先只接了 MediaPlayPause，键盘上的下一首 / 上一首 / 停止 / 音量键全都没反应
              * （系统媒体会话是另一条路径，窗口聚焦时按键先落到这里）。
              */
@@ -111,6 +104,18 @@ export function useShortcuts() {
                     setSetting('muted', muted);
                     toast(muted ? '已静音' : '已取消静音', 'info', { duration: 1000, key: 'volume' });
                 }
+                return;
+            }
+            // 歌词样式窗口是模态：Ctrl+K / Ctrl+, 等全局快捷键不许在里面打开新的浮层（否则浮层压在窗口下不可见），多媒体键仍走上面那条路径
+            if (useUi.getState().lyricStyle) return;
+            if (ctrl && !event.shiftKey && (key === 'k' || key === 'K' || key === 'f' || key === 'F')) {
+                event.preventDefault();
+                ui.openSearch();
+                return;
+            }
+            if (ctrl && key === ',') {
+                event.preventDefault();
+                ui.openSettings();
                 return;
             }
             if (isTyping(event.target)) return;
@@ -177,7 +182,10 @@ export function useShortcuts() {
             }
             if (key === 'l' || key === 'L') {
                 const current = usePlayer.getState().current;
-                if (current) toggleFavorite(current);
+                if (current) {
+                    const on = toggleFavorite(current);
+                    toast(on ? '已添加到我喜欢' : '已从我喜欢移除', 'info', { duration: 1300, key: 'like' });
+                }
                 return;
             }
             if (key === 'm' || key === 'M') {
