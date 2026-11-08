@@ -14,6 +14,7 @@ import { PLATFORM_NAMES, PLATFORMS, QUALITY_NAMES, QUALITY_ORDER, type Platform,
 import { callSource, isAggregateSource, markSourceResult, sourcesFor, useSources } from '@/store/sources';
 import { useSettings } from '@/store/settings';
 import { toLxMusicInfo } from './musicInfo';
+import { TRIAL_ONLY } from './trial';
 
 export interface Resolved {
     url: string;
@@ -80,8 +81,37 @@ export function invalidateUrl(url: string) {
     for (const [key, value] of cache) if (value.url === url) cache.delete(key);
 }
 
+/**
+ * 试听片段登记：某个「音源|歌曲」给出的链接被播放器判定为试听片段后记下，
+ * 之后这首歌不再向它取链（它对别的歌可能是好的，所以不进熔断）。
+ * 键是 `${sourceId}|${track.id}`，值是记入时刻；6 小时后过期（会员状态可能变化）。
+ */
+const trials = new Map<string, number>();
+const TRIAL_TTL = 6 * 60 * 60 * 1000;
+
+/** 播放器判定某条链接是试听片段：登记这个「音源|歌曲」，并清掉它的缓存链接 */
+export function markTrial(sourceId: string | undefined, track: Track) {
+    if (!sourceId) return;
+    trials.set(`${sourceId}|${track.id}`, Date.now());
+    for (const [key, value] of cache) {
+        if (key.startsWith(`${track.id}|`) && value.sourceId === sourceId) cache.delete(key);
+    }
+}
+
+function isTrialMarked(sourceId: string, track: Track): boolean {
+    const key = `${sourceId}|${track.id}`;
+    const at = trials.get(key);
+    if (at === undefined) return false;
+    if (Date.now() - at > TRIAL_TTL) {
+        trials.delete(key);
+        return false;
+    }
+    return true;
+}
+
 export function clearUrlCache() {
     cache.clear();
+    trials.clear();
 }
 
 export interface ResolveOptions {
@@ -277,22 +307,36 @@ async function resolveOnPlatform(track: Track, options: ResolveOptions, errors: 
     const settings = useSettings.getState();
     const qualities = qualityCandidates(track, options.quality || settings.quality, settings.qualityFallback || Boolean(options.quality));
     // 官方通道优先：登录后能拿到会员音质，链接来自平台自己的 CDN，不受第三方音源存活情况影响
-    const official = settings.officialFirst && !options.onlySource && officialAvailable(platform);
+    const officialWanted = settings.officialFirst && !options.onlySource && officialAvailable(platform);
+    // 这首歌之前已确认官方只给试听片段：不再问它，理由直接写进汇总
+    const officialTrial = officialWanted && isTrialMarked(OFFICIAL_SOURCE_ID, track);
+    if (officialTrial) errors.push(`${PLATFORM_NAMES[platform]}官方：只给了试听片段`);
+    const official = officialWanted && !officialTrial;
     let sources: Attempt[] = sourcesFor(platform);
     if (options.onlySource) sources = sources.filter(s => s.record.id === options.onlySource);
-    if (!sources.length && !official) {
+    // 同样被这首歌登记成「只给试听」的音源脚本，这次直接跳过
+    const trialIds = new Set(sources.filter(s => isTrialMarked(s.record.id, track)).map(s => s.record.id));
+    if (!sources.length && !official && !officialTrial && !trialIds.size) {
         errors.push(`${PLATFORM_NAMES[platform]}：没有可用的音源`);
         return null;
     }
     const skip = new Set<string>();
-    for (const s of sources) if (options.excludeSources?.has(`${s.record.id}|${platform}`)) skip.add(s.record.id);
+    for (const s of sources) {
+        if (options.excludeSources?.has(`${s.record.id}|${platform}`)) skip.add(s.record.id);
+        else if (trialIds.has(s.record.id)) {
+            skip.add(s.record.id);
+            errors.push(`${s.record.name}：只给了试听片段`);
+        }
+    }
     // 熔断中的音源先跳过；如果全部都在熔断中，新歌曲仍会逐个尝试一次（网络可能已恢复），重试时则直接换平台
     if (!options.onlySource && sources.length) {
         const healthy = sources.filter(s => !skip.has(s.record.id) && !circuitOpen(s.record.id, platform));
         if (healthy.length || options.excludeSources?.size) for (const s of sources) if (!healthy.includes(s)) skip.add(s.record.id);
     }
+    // 全部被跳过且原因不只是试听登记时才报「都无法播放」：只有试听标记的话，汇总会收成 TRIAL_ONLY
+    const allTrialSkipped = sources.length > 0 && sources.every(s => trialIds.has(s.record.id) || !skip.has(s.record.id));
     if (sources.length && skip.size >= sources.length && !official) {
-        errors.push(`${PLATFORM_NAMES[platform]}：音源刚刚都无法播放这首歌`);
+        if (!allTrialSkipped) errors.push(`${PLATFORM_NAMES[platform]}：音源刚刚都无法播放这首歌`);
         return null;
     }
     const deadline = Date.now() + budget;
@@ -460,6 +504,8 @@ export async function resolveUrl(track: Track, options: ResolveOptions = {}): Pr
 /** 把一堆失败原因归纳成一句用户看得懂的话 */
 function summarize(errors: string[]): string {
     if (!errors.length) return '所有音源均不可用';
+    // 每条原因都是「只给了试听片段」：收成一句话，播放器据此跳歌并提示需要会员
+    if (errors.every(e => /只给了试听片段/.test(e))) return TRIAL_ONLY;
     const count = (re: RegExp) => errors.filter(e => re.test(e)).length;
     const dead = count(/域名无法解析|无法连接|服务可能已停止|证书/);
     const invalid = count(/HTTP 4\d\d|不是音频|刚刚播放失败/);

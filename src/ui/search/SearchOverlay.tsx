@@ -1,35 +1,56 @@
 /**
- * 全屏搜索。交互参考 Folia 0.7.25 的搜索面板：
- *   - 一个输入框，边打边搜（防抖 350ms），不必先按回车；
- *   - 结果按平台分组（Folia 按 歌曲 / 专辑 / 歌手 分组，YEmusic 的平台 SDK 只有歌曲检索，
- *     所以分组维度换成平台），每组有标题、计数、独立骨架与「展开其余」；
- *   - 全键盘驱动：↑↓ 跨组连续移动高亮、Tab 循环切换范围、Enter 播放、Shift+Enter 加入队列、Esc 关闭；
- *   - 一条常驻按键提示条，随「空输入 / 有结果」换文案。
+ * 全屏搜索。0.6.0 起按 Folia 0.7.26 的「版面式」搜索设计重做（结构与数值直接移植自
+ * Folia 的 search.css，AGPL-3.0，见 search.css 头注释与 THIRD_PARTY_NOTICES.md）：
  *
- * 提示条放在输入区下方而不是视口底部：右下角常驻 MiniPlayer（bottom-6 right-6），
- * 贴底会压住它。
+ *   - 直角、发丝线、大号标题字：不再有圆角胶囊与整片毛玻璃卡片。输入框只有一条 2px 下边线，
+ *     左边一个 12px 主题色方块，搜索时方块转起来（Folia 的 .search-field-mark.is-busy）。
+ *   - 两层导航：上排「来源」（平台，13px 粗体 + 3px 主题色下划线，滑块用 layoutId 平移），
+ *     下排「类型」（歌曲 / 专辑 / 歌手，序号 01 02 03 + clamp(22px,3.2vw,34px) 900 字重大字）。
+ *     Folia 的类型来自它的服务端；YEmusic 的平台 SDK 只有歌曲检索，
+ *     所以专辑 / 歌手由本次结果在本地聚合出来（专辑能开详情就开详情，开不了就落成本地分组）。
+ *   - 结果面板 .search-plane：76px 行、48px 方封面、行间发丝线、
+ *     左侧 3px 主题色竖条从底部展开（高亮/悬停）、序号悬停变主题色、
+ *     右侧操作按钮平时隐藏、悬停才浮到 .7（触屏常驻）。
+ *   - 背景版面 .search-comp：斜切色块 / 圆环 / 圆点 / 横条 / 两条斜线 / 网点 / 竖排搜索词，
+ *     按当前类型换一套位移（Folia 的 data-search-kind），换来源时扫过一道光带。
+ *   - 空结果是「圆环 + 一道斜杠」（.search-void），加载是三个跳动的方块（.search-loader），
+ *     按钮是带方块的直角描边按钮（.search-flat-button）。
+ *
+ * 键盘：↑↓ 跨组连续移动高亮、Enter 播放、Shift+Enter 加入队列、Tab / Shift+Tab 切来源、
+ * ← → 切类型、Esc 关闭（交给全局 shortcuts.ts 的分层关闭，这里不再关一次）。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown, Clock, CornerDownLeft, Flame, ListPlus, Loader2, Play, Search, Trash2, X } from 'lucide-react';
+import { ArrowUpRight, ChevronDown, Clock, CornerDownLeft, Flame, ListPlus, Play, Plus, Trash2, X } from 'lucide-react';
+import { isLite, useLite } from '@/lib/lite';
 import { sdks } from '@/sdk';
-import { PLATFORM_NAMES, PLATFORMS, type Platform, type Track } from '@/sdk/types';
-import { useLibrary } from '@/store/library';
+import { bestQuality, PLATFORM_NAMES, PLATFORMS, QUALITY_SHORT, type Platform, type Track } from '@/sdk/types';
+import { toggleFavorite, useLibrary } from '@/store/library';
+import { toast } from '@/store/toast';
 import { addToQueue, playTrack, usePlayer } from '@/store/player';
 import { setSetting, useSettings } from '@/store/settings';
-import { ui, useUi } from '@/store/ui';
-import { Cover, EmptyState, IconButton, PlayingBars, QualityTag, Spinner, cx } from '../components/common';
+import { ui, useUi, type DetailTarget } from '@/store/ui';
+import { useIsFavorite } from '../hooks';
+import { css, useTheme, type RGB } from '../theme';
+import { Cover, IconButton, PlayingBars, cx } from '../components/common';
 import { MOTION } from '../motion';
 import { MiniPlayer } from '../player/MiniPlayer';
+import './search.css';
 
 type Scope = Platform | 'local' | 'all';
+type Kind = 'song' | 'album' | 'artist';
+
 const HISTORY_KEY = 'ye.searchHistory';
 /** 每组先显示这么多，其余按需展开（避免一次渲染几百行） */
 const GROUP_INITIAL = 6;
 /** 本地结果一次渲染的行数上限：本地最多 500 条，每行带封面图，全渲染会卡 */
 const LOCAL_INITIAL = 60;
+/** 结果到了之后这么久，行的入场动画放完：再滚出来的行不再滑入（Folia 的 ROW_REVEAL_MS） */
+const ROW_REVEAL_MS = 1000;
 const DEBOUNCE_MS = 350;
 const SCOPES: Scope[] = [...PLATFORMS, 'local', 'all'];
+const KINDS: Kind[] = ['song', 'album', 'artist'];
+const KIND_NAMES: Record<Kind, string> = { song: '歌曲', album: '专辑', artist: '歌手' };
 
 function readHistory(): string[] {
     try {
@@ -40,103 +61,172 @@ function readHistory(): string[] {
     }
 }
 
-const scopeLabel = (scope: Scope) => (scope === 'local' ? '本地 / 曲库' : scope === 'all' ? '全部平台' : PLATFORM_NAMES[scope]);
+const scopeLabel = (scope: Scope) => (scope === 'local' ? '本地曲库' : scope === 'all' ? '全部平台' : PLATFORM_NAMES[scope]);
+
+const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+
+/**
+ * 版面配色（Folia 的 --search-ink / accent / paper / hairline）。
+ * 全部由当前主题派生，跟着封面取色 / 自定义主色一起变；
+ * 不在 CSS 里用 color-mix()，Chrome 111 以前的 Android WebView 解析不了，
+ * 所以每种颜色都同时给出「三元组」变量，供 rgb(var(--x-triple) / a) 调透明度。
+ */
+function searchTokens(theme: ReturnType<typeof useTheme>, lite: boolean): Record<string, string> {
+    const ink = mix([255, 255, 255], theme.accentSoft, 0.14);
+    const paper = mix([8, 8, 10], theme.panel, 0.14);
+    const triple = (c: RGB) => `${Math.round(c[0])} ${Math.round(c[1])} ${Math.round(c[2])}`;
+    return {
+        '--search-ink': css(ink),
+        '--search-ink-triple': triple(ink),
+        '--search-ink-soft': `rgb(${triple(ink)} / ${lite ? 0.66 : 0.55})`,
+        '--search-hairline': `rgb(${triple(ink)} / ${lite ? 0.16 : 0.09})`,
+        '--search-accent': css(theme.accentSoft),
+        '--search-accent-triple': triple(theme.accentSoft),
+        // 纸色不透明（Folia 用实心的 #08080a）：整版盖住窗口，底下内容不透出来
+        '--search-paper': css(paper),
+        '--search-paper-triple': triple(paper),
+    };
+}
 
 interface Group { key: Platform; list: Track[]; total: number; loading: boolean; error?: string }
 
-/** 结果行：比曲库列表更紧凑（56px），带序号、封面、双行文字、音质角标 */
-function ResultRow({ track, index, active, onHover, onPlay, onQueue }: {
+/** 一行的稳定标识：歌曲用 track.id，专辑 / 歌手用聚合 key */
+const rowKey = (row: Track | Collection) => ('key' in row ? row.key : row.id);
+
+/** 本地聚合出来的专辑 / 歌手条目 */
+interface Collection {
+    key: string;
+    name: string;
+    sub: string;
+    cover?: string;
+    tracks: Track[];
+    platform: Platform | 'local';
+    albumId?: string;
+}
+
+/** 结果行：76px，方封面，发丝线，左侧主题色竖条 */
+function SongRow({ track, index, active, onHover, onPlay, onQueue, onCollect, showPlatform }: {
     track: Track;
     index: number;
     active: boolean;
     onHover: () => void;
     onPlay: () => void;
     onQueue: () => void;
+    onCollect: () => void;
+    showPlatform: boolean;
 }) {
     const isCurrent = usePlayer(s => s.current?.id === track.id);
     const status = usePlayer(s => (s.current?.id === track.id ? s.status : 'idle'));
+    const liked = useIsFavorite(track.id);
     return (
         <div
             role="option"
             aria-selected={active}
             onPointerMove={onHover}
             onClick={onPlay}
-            style={{ animationDelay: `${Math.min(index, 12) * 32}ms` }}
-            className={cx(
-                // search-row-in：逐行波浪入场（index.css）。裁切/位移只在挂载时跑一次，
-                // 高亮切换只改 opacity 与背景色，不会让动画重放。
-                'search-row-in group relative flex h-[56px] cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border px-3 transition-colors duration-100',
-                active ? 'ln-strong bg-[var(--ui-hover)]' : isCurrent ? 'ln-strong bg-[var(--ui-idle)]' : 'border-transparent hover:bg-white/[0.06]',
-            )}
+            style={{ '--search-row-order': index } as React.CSSProperties}
+            className={cx('search-row group cursor-pointer', active && 'is-active', isCurrent && 'is-current')}
         >
-            {/* 左侧 3px 主题色竖条：借 Folia 的 .search-row:before —— 高亮时从底部展开，
-                比整行换底色更安静，也让键盘上下移动时有个明确的「当前」标记 */}
-            <span
-                aria-hidden
-                className={cx(
-                    'absolute bottom-2 left-0.5 top-2 w-[3px] origin-bottom rounded-full bg-[rgb(var(--accent))] transition-transform duration-200 ease-[var(--ease-standard)]',
-                    active ? 'scale-y-100' : 'scale-y-0',
-                )}
-            />
-            <div className="w-6 shrink-0 text-center font-mono text-[11px] txt-5 transition-colors group-hover:text-[rgb(var(--accent-soft))]">
-                {isCurrent ? <PlayingBars paused={status !== 'playing'} className="text-white" /> : index + 1}
-            </div>
-            {/* 封面：悬停/高亮时压一层播放遮罩（Folia 的 .search-row-play） */}
-            <Cover src={track.cover} size={40} seed={track.name} className="h-10 w-10 shrink-0" rounded="rounded-[10px]">
-                <span
-                    aria-hidden
-                    className={cx(
-                        'absolute inset-0 grid place-items-center bg-black/55 text-white transition-opacity duration-200',
-                        active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
-                    )}
-                >
-                    <Play className="ml-0.5 h-3.5 w-3.5" fill="currentColor" />
-                </span>
-            </Cover>
+            <span className="search-row-index" aria-hidden>
+                {isCurrent ? <PlayingBars paused={status !== 'playing'} className="text-[color:var(--search-accent)]" /> : String(index + 1).padStart(2, '0')}
+            </span>
+            <span className="search-row-cover">
+                <Cover src={track.cover} size={96} seed={track.name} alt="" rounded="" className="h-full w-full" eager={index < 12}>
+                    <span className="search-row-play" aria-hidden>
+                        <Play className="h-[18px] w-[18px]" fill="currentColor" />
+                    </span>
+                </Cover>
+            </span>
             <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-2">
-                    <span className={cx('truncate text-[13.5px] font-semibold', active || isCurrent ? 'text-white' : 'txt-1')}>{track.name}</span>
-                    <QualityTag track={track} />
+                    <span className="search-row-title truncate">{track.name}</span>
+                    {(() => { const q = bestQuality(track); return q === 'flac' || q === 'flac24bit' ? <span className="search-row-tag">{QUALITY_SHORT[q]}</span> : null; })()}
+                    {showPlatform && <span className="search-row-tag">{PLATFORM_NAMES[track.source]}</span>}
                 </div>
-                <div className="mt-0.5 truncate text-[11.5px] txt-4">
-                    {track.singer}
-                    {track.album ? <span className="txt-5"> • {track.album}</span> : null}
+                <div className="search-row-sub mt-1 flex min-w-0 items-center gap-1.5">
+                    <span className="min-w-0 truncate">{track.singer}</span>
+                    {track.album && (
+                        <>
+                            <span className="shrink-0 opacity-40" aria-hidden>/</span>
+                            <span className="max-w-[45%] truncate">{track.album}</span>
+                        </>
+                    )}
                 </div>
             </div>
-            {/* 高亮时才露出手柄：比每行常驻一排按钮安静，也和键盘操作对上 */}
-            {active ? (
-                <div className="flex shrink-0 items-center gap-1.5">
-                    <button
-                        type="button"
-                        onClick={event => { event.stopPropagation(); onQueue(); }}
-                        title="加入队列 (Shift + Enter)"
-                        className="grid h-7 w-7 place-items-center rounded-full bg-white/10 txt-2 hover:bg-white/25 hover:text-white"
-                    >
-                        <ListPlus className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="hidden items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10.5px] font-semibold text-black sm:flex">
+            <span className="search-row-time hidden shrink-0 sm:block">
+                {track.duration ? `${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : ''}
+            </span>
+            <span className="flex shrink-0 items-center gap-1.5">
+                <button type="button" onClick={event => { event.stopPropagation(); onCollect(); }} className="search-row-action" title={liked ? '取消收藏' : '收藏'} aria-label={liked ? '取消收藏' : '收藏'}>
+                    <Plus className={cx('h-4 w-4 transition-transform', liked && 'rotate-45')} />
+                </button>
+                <button type="button" onClick={event => { event.stopPropagation(); onQueue(); }} className="search-row-action" title="加入队列 (Shift + Enter)" aria-label="加入队列">
+                    <ListPlus className="h-4 w-4" />
+                </button>
+                {active && (
+                    <span className="search-row-enter hidden sm:inline-flex">
                         <CornerDownLeft className="h-3 w-3" />播放
                     </span>
+                )}
+            </span>
+        </div>
+    );
+}
+
+/** 专辑 / 歌手行：84px，方封面后面垫一张会滑开的主题色方块（Folia 的 .search-collection-*） */
+function CollectionRow({ item, index, active, onHover, onOpen }: {
+    item: Collection;
+    index: number;
+    active: boolean;
+    onHover: () => void;
+    onOpen: () => void;
+}) {
+    return (
+        <div
+            role="option"
+            aria-selected={active}
+            onPointerMove={onHover}
+            onClick={onOpen}
+            style={{ '--search-row-order': index } as React.CSSProperties}
+            className={cx('search-row is-collection group cursor-pointer', active && 'is-active')}
+        >
+            <span className="search-row-index" aria-hidden>{String(index + 1).padStart(2, '0')}</span>
+            <span className="search-collection-art" aria-hidden>
+                <span className={item.albumId ? 'search-collection-disc' : 'search-collection-shadow'} />
+                <span className="search-row-cover">
+                    <Cover src={item.cover} size={116} seed={item.name} alt="" rounded="" className="h-full w-full" />
+                </span>
+            </span>
+            <div className="min-w-0 flex-1">
+                <div className="search-row-title truncate">{item.name}</div>
+                <div className="search-row-sub mt-1 flex min-w-0 items-center gap-1.5">
+                    <span className="min-w-0 truncate">{item.sub}</span>
                 </div>
-            ) : (
-                <span className="shrink-0 font-mono text-[11px] txt-5">{track.duration ? `${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}` : ''}</span>
-            )}
+            </div>
+            <span className="search-row-count">{item.tracks.length} 首</span>
+            <ArrowUpRight className="search-row-arrow h-4 w-4 shrink-0" aria-hidden />
         </div>
     );
 }
 
 export function SearchOverlay() {
     const query = useUi(s => s.searchQuery);
-    // 在播放页上打开：浮到歌词之上，用更深的 scrim；播放页自身的控件隐藏，只留一套传输控件
+    // 在播放页上打开：浮到歌词之上，用更深的底；播放页自身的控件隐藏，只留一套传输控件
     const overPlayer = useUi(s => s.playerOpen);
     const savedPlatform = useSettings(s => s.searchPlatform);
+    const bgPalette = useUi(s => s.bgPalette);
+    const playerPalette = usePlayer(s => s.palette);
+    const theme = useTheme(overPlayer ? playerPalette : bgPalette || playerPalette);
+    const lite = useLite();
     const [scope, setScope] = useState<Scope>(savedPlatform);
+    const [kind, setKind] = useState<Kind>('song');
     const [text, setText] = useState(query);
     const [history, setHistory] = useState(readHistory);
     const [hot, setHot] = useState<string[]>([]);
     const [groups, setGroups] = useState<Group[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+    const [entered, setEntered] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
     const tracks = useLibrary(s => s.tracks);
@@ -196,27 +286,87 @@ export function SearchOverlay() {
         return () => clearTimeout(timer);
     }, [keyword, scope]);
 
+    /** 当前范围下的全部结果（含折叠部分）：播放上下文与专辑 / 歌手聚合都走这一份 */
+    const allRows = useMemo(() => (scope === 'local' ? localList : groups.flatMap(g => g.list)), [groups, localList, scope]);
+
     /**
-     * 当前「已渲染」的行 —— 键盘上下移动与 scrollIntoView 走这一份，跨组连续。
-     * 折叠中的行不在其中，否则高亮会落到一个还不存在的元素上、滚动失效。
+     * 专辑 / 歌手：把本次结果在本地聚合出来。
+     * 平台 SDK 只有歌曲检索，Folia 的「专辑 / 歌手」两类在这里换成同一种做法 —— 按字段归堆。
+     * 专辑有 albumId 且平台支持（网易云 / QQ音乐）就能开专辑详情页，否则落成本地分组页。
      */
-    const flat = useMemo(() => {
+    const collections = useMemo<Collection[]>(() => {
+        if (kind === 'song') return [];
+        const map = new Map<string, Collection>();
+        for (const track of allRows) {
+            const raw = kind === 'album' ? track.album : track.singer;
+            const names = (raw || '').split(/[\/、,，]/).map(s => s.trim()).filter(Boolean);
+            if (!names.length) continue;
+            for (const name of kind === 'album' ? names.slice(0, 1) : names) {
+                const key = `${track.source}:${name}`;
+                const hit = map.get(key);
+                if (hit) {
+                    hit.tracks.push(track);
+                    if (!hit.cover && track.cover) hit.cover = track.cover;
+                } else {
+                    map.set(key, {
+                        key,
+                        name,
+                        sub: kind === 'album' ? track.singer : `${track.album || '单曲'} · ${PLATFORM_NAMES[track.source]}`,
+                        cover: track.cover,
+                        tracks: [track],
+                        platform: track.source,
+                        albumId: kind === 'album' && (track.source === 'wy' || track.source === 'tx') ? track.albumId : undefined,
+                    });
+                }
+            }
+        }
+        return [...map.values()].sort((a, b) => b.tracks.length - a.tracks.length).slice(0, 200);
+    }, [allRows, kind]);
+
+    /** 当前「已渲染」的行 —— 键盘上下移动与 scrollIntoView 走这一份，跨组连续 */
+    /** 当前「已渲染」的行 —— 键盘上下移动与 scrollIntoView 走这一份，跨组连续 */
+    const flat = useMemo<(Track | Collection)[]>(() => {
+        if (kind !== 'song') return collections.slice(0, expanded.collections ? collections.length : GROUP_INITIAL * 2);
         if (scope === 'local') return localList.slice(0, expanded.local ? localList.length : Math.min(LOCAL_INITIAL, localList.length));
         return groups.flatMap(g => g.list.slice(0, expanded[g.key] ? g.list.length : Math.min(GROUP_INITIAL, g.list.length)));
-    }, [groups, localList, scope, expanded]);
+    }, [collections, expanded, groups, kind, localList, scope]);
 
-    /** 播放上下文取全部结果（含折叠部分），这样播完可见的 60 首还能接着放 */
-    const context = useMemo(() => (scope === 'local' ? localList : groups.flatMap(g => g.list)), [groups, localList, scope]);
-
-    const activeIndex = flat.findIndex(t => t.id === activeId);
-    const activeTrack = activeIndex >= 0 ? flat[activeIndex] : null;
+    const activeIndex = flat.findIndex(row => rowKey(row) === activeId);
 
     const play = useCallback((track: Track) => {
-        playTrack(track, context.length > 1 ? context : undefined);
+        // 先关搜索再播：playTrack / loadIndex 会改 player store，本组件每行都订阅了
+        // usePlayer；退出动画（MOTION.dur.move ≈ 0.22s）里子树一旦跟着重渲染，会把
+        // AnimatePresence 的退出卡在终态——透明度 0 却一直挂在 DOM 里，隐形盖住整窗、
+        // 吞掉后续所有点击。推迟到退出跑完再播。
+        const list = allRows.length > 1 ? allRows : undefined;
         ui.closeSearch();
-    }, [context]);
+        setTimeout(() => playTrack(track, list), 300);
+    }, [allRows]);
 
     const queue = useCallback((track: Track) => addToQueue([track]), []);
+
+    const collect = useCallback((track: Track) => {
+        const on = toggleFavorite(track);
+        toast(on ? '已添加到「我喜欢的音乐」' : '已取消喜欢', on ? 'success' : 'info', { duration: 1300, key: 'like' });
+    }, []);
+
+    const openCollection = useCallback((item: Collection) => {
+        const target: DetailTarget = item.albumId && (item.platform === 'wy' || item.platform === 'tx')
+            ? { kind: 'album', platform: item.platform, id: item.albumId, info: { name: item.name, cover: item.cover } }
+            : {
+                kind: 'tracks',
+                id: item.key,
+                name: item.name,
+                desc: item.sub,
+                cover: item.cover,
+                trackIds: item.tracks.map(t => t.id),
+            };
+        // 同 play()：openDetail 与 closeSearch 落在同一批渲染时，退出中的子树跟着
+        // 重渲染会卡死 AnimatePresence 的退出（元素停在透明度 0 还挂在 DOM 里）。
+        // 先只关搜索，等退出动画（≈0.22s）跑完再开详情。
+        ui.closeSearch();
+        setTimeout(() => ui.openDetail(target), 300);
+    }, []);
 
     // 高亮行滚进视野
     useEffect(() => {
@@ -224,10 +374,22 @@ export function SearchOverlay() {
         listRef.current?.querySelector<HTMLElement>('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
     }, [activeId]);
 
+    // 行入场动画只在「换了一组结果」时跑一次：结果挂上 ROW_REVEAL_MS 内列表没有
+    // data-search-entered，行按序刷入；之后打上标记，再滚出来的行不再滑入（Folia 同规则）
+    const revealKey = `${scope}:${kind}:${keyword}`;
+    useEffect(() => {
+        setEntered(null);
+        const timer = setTimeout(() => setEntered(revealKey), ROW_REVEAL_MS);
+        return () => clearTimeout(timer);
+    }, [revealKey]);
+
     const changeScope = (next: Scope) => {
         setScope(next);
+        setActiveId(null);
         if (next !== 'local' && next !== 'all') setSetting('searchPlatform', next);
     };
+
+    const stepKind = (delta: number) => setKind(k => KINDS[(KINDS.indexOf(k) + delta + KINDS.length) % KINDS.length]);
 
     const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         // 输入法组合中（中文候选框）不抢方向键与回车
@@ -239,7 +401,12 @@ export function SearchOverlay() {
             const next = activeIndex < 0
                 ? (step > 0 ? 0 : flat.length - 1)
                 : Math.max(0, Math.min(flat.length - 1, activeIndex + step));
-            setActiveId(flat[next].id);
+            setActiveId(rowKey(flat[next]));
+            return;
+        }
+        if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+            event.preventDefault();
+            stepKind(event.key === 'ArrowRight' ? 1 : -1);
             return;
         }
         if (event.key === 'Tab') {
@@ -250,12 +417,14 @@ export function SearchOverlay() {
         }
         if (event.key === 'Enter') {
             event.preventDefault();
-            if (activeTrack) {
-                if (event.shiftKey) queue(activeTrack);
-                else play(activeTrack);
+            const item = activeIndex >= 0 ? flat[activeIndex] : null;
+            if (item) {
+                if (kind !== 'song') openCollection(item as Collection);
+                else if (event.shiftKey) queue(item as Track);
+                else play(item as Track);
             } else if (flat.length) {
-                // 还没移动过高亮：第一次回车选中第一条，第二次才播放
-                setActiveId(flat[0].id);
+                // 还没移动过高亮：第一次回车选中第一条，第二次才打开
+                setActiveId(rowKey(flat[0]));
             }
             return;
         }
@@ -270,184 +439,301 @@ export function SearchOverlay() {
     };
 
     const searching = groups.some(g => g.loading);
-    const totalCount = scope === 'local' ? localList.length : groups.reduce((sum, g) => sum + g.list.length, 0);
+    const shownCount = kind === 'song' ? allRows.length : collections.length;
+    const totalCount = kind === 'song'
+        ? groups.reduce((sum, g) => sum + (g.total || g.list.length), 0) || allRows.length
+        : collections.length;
     const empty = !keyword;
-    const nothingFound = !empty && !searching && flat.length === 0;
+    const nothingFound = !empty && !searching && shownCount === 0;
+    const unit = kind === 'song' ? '首' : kind === 'album' ? '张' : '位';
 
     return (
-        <motion.div className={cx('absolute inset-0 flex flex-col', overPlayer ? 'z-[70] bg-[rgb(7_7_9/0.72)] backdrop-blur-[24px]' : 'z-50 bg-[var(--surface-overlay)] backdrop-blur-2xl')} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: MOTION.dur.move, ease: MOTION.ease.standard }}>
-            <div className="drag absolute inset-x-0 top-0 h-10 touch:hidden" />
-            <motion.div className="mx-auto flex w-full max-w-[900px] min-h-0 flex-1 flex-col px-8 pt-12 max-sm:px-4 max-sm:pt-4" initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 320, damping: 32 }}>
-                <div className="flex items-center gap-2.5">
-                    <div className="flex h-[52px] flex-1 items-center gap-3 rounded-2xl border ln bg-white/[0.05] px-4 transition-colors focus-within:ln-strong focus-within:bg-white/[0.07]">
-                        {searching ? <Loader2 className="h-[18px] w-[18px] shrink-0 animate-spin txt-3" /> : <Search className="h-[18px] w-[18px] shrink-0 txt-4" />}
+        <motion.div
+            className={cx('search-workspace absolute inset-0 flex flex-col overflow-hidden px-4 py-5 sm:px-8 sm:py-7', overPlayer ? 'z-[70]' : 'z-50')}
+            style={searchTokens(theme, lite)}
+            initial={{ opacity: 0, y: 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 28 }}
+            transition={{ duration: MOTION.dur.move, ease: MOTION.ease.standard }}
+        >
+            <div className="drag absolute inset-x-0 top-0 z-10 h-10 touch:hidden" />
+
+            {/* 背景版面：纯装饰，不接管指针。站位随来源序号换，换来源/类型扫一道光带 */}
+            <SearchComposition kind={kind} query={keyword} stageKey={`${scope}:${kind}`} stageIndex={SCOPES.indexOf(scope)} />
+
+            <header className="relative z-[1] mx-auto flex w-full max-w-5xl shrink-0 flex-col gap-5 pt-8">
+                <div className="flex items-center gap-4">
+                    <div className="search-field flex-1">
+                        <span className={cx('search-field-mark', searching && 'is-busy')} aria-hidden />
                         <input
                             ref={inputRef}
                             value={text}
                             onChange={e => setText(e.target.value)}
                             onKeyDown={onKeyDown}
-                            placeholder="搜索歌曲、歌手、专辑"
+                            placeholder={kind === 'song' ? '搜索歌曲、歌手、专辑' : kind === 'album' ? '搜索专辑' : '搜索歌手'}
                             aria-label="搜索"
                             role="combobox"
                             aria-expanded={flat.length > 0}
                             aria-controls="search-results"
-                            className="h-full flex-1 bg-transparent text-[15px] font-medium outline-none placeholder:font-normal placeholder:txt-5"
                         />
                         {text ? (
-                            <button type="button" onClick={() => { setText(''); inputRef.current?.focus(); }} title="清空" className="shrink-0 txt-4 hover:text-white"><X className="h-4 w-4" /></button>
-                        ) : (
-                            <kbd className="shrink-0 txt-5">Esc</kbd>
-                        )}
+                            <button type="button" onClick={() => { setText(''); inputRef.current?.focus(); }} className="search-field-clear" title="清空" aria-label="清空">
+                                <X className="h-4 w-4" />
+                            </button>
+                        ) : null}
                     </div>
-                    <IconButton variant="glass" size="lg" label="关闭搜索 (Esc)" onClick={ui.closeSearch}><X className="h-5 w-5" /></IconButton>
+                    <button type="button" onClick={ui.closeSearch} className="search-close" aria-label="关闭搜索 (Esc)" title="关闭搜索 (Esc)">
+                        <X className="h-5 w-5" />
+                    </button>
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <nav className="search-sources scrollbar-none" aria-label="搜索来源">
                     {SCOPES.map(p => (
                         <button
                             key={p}
                             type="button"
                             onClick={() => changeScope(p)}
-                            className={cx(
-                                'h-7 rounded-full px-3 text-[12px] font-medium transition-colors',
-                                scope === p ? 'bg-white text-black' : 'bg-[var(--ui-idle)] txt-3 hover:bg-[var(--ui-hover)] hover:text-white',
-                            )}
+                            aria-current={scope === p ? 'true' : undefined}
+                            className={cx('search-source', scope === p && 'is-active')}
                         >
                             {scopeLabel(p)}
+                            {scope === p && (
+                                <motion.span layoutId="ye-search-source-mark" className="search-source-mark" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />
+                            )}
                         </button>
                     ))}
-                    {!empty && totalCount > 0 && <span className="ml-auto font-mono text-[11px] txt-5">共 {totalCount} 首</span>}
+                </nav>
+
+                <div className="search-kinds scrollbar-none" role="tablist" aria-label="结果类型">
+                    {KINDS.map((k, i) => (
+                        <button
+                            key={k}
+                            type="button"
+                            role="tab"
+                            aria-selected={kind === k}
+                            onClick={() => { setKind(k); setActiveId(null); }}
+                            className={cx('search-kind', kind === k && 'is-active')}
+                        >
+                            {kind === k && <motion.span layoutId="ye-search-kind-mark" className="search-kind-mark" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
+                            <span className="search-kind-number" aria-hidden>{String(i + 1).padStart(2, '0')}</span>
+                            <span className="search-kind-label">{KIND_NAMES[k]}</span>
+                        </button>
+                    ))}
                 </div>
 
-                <div id="search-results" className="mt-4 flex min-h-0 flex-1 flex-col">
-                    {empty ? (
-                        <div className="scroll-thin space-y-7 overflow-y-auto pb-10">
-                            {history.length > 0 && (
-                                <section>
-                                    <div className="mb-2.5 flex items-center justify-between">
-                                        <h3 className="flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.14em] txt-4"><Clock className="h-3.5 w-3.5" />最近搜索</h3>
-                                        <button type="button" onClick={() => { try { localStorage.removeItem(HISTORY_KEY); } catch { /* ignore */ } setHistory([]); }} className="flex items-center gap-1 text-[11.5px] txt-5 hover:txt-3"><Trash2 className="h-3 w-3" />清空</button>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {history.map(h => (
-                                            <button key={h} type="button" onClick={() => pickKeyword(h)} className="h-7 max-w-[240px] truncate rounded-full bg-[var(--ui-idle)] px-3 text-[12px] txt-3 hover:bg-[var(--ui-hover)] hover:text-white">{h}</button>
-                                        ))}
-                                    </div>
-                                </section>
-                            )}
-                            {hot.length > 0 && (
-                                <section>
-                                    <h3 className="mb-2.5 flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.14em] txt-4"><Flame className="h-3.5 w-3.5" />{scopeLabel(scope)}热搜</h3>
-                                    <div className="grid grid-cols-2 gap-x-5 gap-y-0.5 md:grid-cols-3">
-                                        {hot.map((h, i) => (
-                                            <button key={h} type="button" onClick={() => pickKeyword(h)} className="flex h-8 items-center gap-2.5 rounded-lg px-1.5 text-left text-[12.5px] txt-3 hover:bg-[var(--ui-idle)] hover:text-white">
-                                                <span className={cx('w-4 shrink-0 font-mono text-[11px]', i < 3 ? 'text-rose-300/90' : 'txt-5')}>{i + 1}</span>
-                                                <span className="truncate">{h}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </section>
-                            )}
-                            {!history.length && !hot.length && (
-                                <EmptyState icon={<Search className="h-8 w-8" />} title="想听点什么？" desc="直接输入歌名、歌手或专辑，边打边搜。Tab 切换平台范围，「全部平台」一次搜完五家。" />
-                            )}
-                        </div>
-                    ) : (
-                        <div ref={listRef} role="listbox" aria-label="搜索结果" className="scroll-thin min-h-0 flex-1 space-y-5 overflow-y-auto pb-24">
-                            {scope === 'local' ? (
-                                localList.length ? (
-                                    <section className="space-y-0.5">
-                                        {flat.map((track, i) => (
-                                            <div key={track.id} data-active={track.id === activeId}>
-                                                <ResultRow track={track} index={i} active={track.id === activeId} onHover={() => setActiveId(track.id)} onPlay={() => play(track)} onQueue={() => queue(track)} />
-                                            </div>
-                                        ))}
-                                        {localList.length > LOCAL_INITIAL && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setExpanded(e => ({ ...e, local: !e.local }))}
-                                                className="flex h-8 items-center gap-1 rounded-lg px-3 text-[11.5px] txt-4 hover:bg-[var(--ui-idle)] hover:txt-2"
-                                            >
-                                                {expanded.local ? '收起' : `展开其余 ${localList.length - LOCAL_INITIAL} 首`}
-                                                <ChevronDown className={cx('h-3 w-3 transition-transform', expanded.local && 'rotate-180')} />
-                                            </button>
-                                        )}
-                                    </section>
-                                ) : (
-                                    <EmptyState title="曲库中没有匹配的歌曲" desc="换个关键词，或按 Tab 切换到在线平台。" />
-                                )
-                            ) : (
+                <div className="search-meta">
+                    <span>{scopeLabel(scope)}</span>
+                    {!empty && shownCount > 0 && <span>共 {totalCount}{unit}{kind === 'song' && totalCount > shownCount ? ` · 已取 ${shownCount}` : ''}</span>}
+                    {searching && <span>搜索中</span>}
+                </div>
+            </header>
+
+            <div id="search-results" className="search-plane relative z-[1] mx-auto mt-3 flex w-full max-w-5xl min-h-0 flex-1 flex-col">
+                {empty ? (
+                    <div className="scroll-thin space-y-8 overflow-y-auto px-2 py-6 sm:px-4">
+                        {history.length > 0 && (
+                            <section>
+                                <div className="search-meta has-action mb-3">
+                                    <Clock className="h-3.5 w-3.5" />最近搜索
+                                    <span className="search-meta-rule" aria-hidden />
+                                    <button type="button" onClick={() => { try { localStorage.removeItem(HISTORY_KEY); } catch { /* ignore */ } setHistory([]); }} className="search-meta-btn">
+                                        <Trash2 className="h-3 w-3" />清空
+                                    </button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {history.map(h => (
+                                        <button key={h} type="button" onClick={() => pickKeyword(h)} className="search-chip">{h}</button>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+                        {hot.length > 0 && (
+                            <section>
+                                <div className="search-meta mb-3"><Flame className="h-3.5 w-3.5" />{scopeLabel(scope)}热搜</div>
+                                <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2 md:grid-cols-3">
+                                    {hot.map((h, i) => (
+                                        <button key={h} type="button" onClick={() => pickKeyword(h)} className="search-hot">
+                                            <span className={cx('search-hot-rank', i < 3 && 'is-top')}>{String(i + 1).padStart(2, '0')}</span>
+                                            <span className="truncate">{h}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+                        {!history.length && !hot.length && (
+                            <div className="flex flex-col items-center gap-6 py-14 text-center">
+                                <div className="search-void is-small" aria-hidden />
+                                <p className="search-note">想听点什么？</p>
+                                <p className="search-note is-soft">直接输入歌名、歌手或专辑，边打边搜。Tab 切来源，← → 切歌曲 / 专辑 / 歌手。</p>
+                            </div>
+                        )}
+                    </div>
+                ) : searching && shownCount === 0 ? (
+                    <div className="grid flex-1 place-items-center">
+                        <div className="search-loader" role="status" aria-label="搜索中"><i /><i /><i /></div>
+                    </div>
+                ) : nothingFound ? (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
+                        <div className="search-void" aria-hidden />
+                        <p className="search-note">{groups.some(g => g.error) ? '搜索出错了' : '没有找到结果'}</p>
+                        {groups.some(g => g.error) ? (
+                            <button type="button" onClick={() => { const s = scope; setScope('all'); changeScope(s === 'all' ? 'tx' : s); }} className="search-flat-button">重试</button>
+                        ) : (
+                            <p className="search-note is-soft">换个关键词，或按 Tab 缩小到单个平台。</p>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        <div
+                            ref={listRef}
+                            role="listbox"
+                            aria-label="搜索结果"
+                            data-search-entered={entered === revealKey ? '' : undefined}
+                            className="search-list scroll-thin min-h-0 flex-1 overflow-y-auto pb-24"
+                        >
+                            {kind !== 'song' ? (
                                 <>
-                                    {groups.map(group => {
-                                        const shown = expanded[group.key] ? group.list : group.list.slice(0, GROUP_INITIAL);
+                                    {collections.slice(0, expanded.collections ? collections.length : GROUP_INITIAL * 2).map((item, i) => (
+                                        <div key={item.key} data-active={item.key === activeId}>
+                                            <CollectionRow item={item} index={i} active={item.key === activeId} onHover={() => setActiveId(item.key)} onOpen={() => openCollection(item)} />
+                                        </div>
+                                    ))}
+                                    {collections.length > GROUP_INITIAL * 2 && (
+                                        <div className="flex justify-center py-4">
+                                            <button type="button" onClick={() => setExpanded(e => ({ ...e, collections: !e.collections }))} className="search-flat-button">
+                                                {expanded.collections ? '收起' : `展开其余 ${collections.length - GROUP_INITIAL * 2} ${unit}`}
+                                                <ChevronDown className={cx('h-3.5 w-3.5 transition-transform', expanded.collections && 'rotate-180')} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            ) : scope === 'local' ? (
+                                <>
+                                    {flat.map((item, i) => {
+                                        const track = item as Track;
                                         return (
-                                            <section key={group.key}>
-                                                {/* 分组标题：Folia 的 .search-meta —— 等宽 11px / 字重 600 / 字距 .1em，
-                                                    后面拖一条渐隐细线到右边缘，把「标题 + 计数」和结果区隔开 */}
-                                                <div className="mb-1.5 flex items-center gap-3 px-1">
-                                                    <h3 className="shrink-0 font-mono text-[10.5px] font-semibold uppercase tracking-[0.12em] txt-3">{PLATFORM_NAMES[group.key]}</h3>
-                                                    {group.loading ? (
-                                                        <Spinner className="h-3 w-3 txt-5" />
-                                                    ) : group.error ? (
-                                                        <span className="truncate text-[11px] text-rose-300/80">{group.error}</span>
-                                                    ) : (
-                                                        <span className="shrink-0 font-mono text-[10.5px] txt-5">{group.total || group.list.length}</span>
-                                                    )}
-                                                    <span className="h-px flex-1 bg-gradient-to-r from-white/[0.09] to-transparent" />
-                                                </div>
-                                                {group.loading ? (
-                                                    <div className="space-y-1">{Array.from({ length: 3 }, (_, i) => <div key={i} className="skeleton h-[56px] rounded-2xl" />)}</div>
-                                                ) : group.list.length ? (
-                                                    <div className="space-y-0.5">
-                                                        {shown.map((track, i) => (
-                                                            <div key={track.id} data-active={track.id === activeId}>
-                                                                <ResultRow track={track} index={i} active={track.id === activeId} onHover={() => setActiveId(track.id)} onPlay={() => play(track)} onQueue={() => queue(track)} />
-                                                            </div>
-                                                        ))}
-                                                        {group.list.length > GROUP_INITIAL && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setExpanded(e => ({ ...e, [group.key]: !e[group.key] }))}
-                                                                className="flex h-8 items-center gap-1 rounded-lg px-3 text-[11.5px] txt-4 hover:bg-[var(--ui-idle)] hover:txt-2"
-                                                            >
-                                                                {expanded[group.key] ? '收起' : `展开其余 ${group.list.length - GROUP_INITIAL} 首`}
-                                                                <ChevronDown className={cx('h-3 w-3 transition-transform', expanded[group.key] && 'rotate-180')} />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <div className="px-3 py-2 text-[12px] txt-5">没有结果</div>
-                                                )}
-                                            </section>
+                                            <div key={track.id} data-active={track.id === activeId}>
+                                                <SongRow track={track} index={i} active={track.id === activeId} onHover={() => setActiveId(track.id)} onPlay={() => play(track)} onQueue={() => queue(track)} onCollect={() => collect(track)} showPlatform={false} />
+                                            </div>
                                         );
                                     })}
-                                    {nothingFound && <EmptyState title="没有找到结果" desc="换个关键词试试，或按 Tab 缩小到单个平台。" />}
+                                    {localList.length > LOCAL_INITIAL && (
+                                        <div className="flex justify-center py-4">
+                                            <button type="button" onClick={() => setExpanded(e => ({ ...e, local: !e.local }))} className="search-flat-button">
+                                                {expanded.local ? '收起' : `展开其余 ${localList.length - LOCAL_INITIAL} 首`}
+                                                <ChevronDown className={cx('h-3.5 w-3.5 transition-transform', expanded.local && 'rotate-180')} />
+                                            </button>
+                                        </div>
+                                    )}
                                 </>
+                            ) : (
+                                groups.map(group => {
+                                    const shown = expanded[group.key] ? group.list : group.list.slice(0, GROUP_INITIAL);
+                                    return (
+                                        <section key={group.key}>
+                                            {groups.length > 1 && (
+                                                <div className="search-meta search-group-head">
+                                                    <span>{PLATFORM_NAMES[group.key]}</span>
+                                                    {group.loading ? <span>…</span> : group.error ? <span className="search-error">{group.error}</span> : <span>{group.total || group.list.length} 首</span>}
+                                                </div>
+                                            )}
+                                            {group.loading ? (
+                                                <div>{Array.from({ length: 3 }, (_, i) => <div key={i} className="skeleton h-[76px]" />)}</div>
+                                            ) : group.list.length ? (
+                                                <>
+                                                    {shown.map((track, i) => (
+                                                        <div key={track.id} data-active={track.id === activeId}>
+                                                            <SongRow track={track} index={i} active={track.id === activeId} onHover={() => setActiveId(track.id)} onPlay={() => play(track)} onQueue={() => queue(track)} onCollect={() => collect(track)} showPlatform={scope === 'all'} />
+                                                        </div>
+                                                    ))}
+                                                    {group.list.length > GROUP_INITIAL && (
+                                                        <div className="flex justify-center py-3">
+                                                            <button type="button" onClick={() => setExpanded(e => ({ ...e, [group.key]: !e[group.key] }))} className="search-flat-button">
+                                                                {expanded[group.key] ? '收起' : `展开其余 ${group.list.length - GROUP_INITIAL} 首`}
+                                                                <ChevronDown className={cx('h-3.5 w-3.5 transition-transform', expanded[group.key] && 'rotate-180')} />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <div className="search-note is-soft px-[18px] py-3">没有结果</div>
+                                            )}
+                                        </section>
+                                    );
+                                })
                             )}
                         </div>
-                    )}
-                </div>
-
-                {/* 按键提示条：Folia 搜索面板底部那一条，随状态换文案。
-                    放在输入区下方而不是视口底部，避免压住右下角的 MiniPlayer。 */}
-                <div className="mt-2 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-t ln-weak pt-2.5 text-[11px] txt-4">
-                    {empty ? (
-                        <>
-                            <span className="flex items-center gap-1"><Search className="h-3 w-3" />边打边搜</span>
-                            <span className="flex items-center gap-1"><kbd>Tab</kbd>切换平台</span>
-                            <span className="flex items-center gap-1"><kbd>Esc</kbd>关闭</span>
-                        </>
-                    ) : (
-                        <>
-                            <span className="flex items-center gap-1"><kbd>↑↓</kbd>选择</span>
-                            <span className="flex items-center gap-1"><kbd>Enter</kbd>播放</span>
-                            <span className="flex items-center gap-1"><kbd>Shift</kbd>+<kbd>Enter</kbd>加入队列</span>
-                            <span className="hidden items-center gap-1 sm:flex"><kbd>Tab</kbd>切换平台</span>
-                        </>
-                    )}
-                </div>
-            </motion.div>
+                        <div className="search-hints shrink-0">
+                            {kind === 'song' ? (
+                                <>
+                                    <span><kbd>↑</kbd><kbd>↓</kbd>选择</span>
+                                    <span><kbd>Enter</kbd>播放</span>
+                                    <span className="hidden sm:inline-flex"><kbd>Shift</kbd>+<kbd>Enter</kbd>加入队列</span>
+                                </>
+                            ) : (
+                                <span><kbd>Enter</kbd>打开{KIND_NAMES[kind]}</span>
+                            )}
+                            <span><kbd>←</kbd><kbd>→</kbd>切类型</span>
+                            <span className="hidden sm:inline-flex"><kbd>Tab</kbd>切来源</span>
+                        </div>
+                    </>
+                )}
+            </div>
             <MiniPlayer />
         </motion.div>
+    );
+}
+
+/**
+ * 背景版面（Folia 的 .search-composition，按其原值复刻）：至上主义几何 + 竖排搜索词。
+ * 外层 stage 按来源序号取站位（转角 / 横移 / 竖移），内层各形按类型换位（data-search-kind）。
+ * 换来源 / 类型时扫过一道墨色宽带 + 主题色细线（sweep key 变化重挂载）；首次挂上只飞入不扫。
+ * 精简模式（手机）整块不画：省掉 9 个大面积合成层。
+ */
+const STAGE_POSES: ReadonlyArray<{ turn: number; x: number; y: number }> = [
+    { turn: 0, x: 0, y: 0 },
+    { turn: -5, x: -3, y: 2 },
+    { turn: 4, x: 2, y: -3 },
+    { turn: -2, x: 4, y: 4 },
+];
+
+function SearchComposition({ kind, query, stageKey, stageIndex }: { kind: Kind; query: string; stageKey: string; stageIndex: number }) {
+    // 挂上时不扫（那时有飞入），来源 / 类型换了才扫：每换一次换一个 key，扫带重新挂上、动画重新放
+    const [sweep, setSweep] = useState(0);
+    const shown = useRef(stageKey);
+    useEffect(() => {
+        if (shown.current === stageKey) return;
+        shown.current = stageKey;
+        setSweep(count => count + 1);
+    }, [stageKey]);
+    if (isLite()) return null;
+    const pose = STAGE_POSES[Math.max(0, stageIndex) % STAGE_POSES.length];
+    return (
+        <div className="search-comp" data-search-kind={kind} aria-hidden>
+            <div
+                className="search-comp-stage"
+                style={{
+                    '--search-stage-turn': `${pose.turn}deg`,
+                    '--search-stage-x': `${pose.x}vw`,
+                    '--search-stage-y': `${pose.y}vh`,
+                } as React.CSSProperties}
+            >
+                <div className="search-fig is-line is-first"><i /></div>
+                <div className="search-fig is-line is-second"><i /></div>
+                <div className="search-fig is-slab"><i /></div>
+                <div className="search-fig is-disc"><i /></div>
+                <div className="search-fig is-dot"><i /></div>
+                <div className="search-fig is-bar"><i /></div>
+                <div className="search-fig is-hatch"><i /></div>
+                <div className="search-fig is-dots"><i>· · ·</i></div>
+                {query && <div className="search-fig is-word"><i>{query}</i></div>}
+            </div>
+            {sweep > 0 && (
+                <div key={sweep} className="search-sweep">
+                    <i className="is-band" />
+                    <i className="is-rule" />
+                </div>
+            )}
+        </div>
     );
 }

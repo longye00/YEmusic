@@ -9,7 +9,7 @@ const json = (body: string, headers: Record<string, string> = {}) => ({ ok: true
 
 // 仿真服务端：按 URL 关键字返回不同响应；mode 控制走哪条分支
 let wyMode = 'ok' as 'ok' | 'copyright404' | 'trial' | 'vipLower' | 'empty';
-let kgMode = 'ok' as 'ok' | 'privilege' | 'empty';
+let kgMode = 'ok' as 'ok' | 'privilege' | 'trial' | 'empty';
 const seen: { url: string; cookie: string; body: string }[] = [];
 
 (globalThis as any).window.ye.fetch = async (req: any) => {
@@ -29,6 +29,7 @@ const seen: { url: string; cookie: string; body: string }[] = [];
     }
     if (url.includes('kugou.com')) {
         if (kgMode === 'privilege') return json('{"status":1,"err_code":30020,"data":null}');
+        if (kgMode === 'trial') return json('{"status":1,"data":{"play_url":"http://trackercdn.kugou.com/x.mp3","is_free_part":1}}');
         if (kgMode === 'empty') return json('{"status":1,"data":{}}');
         return json('{"status":1,"data":{"play_url":"http://trackercdn.kugou.com/x.mp3","play_backup_url":""}}');
     }
@@ -135,6 +136,9 @@ check('登录酷狗：officialAvailable = true', officialAvailable('kg'));
 // 无权限（err_code 30020）→ null
 kgMode = 'privilege';
 check('酷狗：无权限(err_code 30020) → null', (await officialUrl(kgTrack, 'flac')) === null);
+// 只有试听片段（is_free_part）→ null，避免播 60 秒残片
+kgMode = 'trial';
+check('酷狗：只有试听片段(is_free_part) → null（不播残片）', (await officialUrl(kgTrack, 'flac')) === null);
 kgMode = 'empty';
 check('酷狗：data 为空 → null', (await officialUrl(kgTrack, 'flac')) === null);
 kgMode = 'ok';

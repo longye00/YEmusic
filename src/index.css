@@ -1058,34 +1058,46 @@
 @utility dur-base { transition-duration: var(--motion-base); }
 @utility dur-enter { transition-duration: var(--motion-enter); }
 
-/* ---------------- 搜索结果行（借 Folia 的 search-row-in） ---------------- */
-/* 行从左侧「刷」出来：先被裁掉右半边、整体左移 18px，60% 处裁切完成，末尾归位。
-   逐行延迟由 TSX 用内联 animation-delay 写入（min(序号,12) * 32ms），
-   这样一整组结果是一次波浪，而不是二十行同时闪。 */
-@keyframes search-row-in {
-    from {
-        opacity: 0;
-        transform: translateX(-18px);
-        clip-path: inset(0 100% 0 0);
-    }
-    60% {
-        clip-path: inset(0);
-    }
-    to {
-        opacity: 1;
-        transform: none;
-        clip-path: inset(0);
-    }
+
+/* ==================================================================
+   首页搜索栏（0.6.0）：与搜索工作台同一套几何语言——2px 下划线 + 左侧实心方块，
+   悬停时方块转 45°，下划线与文字变主题色（缓动同搜索页 --search-ease）
+   ================================================================== */
+.home-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 248px;
+    height: 40px;
+    padding: 0 4px 0 0;
+    border: none;
+    border-bottom: 2px solid rgb(255 255 255 / 0.82);
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.search-row-in {
-    animation: search-row-in 0.5s var(--ease-standard) both;
+.home-search-mark {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    background: rgb(var(--accent-soft));
+    transition: transform 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-/* 精简模式：不做裁切（裁切每帧都要重算绘制区域），只留淡入 */
-@keyframes search-row-fade {
-    from { opacity: 0; }
-    to { opacity: 1; }
+.home-search-text {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.lite .search-row-in {
-    animation: search-row-fade 0.2s ease-out both;
-    animation-delay: 0ms !important;
-}
+.home-search:hover,
+.home-search:focus-visible { border-bottom-color: rgb(var(--accent-soft)); }
+.home-search:hover .home-search-text,
+.home-search:focus-visible .home-search-text { color: var(--text-1); }
+.home-search:hover .home-search-mark,
+.home-search:focus-visible .home-search-mark { transform: rotate(45deg) scale(0.85); }
+.home-search kbd { flex-shrink: 0; }

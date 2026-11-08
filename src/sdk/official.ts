@@ -201,6 +201,8 @@ export async function kgOfficialUrl(track: Track, quality: Quality): Promise<Off
     });
     const data = body?.data;
     if (Number(body?.status) !== 1 || !data) return null;
+    // 只有试听片段（VIP 歌 + 非会员账号，约 60 秒）：交回音源脚本找完整版
+    if (Number(data.is_free_part) === 1) return null;
     const url = data.play_url || data.play_backup_url;
     if (!url) return null;
     return { url: https(String(url)), quality, sourceName: '酷狗官方' };
