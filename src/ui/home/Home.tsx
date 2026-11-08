@@ -158,7 +158,7 @@ function CarouselHome() {
     const boardPlatform = useSettings(s => s.boardPlatform);
     const reduceMotion = useSettings(s => s.reduceMotion);
     const compact = useCompact();
-    const overlay = useUi(s => Boolean(s.detail || s.searchOpen || s.playerOpen || s.settingsOpen || s.dialog));
+    const overlay = useUi(s => Boolean(s.detail || s.searchOpen || s.playerOpen || s.settingsOpen || s.dialog || s.menu));
     const mine = useMineItems();
     const plaza = usePlazaItems(plazaPlatform, tab === 'plaza');
     const boards = useMemo(() => boardItems(boardPlatform), [boardPlatform]);
@@ -173,6 +173,19 @@ function CarouselHome() {
     };
     const safeFocus = Math.min(focus, Math.max(0, items.length - 1));
     const item = items[safeFocus];
+
+    // `/` 开搜索（只在这版封面流首页接管；乐库 / 详情墙的 `/` 是它们自己的过滤键）
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey || overlay || compact) return;
+            const t = e.target as HTMLElement | null;
+            if (t?.closest?.('input,textarea,select,[contenteditable="true"],[contenteditable=""]')) return;
+            e.preventDefault();
+            ui.openSearch();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [compact, overlay]);
 
     // 背景跟随当前焦点封面取色
     useEffect(() => {
@@ -225,10 +238,12 @@ function CarouselHome() {
                 <button
                     type="button"
                     onClick={() => ui.openSearch()}
-                    className="no-drag flex h-10 w-[248px] items-center gap-2.5 rounded-full border ln-strong bg-white/[0.04] lite:bg-white/[0.1] px-4 text-left text-[13px] txt-4 lite:txt-3 backdrop-blur-xl transition-colors hover:ln-strong hover:bg-white/[0.08]"
+                    className="home-search no-drag"
+                    title="搜索（Ctrl K）"
+                    aria-label="搜索（Ctrl K）"
                 >
-                    <Search className="h-4 w-4 txt-3" />
-                    <span className="flex-1 truncate">搜索歌曲、歌手…</span>
+                    <span className="home-search-mark" aria-hidden />
+                    <span className="home-search-text">搜索歌曲、歌手、专辑</span>
                     <kbd>Ctrl K</kbd>
                 </button>
             </header>

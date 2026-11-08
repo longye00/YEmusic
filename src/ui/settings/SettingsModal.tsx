@@ -132,10 +132,10 @@ function PlaybackTab() {
     const presetName = Object.entries(EQ_PRESETS).find(([, g]) => g.every((v, i) => v === s.eqGains[i]))?.[0];
     return (
         <>
-            <Section title="音质与容错" desc="音质按偏好从高到低尝试；每个链接播放前都会先探测，失效链接（403/404/410、错误页）会被自动跳过，不会再出现无限重试。">
+            <Section title="音质与容错" desc="音质按偏好从高到低尝试；每个链接播放前都会先探测，失效链接（403/404/410、错误页）会被自动跳过，不会再出现无限重试。只给 30 秒 / 1 分钟试听片段的链接会被自动换掉，找不到完整版就跳过这首。">
                 <Item title="首选音质" desc="实际音质取决于歌曲与音源支持情况"><Segmented size="sm" value={s.quality} onChange={v => setSetting('quality', v)} options={QUALITY_OPTIONS} /></Item>
                 <Toggle k="qualityFallback" title="首选音质不可用时自动切换其他音质" />
-                <Toggle k="officialFirst" title="优先用平台官方接口取播放链接" desc="登录网易云 / QQ音乐 / 酷狗后，先用平台自己的接口取链（会员可拿到无损、Hi-Res），拿不到再走洛雪音源" />
+                <Toggle k="officialFirst" title="优先用平台官方接口取播放链接" desc="登录网易云 / QQ音乐 / 酷狗后，先用平台自己的接口取链（会员可拿到无损、Hi-Res），拿不到或只给试听片段时再走洛雪音源" />
                 <Toggle k="autoSwitchSource" title="当前平台无法播放时自动换源" desc="按歌名、歌手与时长在其他平台匹配同一首歌" />
                 <Toggle k="skipOnError" title="播放失败自动跳到下一首" desc="连续多首失败会自动停止并提示" />
                 <Toggle k="resumePlayback" title="启动时恢复上次的播放队列与进度" />

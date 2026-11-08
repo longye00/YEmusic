@@ -8,7 +8,8 @@ import { host } from '@/lib/host';
 import type { ParsedLyric } from '@/lib/lyric';
 import { engine } from '@/player/engine';
 import { fetchLyric } from '@/player/lyrics';
-import { invalidateUrl, playableUrl, reportBadLink, resolveUrl, ResolveError, type Resolved } from '@/player/resolver';
+import { invalidateUrl, markTrial, playableUrl, reportBadLink, resolveUrl, ResolveError, type Resolved } from '@/player/resolver';
+import { isTrialClip, TRIAL_ONLY } from '@/player/trial';
 import { sdks } from '@/sdk';
 import { PLATFORM_NAMES, type Platform, type Quality, type Track } from '@/sdk/types';
 import { addRecent, resolveCover, upsertTracks } from './library';
@@ -295,7 +296,9 @@ async function loadIndex(index: number, options: { autoplay?: boolean; startAt?:
 
 async function startPlayback(track: Track, token: number, options: { autoplay: boolean; startAt?: number; quality?: Quality; onlySource?: string }) {
     let lastError = '';
-    for (let attempt = 0; attempt < 3; attempt++) {
+    /** 本次加载撞上试听片段的次数：允许因此多走两轮换源 */
+    let trialHits = 0;
+    for (let attempt = 0; attempt < 3 + Math.min(trialHits, 2); attempt++) {
         set({ status: 'loading', statusText: attempt ? '链接无法播放，正在换源重试…' : '正在获取播放链接…' });
         let resolved: Resolved;
         try {
@@ -308,21 +311,42 @@ async function startPlayback(track: Track, token: number, options: { autoplay: b
             });
         } catch (error) {
             if (token !== seq) return false;
-            failTrack(track, token, (error as Error).message, error instanceof ResolveError ? error.details : []);
+            const details = error instanceof ResolveError ? error.details : [];
+            failTrack(track, token, trialHits ? TRIAL_ONLY : (error as Error).message, details);
             return false;
         }
         if (token !== seq) return false;
         set({ statusText: '正在缓冲…', resolved });
         const url = await playableUrl(resolved);
         if (token !== seq) return false;
-        const result = await engine.load(url, { autoplay: options.autoplay, startAt: options.startAt || pendingSeek || undefined });
+        // expectedDuration 只对在线链接生效：本地文件自己的时长就是准的（元数据错了也不能误判成试听）
+        const result = await engine.load(url, { autoplay: options.autoplay, startAt: options.startAt || pendingSeek || undefined, expectedDuration: resolved.local ? undefined : (resolved.via ?? track).duration || undefined });
         if (token !== seq) return false;
         if (result.ok) {
             pendingSeek = 0;
             consecutiveFailures = 0;
             set({ status: options.autoplay ? 'playing' : 'paused', statusText: '', error: null, errorDetails: [], resolved, duration: engine.duration || track.duration });
-            if (resolved.via) toast(`原平台无法播放，已自动切换到${PLATFORM_NAMES[resolved.via.source]}的同名歌曲`, 'info');
+            // 换到完整版才说一句「为什么是另一家的歌」：与普通的换源提示互斥，不重复播报
+            if (trialHits) {
+                toast(resolved.via
+                    ? `原平台只有试听片段，已切换到${PLATFORM_NAMES[resolved.via.source]}的同名歌曲`
+                    : `平台只给了试听片段，已换成${resolved.sourceName || '其他音源'}的完整版`, 'info', { key: 'trial' });
+            } else if (resolved.via) {
+                toast(`原平台无法播放，已自动切换到${PLATFORM_NAMES[resolved.via.source]}的同名歌曲`, 'info');
+            }
             return true;
+        }
+        // 试听片段（未开会员时平台只给 30/60 秒、末尾带语音提示的文件）：登记这个「音源|歌曲」
+        // 换来源重取，但不记「坏链接」也不熔断（它对别的歌可能是好的）
+        const trialSeconds = /^trial:(\d+)$/.exec(result.error || '')?.[1];
+        if (trialSeconds) {
+            trialHits++;
+            console.info('[player] 只拿到试听片段，换来源重取', resolved.sourceName, `${trialSeconds}s`, resolved.url.slice(0, 120));
+            markTrial(resolved.sourceId, resolved.via ?? track);
+            exclude.add(resolved.url);
+            invalidateUrl(resolved.url);
+            set({ statusText: '只拿到试听片段，正在找完整版…' });
+            continue;
         }
         lastError = result.error || '播放失败';
         if (resolved.local) break;
@@ -334,7 +358,7 @@ async function startPlayback(track: Track, token: number, options: { autoplay: b
             reportBadLink(resolved.sourceId, failedPlatform);
         }
     }
-    failTrack(track, token, lastError);
+    failTrack(track, token, trialHits ? TRIAL_ONLY : lastError);
     return false;
 }
 
@@ -345,13 +369,14 @@ function failTrack(track: Track, token: number, message: string, details: string
     const { queue, radio } = get();
     const { skipOnError } = useSettings.getState();
     const limit = radio ? 4 : Math.min(4, queue.length);
+    const trialOnly = message === TRIAL_ONLY;
     if (skipOnError && (queue.length > 1 || radio) && consecutiveFailures < limit) {
-        toast(`《${track.name}》暂时无法播放，已跳到下一首`, 'error', { key: 'play-fail', detail: message });
+        toast(trialOnly ? `《${track.name}》只有试听片段，已跳到下一首` : `《${track.name}》暂时无法播放，已跳到下一首`, 'error', { key: 'play-fail', detail: message });
         skipTimer = setTimeout(() => {
             if (token === seq) next({ auto: true });
         }, 1500);
     } else {
-        toast(`《${track.name}》暂时无法播放`, 'error', { key: 'play-fail', detail: message });
+        toast(trialOnly ? `《${track.name}》只有试听片段` : `《${track.name}》暂时无法播放`, 'error', { key: 'play-fail', detail: message });
         if (consecutiveFailures >= limit && queue.length > 1) toast('连续多首无法播放，已停止', 'error', { key: 'play-fail', detail: `最后一次错误：${message}
 请在“设置 → 音源”检查音源状态或网络`, duration: 8000 });
         consecutiveFailures = 0;
@@ -563,12 +588,32 @@ engine.on(event => {
             break;
         case 'duration':
             set({ duration: event.duration });
+            checkTrialMidway(event.duration);
             break;
         case 'error':
             if (state.status === 'playing' || state.status === 'paused') void recover(event.message);
             break;
     }
 });
+
+/**
+ * 半路兜底：有的链接载入后才给出真实时长（流媒体 / 无固定头的容器），那时才发现是试听片段。
+ * 确认后登记这个「音源|歌曲」，从断点换源重取；只判正在播 / 暂停中的在线链接。
+ */
+function checkTrialMidway(duration: number) {
+    const { current, resolved, status } = get();
+    if (!current || !resolved || resolved.local) return;
+    if (status !== 'playing' && status !== 'paused') return;
+    if (recovering || crossfading) return;
+    if (!isTrialClip(duration, (resolved.via ?? current).duration)) return;
+    console.info('[player] 半路发现是试听片段，换源重取', `${Math.round(duration)}s ≪ ${(resolved.via ?? current).duration}s`, resolved.sourceName);
+    recovering = true;
+    markTrial(resolved.sourceId, resolved.via ?? current);
+    exclude.add(resolved.url);
+    invalidateUrl(resolved.url);
+    void startPlayback(current, ++seq, { autoplay: status === 'playing', startAt: engine.currentTime })
+        .finally(() => { recovering = false; });
+}
 
 /** 播放中途出错：记录进度，换一个链接从断点继续（最多 2 次） */
 async function recover(message: string) {
@@ -629,8 +674,16 @@ async function crossfadeTo(index: number, seconds: number) {
         const url = await playableUrl(resolved);
         if (get().status !== 'playing') return;
         const token = ++seq;
-        const result = await engine.crossfade(url, seconds);
-        if (token !== seq || !result.ok) return;
+        const result = await engine.crossfade(url, seconds, resolved.local ? undefined : (resolved.via ?? track).duration || undefined);
+        if (token !== seq || !result.ok) {
+            // 提前取到的是试听片段：登记来源，让当前歌放完，正常切歌时另找完整版
+            if (result.error?.startsWith('trial')) {
+                console.info('[player] 交叉淡化拿到试听片段，放弃淡化', resolved.sourceName);
+                markTrial(resolved.sourceId, resolved.via ?? track);
+                invalidateUrl(resolved.url);
+            }
+            return;
+        }
         const prevIndex = get().index;
         history.push(prevIndex);
         shufflePlayed.add(track.id);

@@ -3,6 +3,7 @@
  * 远程音频经主进程本地代理提供 CORS 头，因此可以安全接入 WebAudio。
  */
 import { EQ_BANDS } from '@/store/settings';
+import { isTrialClip } from './trial';
 
 export type EngineEvent =
     | { type: 'playing' }
@@ -242,7 +243,7 @@ class AudioEngine {
     }
 
     /** 在当前声道加载并（可选）播放 */
-    async load(url: string, options: { autoplay?: boolean; startAt?: number; timeoutMs?: number } = {}): Promise<{ ok: boolean; error?: string }> {
+    async load(url: string, options: { autoplay?: boolean; startAt?: number; timeoutMs?: number; expectedDuration?: number } = {}): Promise<{ ok: boolean; error?: string }> {
         this.ensureGraph();
         clearTimeout(this.pauseTimer);
         const seq = ++this.loadSeq;
@@ -260,6 +261,12 @@ class AudioEngine {
         const ready = await this.waitReady(el, seq, options.timeoutMs ?? 25000);
         if (seq !== this.loadSeq) return { ok: false, error: 'superseded' };
         if (!ready.ok) return ready;
+        const trial = this.detectTrial(el, options.expectedDuration);
+        if (trial) {
+            el.removeAttribute('src');
+            el.load();
+            return { ok: false, error: trial };
+        }
         if (options.startAt && options.startAt > 0) {
             try { el.currentTime = options.startAt; } catch { /* ignore */ }
         }
@@ -267,10 +274,20 @@ class AudioEngine {
         return { ok: true };
     }
 
+    /**
+     * 试听片段检测：平台给未开会员的账号发 30/60 秒试听文件，末尾还带一段语音提示。
+     * 元数据里的时长远短于这首歌的真实时长（差 30 秒以上且不到八成）就判为试听，
+     * 返回 `trial:<秒数>`；调用方把这个链接拉黑、换一个来源重取。
+     */
+    private detectTrial(el: HTMLAudioElement, expected?: number): string | null {
+        const actual = el.duration;
+        return isTrialClip(actual, expected) ? `trial:${Math.round(actual)}` : null;
+    }
+
     /** 在另一声道加载新曲并交叉淡入淡出 */
-    async crossfade(url: string, seconds: number): Promise<{ ok: boolean; error?: string }> {
+    async crossfade(url: string, seconds: number, expectedDuration?: number): Promise<{ ok: boolean; error?: string }> {
         this.ensureGraph();
-        if (!this.ctx) return this.load(url);
+        if (!this.ctx) return this.load(url, { expectedDuration });
         const seq = ++this.loadSeq;
         const from = this.decks[this.active];
         const to = this.decks[1 - this.active];
@@ -279,6 +296,12 @@ class AudioEngine {
         const ready = await this.waitReady(to.el, seq, 20000);
         if (seq !== this.loadSeq) return { ok: false, error: 'superseded' };
         if (!ready.ok) return ready;
+        const trial = this.detectTrial(to.el, expectedDuration);
+        if (trial) {
+            to.el.removeAttribute('src');
+            to.el.load();
+            return { ok: false, error: trial };
+        }
         const t = this.ctx.currentTime;
         to.gain!.gain.cancelScheduledValues(t);
         to.gain!.gain.setValueAtTime(0, t);

@@ -1,5 +1,6 @@
 /**
- * 全屏搜索。0.5.9 起改用 Folia 0.7.26 的「版面式」搜索设计（借结构与数值，CSS 自己写）：
+ * 全屏搜索。0.6.0 起按 Folia 0.7.26 的「版面式」搜索设计重做（结构与数值直接移植自
+ * Folia 的 search.css，AGPL-3.0，见 search.css 头注释与 THIRD_PARTY_NOTICES.md）：
  *
  *   - 直角、发丝线、大号标题字：不再有圆角胶囊与整片毛玻璃卡片。输入框只有一条 2px 下边线，
  *     左边一个 12px 主题色方块，搜索时方块转起来（Folia 的 .search-field-mark.is-busy）。
@@ -13,7 +14,7 @@
  *   - 背景版面 .search-comp：斜切色块 / 圆环 / 圆点 / 横条 / 两条斜线 / 网点 / 竖排搜索词，
  *     按当前类型换一套位移（Folia 的 data-search-kind），换来源时扫过一道光带。
  *   - 空结果是「圆环 + 一道斜杠」（.search-void），加载是三个跳动的方块（.search-loader），
- *     按钮是带方块的直角描边按钮（.search-btn）。
+ *     按钮是带方块的直角描边按钮（.search-flat-button）。
  *
  * 键盘：↑↓ 跨组连续移动高亮、Enter 播放、Shift+Enter 加入队列、Tab / Shift+Tab 切来源、
  * ← → 切类型、Esc 关闭（交给全局 shortcuts.ts 的分层关闭，这里不再关一次）。
@@ -23,17 +24,18 @@ import { motion } from 'framer-motion';
 import { ArrowUpRight, ChevronDown, Clock, CornerDownLeft, Flame, ListPlus, Play, Plus, Trash2, X } from 'lucide-react';
 import { isLite, useLite } from '@/lib/lite';
 import { sdks } from '@/sdk';
-import { PLATFORM_NAMES, PLATFORMS, type Platform, type Track } from '@/sdk/types';
+import { bestQuality, PLATFORM_NAMES, PLATFORMS, QUALITY_SHORT, type Platform, type Track } from '@/sdk/types';
 import { toggleFavorite, useLibrary } from '@/store/library';
 import { toast } from '@/store/toast';
 import { addToQueue, playTrack, usePlayer } from '@/store/player';
 import { setSetting, useSettings } from '@/store/settings';
-import { ui, useUi } from '@/store/ui';
+import { ui, useUi, type DetailTarget } from '@/store/ui';
 import { useIsFavorite } from '../hooks';
 import { css, useTheme, type RGB } from '../theme';
-import { Cover, EmptyState, IconButton, PlayingBars, QualityTag, cx } from '../components/common';
+import { Cover, IconButton, PlayingBars, cx } from '../components/common';
 import { MOTION } from '../motion';
 import { MiniPlayer } from '../player/MiniPlayer';
+import './search.css';
 
 type Scope = Platform | 'local' | 'all';
 type Kind = 'song' | 'album' | 'artist';
@@ -43,6 +45,8 @@ const HISTORY_KEY = 'ye.searchHistory';
 const GROUP_INITIAL = 6;
 /** 本地结果一次渲染的行数上限：本地最多 500 条，每行带封面图，全渲染会卡 */
 const LOCAL_INITIAL = 60;
+/** 结果到了之后这么久，行的入场动画放完：再滚出来的行不再滑入（Folia 的 ROW_REVEAL_MS） */
+const ROW_REVEAL_MS = 1000;
 const DEBOUNCE_MS = 350;
 const SCOPES: Scope[] = [...PLATFORMS, 'local', 'all'];
 const KINDS: Kind[] = ['song', 'album', 'artist'];
@@ -64,19 +68,23 @@ const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] 
 /**
  * 版面配色（Folia 的 --search-ink / accent / paper / hairline）。
  * 全部由当前主题派生，跟着封面取色 / 自定义主色一起变；
- * 不在 CSS 里用 color-mix()，Chrome 111 以前的 Android WebView 解析不了。
+ * 不在 CSS 里用 color-mix()，Chrome 111 以前的 Android WebView 解析不了，
+ * 所以每种颜色都同时给出「三元组」变量，供 rgb(var(--x-triple) / a) 调透明度。
  */
 function searchTokens(theme: ReturnType<typeof useTheme>, lite: boolean): Record<string, string> {
     const ink = mix([255, 255, 255], theme.accentSoft, 0.14);
     const paper = mix([8, 8, 10], theme.panel, 0.14);
-    const triple = `${Math.round(ink[0])} ${Math.round(ink[1])} ${Math.round(ink[2])}`;
+    const triple = (c: RGB) => `${Math.round(c[0])} ${Math.round(c[1])} ${Math.round(c[2])}`;
     return {
         '--search-ink': css(ink),
-        '--search-ink-soft': `rgb(${triple} / ${lite ? 0.66 : 0.55})`,
-        '--search-hairline': `rgb(${triple} / ${lite ? 0.16 : 0.1})`,
-        '--search-accent': css(theme.accent),
-        '--search-accent-triple': `${Math.round(theme.accent[0])} ${Math.round(theme.accent[1])} ${Math.round(theme.accent[2])}`,
-        '--search-paper': css(paper, lite ? 0.98 : 0.94),
+        '--search-ink-triple': triple(ink),
+        '--search-ink-soft': `rgb(${triple(ink)} / ${lite ? 0.66 : 0.55})`,
+        '--search-hairline': `rgb(${triple(ink)} / ${lite ? 0.16 : 0.09})`,
+        '--search-accent': css(theme.accentSoft),
+        '--search-accent-triple': triple(theme.accentSoft),
+        // 纸色不透明（Folia 用实心的 #08080a）：整版盖住窗口，底下内容不透出来
+        '--search-paper': css(paper),
+        '--search-paper-triple': triple(paper),
     };
 }
 
@@ -120,7 +128,7 @@ function SongRow({ track, index, active, onHover, onPlay, onQueue, onCollect, sh
             className={cx('search-row group cursor-pointer', active && 'is-active', isCurrent && 'is-current')}
         >
             <span className="search-row-index" aria-hidden>
-                {isCurrent ? <PlayingBars paused={status !== 'playing'} className="text-[rgb(var(--search-accent))]" /> : String(index + 1).padStart(2, '0')}
+                {isCurrent ? <PlayingBars paused={status !== 'playing'} className="text-[color:var(--search-accent)]" /> : String(index + 1).padStart(2, '0')}
             </span>
             <span className="search-row-cover">
                 <Cover src={track.cover} size={96} seed={track.name} alt="" rounded="" className="h-full w-full" eager={index < 12}>
@@ -132,7 +140,7 @@ function SongRow({ track, index, active, onHover, onPlay, onQueue, onCollect, sh
             <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-2">
                     <span className="search-row-title truncate">{track.name}</span>
-                    <QualityTag track={track} />
+                    {(() => { const q = bestQuality(track); return q === 'flac' || q === 'flac24bit' ? <span className="search-row-tag">{QUALITY_SHORT[q]}</span> : null; })()}
                     {showPlatform && <span className="search-row-tag">{PLATFORM_NAMES[track.source]}</span>}
                 </div>
                 <div className="search-row-sub mt-1 flex min-w-0 items-center gap-1.5">
@@ -180,7 +188,7 @@ function CollectionRow({ item, index, active, onHover, onOpen }: {
             onPointerMove={onHover}
             onClick={onOpen}
             style={{ '--search-row-order': index } as React.CSSProperties}
-            className={cx('search-row group cursor-pointer', active && 'is-active')}
+            className={cx('search-row is-collection group cursor-pointer', active && 'is-active')}
         >
             <span className="search-row-index" aria-hidden>{String(index + 1).padStart(2, '0')}</span>
             <span className="search-collection-art" aria-hidden>
@@ -193,10 +201,9 @@ function CollectionRow({ item, index, active, onHover, onOpen }: {
                 <div className="search-row-title truncate">{item.name}</div>
                 <div className="search-row-sub mt-1 flex min-w-0 items-center gap-1.5">
                     <span className="min-w-0 truncate">{item.sub}</span>
-                    <span className="shrink-0 opacity-40" aria-hidden>/</span>
-                    <span className="shrink-0">{item.tracks.length} 首</span>
                 </div>
             </div>
+            <span className="search-row-count">{item.tracks.length} 首</span>
             <ArrowUpRight className="search-row-arrow h-4 w-4 shrink-0" aria-hidden />
         </div>
     );
@@ -327,8 +334,13 @@ export function SearchOverlay() {
     const activeIndex = flat.findIndex(row => rowKey(row) === activeId);
 
     const play = useCallback((track: Track) => {
-        playTrack(track, allRows.length > 1 ? allRows : undefined);
+        // 先关搜索再播：playTrack / loadIndex 会改 player store，本组件每行都订阅了
+        // usePlayer；退出动画（MOTION.dur.move ≈ 0.22s）里子树一旦跟着重渲染，会把
+        // AnimatePresence 的退出卡在终态——透明度 0 却一直挂在 DOM 里，隐形盖住整窗、
+        // 吞掉后续所有点击。推迟到退出跑完再播。
+        const list = allRows.length > 1 ? allRows : undefined;
         ui.closeSearch();
+        setTimeout(() => playTrack(track, list), 300);
     }, [allRows]);
 
     const queue = useCallback((track: Track) => addToQueue([track]), []);
@@ -339,18 +351,21 @@ export function SearchOverlay() {
     }, []);
 
     const openCollection = useCallback((item: Collection) => {
-        if (item.albumId && (item.platform === 'wy' || item.platform === 'tx')) {
-            ui.openDetail({ kind: 'album', platform: item.platform, id: item.albumId, info: { name: item.name, cover: item.cover } });
-            return;
-        }
-        ui.openDetail({
-            kind: 'tracks',
-            id: item.key,
-            name: item.name,
-            desc: item.sub,
-            cover: item.cover,
-            trackIds: item.tracks.map(t => t.id),
-        });
+        const target: DetailTarget = item.albumId && (item.platform === 'wy' || item.platform === 'tx')
+            ? { kind: 'album', platform: item.platform, id: item.albumId, info: { name: item.name, cover: item.cover } }
+            : {
+                kind: 'tracks',
+                id: item.key,
+                name: item.name,
+                desc: item.sub,
+                cover: item.cover,
+                trackIds: item.tracks.map(t => t.id),
+            };
+        // 同 play()：openDetail 与 closeSearch 落在同一批渲染时，退出中的子树跟着
+        // 重渲染会卡死 AnimatePresence 的退出（元素停在透明度 0 还挂在 DOM 里）。
+        // 先只关搜索，等退出动画（≈0.22s）跑完再开详情。
+        ui.closeSearch();
+        setTimeout(() => ui.openDetail(target), 300);
     }, []);
 
     // 高亮行滚进视野
@@ -359,12 +374,13 @@ export function SearchOverlay() {
         listRef.current?.querySelector<HTMLElement>('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
     }, [activeId]);
 
-    // 行入场动画只在「换了一组结果」时跑一次；高亮移动不重放（Folia 用 data-search-entered 同理）
+    // 行入场动画只在「换了一组结果」时跑一次：结果挂上 ROW_REVEAL_MS 内列表没有
+    // data-search-entered，行按序刷入；之后打上标记，再滚出来的行不再滑入（Folia 同规则）
     const revealKey = `${scope}:${kind}:${keyword}`;
     useEffect(() => {
         setEntered(null);
-        const raf = requestAnimationFrame(() => setEntered(revealKey));
-        return () => cancelAnimationFrame(raf);
+        const timer = setTimeout(() => setEntered(revealKey), ROW_REVEAL_MS);
+        return () => clearTimeout(timer);
     }, [revealKey]);
 
     const changeScope = (next: Scope) => {
@@ -440,10 +456,10 @@ export function SearchOverlay() {
             exit={{ opacity: 0, y: 28 }}
             transition={{ duration: MOTION.dur.move, ease: MOTION.ease.standard }}
         >
-            <div className="drag absolute inset-x-0 top-0 h-10 touch:hidden" />
+            <div className="drag absolute inset-x-0 top-0 z-10 h-10 touch:hidden" />
 
-            {/* 背景版面：纯装饰，不接管指针。换来源时整块重挂载，扫一道光带 */}
-            <SearchComposition kind={kind} query={keyword} scopeKey={`${scope}:${kind}`} />
+            {/* 背景版面：纯装饰，不接管指针。站位随来源序号换，换来源/类型扫一道光带 */}
+            <SearchComposition kind={kind} query={keyword} stageKey={`${scope}:${kind}`} stageIndex={SCOPES.indexOf(scope)} />
 
             <header className="relative z-[1] mx-auto flex w-full max-w-5xl shrink-0 flex-col gap-5 pt-8">
                 <div className="flex items-center gap-4">
@@ -464,9 +480,7 @@ export function SearchOverlay() {
                             <button type="button" onClick={() => { setText(''); inputRef.current?.focus(); }} className="search-field-clear" title="清空" aria-label="清空">
                                 <X className="h-4 w-4" />
                             </button>
-                        ) : (
-                            <kbd className="shrink-0">Esc</kbd>
-                        )}
+                        ) : null}
                     </div>
                     <button type="button" onClick={ui.closeSearch} className="search-close" aria-label="关闭搜索 (Esc)" title="关闭搜索 (Esc)">
                         <X className="h-5 w-5" />
@@ -509,7 +523,7 @@ export function SearchOverlay() {
 
                 <div className="search-meta">
                     <span>{scopeLabel(scope)}</span>
-                    {!empty && shownCount > 0 && <span>{totalCount}{unit}{kind === 'song' && totalCount > shownCount ? ` · 已取 ${shownCount}` : ''}</span>}
+                    {!empty && shownCount > 0 && <span>共 {totalCount}{unit}{kind === 'song' && totalCount > shownCount ? ` · 已取 ${shownCount}` : ''}</span>}
                     {searching && <span>搜索中</span>}
                 </div>
             </header>
@@ -519,9 +533,10 @@ export function SearchOverlay() {
                     <div className="scroll-thin space-y-8 overflow-y-auto px-2 py-6 sm:px-4">
                         {history.length > 0 && (
                             <section>
-                                <div className="search-meta mb-3">
+                                <div className="search-meta has-action mb-3">
                                     <Clock className="h-3.5 w-3.5" />最近搜索
-                                    <button type="button" onClick={() => { try { localStorage.removeItem(HISTORY_KEY); } catch { /* ignore */ } setHistory([]); }} className="search-meta-btn ml-auto">
+                                    <span className="search-meta-rule" aria-hidden />
+                                    <button type="button" onClick={() => { try { localStorage.removeItem(HISTORY_KEY); } catch { /* ignore */ } setHistory([]); }} className="search-meta-btn">
                                         <Trash2 className="h-3 w-3" />清空
                                     </button>
                                 </div>
@@ -546,8 +561,10 @@ export function SearchOverlay() {
                             </section>
                         )}
                         {!history.length && !hot.length && (
-                            <div className="py-6">
-                                <EmptyState icon={<Search void={false} />} title="想听点什么？" desc="直接输入歌名、歌手或专辑，边打边搜。Tab 切来源，← → 切歌曲 / 专辑 / 歌手。" />
+                            <div className="flex flex-col items-center gap-6 py-14 text-center">
+                                <div className="search-void is-small" aria-hidden />
+                                <p className="search-note">想听点什么？</p>
+                                <p className="search-note is-soft">直接输入歌名、歌手或专辑，边打边搜。Tab 切来源，← → 切歌曲 / 专辑 / 歌手。</p>
                             </div>
                         )}
                     </div>
@@ -560,7 +577,7 @@ export function SearchOverlay() {
                         <div className="search-void" aria-hidden />
                         <p className="search-note">{groups.some(g => g.error) ? '搜索出错了' : '没有找到结果'}</p>
                         {groups.some(g => g.error) ? (
-                            <button type="button" onClick={() => { const s = scope; setScope('all'); changeScope(s === 'all' ? 'tx' : s); }} className="search-btn">重试</button>
+                            <button type="button" onClick={() => { const s = scope; setScope('all'); changeScope(s === 'all' ? 'tx' : s); }} className="search-flat-button">重试</button>
                         ) : (
                             <p className="search-note is-soft">换个关键词，或按 Tab 缩小到单个平台。</p>
                         )}
@@ -572,7 +589,7 @@ export function SearchOverlay() {
                             role="listbox"
                             aria-label="搜索结果"
                             data-search-entered={entered === revealKey ? '' : undefined}
-                            className="scroll-thin min-h-0 flex-1 overflow-y-auto pb-24"
+                            className="search-list scroll-thin min-h-0 flex-1 overflow-y-auto pb-24"
                         >
                             {kind !== 'song' ? (
                                 <>
@@ -583,7 +600,7 @@ export function SearchOverlay() {
                                     ))}
                                     {collections.length > GROUP_INITIAL * 2 && (
                                         <div className="flex justify-center py-4">
-                                            <button type="button" onClick={() => setExpanded(e => ({ ...e, collections: !e.collections }))} className="search-btn">
+                                            <button type="button" onClick={() => setExpanded(e => ({ ...e, collections: !e.collections }))} className="search-flat-button">
                                                 {expanded.collections ? '收起' : `展开其余 ${collections.length - GROUP_INITIAL * 2} ${unit}`}
                                                 <ChevronDown className={cx('h-3.5 w-3.5 transition-transform', expanded.collections && 'rotate-180')} />
                                             </button>
@@ -602,7 +619,7 @@ export function SearchOverlay() {
                                     })}
                                     {localList.length > LOCAL_INITIAL && (
                                         <div className="flex justify-center py-4">
-                                            <button type="button" onClick={() => setExpanded(e => ({ ...e, local: !e.local }))} className="search-btn">
+                                            <button type="button" onClick={() => setExpanded(e => ({ ...e, local: !e.local }))} className="search-flat-button">
                                                 {expanded.local ? '收起' : `展开其余 ${localList.length - LOCAL_INITIAL} 首`}
                                                 <ChevronDown className={cx('h-3.5 w-3.5 transition-transform', expanded.local && 'rotate-180')} />
                                             </button>
@@ -614,10 +631,12 @@ export function SearchOverlay() {
                                     const shown = expanded[group.key] ? group.list : group.list.slice(0, GROUP_INITIAL);
                                     return (
                                         <section key={group.key}>
-                                            <div className="search-meta search-group-head">
-                                                <span>{PLATFORM_NAMES[group.key]}</span>
-                                                {group.loading ? <span>…</span> : group.error ? <span className="search-error">{group.error}</span> : <span>{group.total || group.list.length} 首</span>}
-                                            </div>
+                                            {groups.length > 1 && (
+                                                <div className="search-meta search-group-head">
+                                                    <span>{PLATFORM_NAMES[group.key]}</span>
+                                                    {group.loading ? <span>…</span> : group.error ? <span className="search-error">{group.error}</span> : <span>{group.total || group.list.length} 首</span>}
+                                                </div>
+                                            )}
                                             {group.loading ? (
                                                 <div>{Array.from({ length: 3 }, (_, i) => <div key={i} className="skeleton h-[76px]" />)}</div>
                                             ) : group.list.length ? (
@@ -629,7 +648,7 @@ export function SearchOverlay() {
                                                     ))}
                                                     {group.list.length > GROUP_INITIAL && (
                                                         <div className="flex justify-center py-3">
-                                                            <button type="button" onClick={() => setExpanded(e => ({ ...e, [group.key]: !e[group.key] }))} className="search-btn">
+                                                            <button type="button" onClick={() => setExpanded(e => ({ ...e, [group.key]: !e[group.key] }))} className="search-flat-button">
                                                                 {expanded[group.key] ? '收起' : `展开其余 ${group.list.length - GROUP_INITIAL} 首`}
                                                                 <ChevronDown className={cx('h-3.5 w-3.5 transition-transform', expanded[group.key] && 'rotate-180')} />
                                                             </button>
@@ -665,21 +684,40 @@ export function SearchOverlay() {
     );
 }
 
-/** 空状态图标：版面语言里不用 lucide 的圆角放大镜，画一个和 .search-void 同族的方框 */
-function Search({ void: _void }: { void?: boolean }) {
-    return <span className="search-void is-small" aria-hidden />;
-}
-
 /**
- * 背景版面（Folia 的 .search-composition）：一组直角几何形 + 竖排搜索词。
- * 按类型换一套位移（data-search-kind），换来源 / 类型时扫过一道光带（key 变化重挂载）。
- * 精简模式（手机）整块不画：省掉 8 个大面积合成层。
+ * 背景版面（Folia 的 .search-composition，按其原值复刻）：至上主义几何 + 竖排搜索词。
+ * 外层 stage 按来源序号取站位（转角 / 横移 / 竖移），内层各形按类型换位（data-search-kind）。
+ * 换来源 / 类型时扫过一道墨色宽带 + 主题色细线（sweep key 变化重挂载）；首次挂上只飞入不扫。
+ * 精简模式（手机）整块不画：省掉 9 个大面积合成层。
  */
-function SearchComposition({ kind, query, scopeKey }: { kind: Kind; query: string; scopeKey: string }) {
+const STAGE_POSES: ReadonlyArray<{ turn: number; x: number; y: number }> = [
+    { turn: 0, x: 0, y: 0 },
+    { turn: -5, x: -3, y: 2 },
+    { turn: 4, x: 2, y: -3 },
+    { turn: -2, x: 4, y: 4 },
+];
+
+function SearchComposition({ kind, query, stageKey, stageIndex }: { kind: Kind; query: string; stageKey: string; stageIndex: number }) {
+    // 挂上时不扫（那时有飞入），来源 / 类型换了才扫：每换一次换一个 key，扫带重新挂上、动画重新放
+    const [sweep, setSweep] = useState(0);
+    const shown = useRef(stageKey);
+    useEffect(() => {
+        if (shown.current === stageKey) return;
+        shown.current = stageKey;
+        setSweep(count => count + 1);
+    }, [stageKey]);
     if (isLite()) return null;
+    const pose = STAGE_POSES[Math.max(0, stageIndex) % STAGE_POSES.length];
     return (
-        <div className="search-comp" data-search-kind={kind} aria-hidden key={scopeKey}>
-            <div className="search-comp-stage">
+        <div className="search-comp" data-search-kind={kind} aria-hidden>
+            <div
+                className="search-comp-stage"
+                style={{
+                    '--search-stage-turn': `${pose.turn}deg`,
+                    '--search-stage-x': `${pose.x}vw`,
+                    '--search-stage-y': `${pose.y}vh`,
+                } as React.CSSProperties}
+            >
                 <div className="search-fig is-line is-first"><i /></div>
                 <div className="search-fig is-line is-second"><i /></div>
                 <div className="search-fig is-slab"><i /></div>
@@ -687,9 +725,15 @@ function SearchComposition({ kind, query, scopeKey }: { kind: Kind; query: strin
                 <div className="search-fig is-dot"><i /></div>
                 <div className="search-fig is-bar"><i /></div>
                 <div className="search-fig is-hatch"><i /></div>
+                <div className="search-fig is-dots"><i>· · ·</i></div>
                 {query && <div className="search-fig is-word"><i>{query}</i></div>}
             </div>
-            <div className="search-sweep"><i className="is-band" /><i className="is-rule" /></div>
+            {sweep > 0 && (
+                <div key={sweep} className="search-sweep">
+                    <i className="is-band" />
+                    <i className="is-rule" />
+                </div>
+            )}
         </div>
     );
 }
