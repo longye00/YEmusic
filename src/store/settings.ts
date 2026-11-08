@@ -47,6 +47,7 @@ export interface Settings {
     background: BackgroundMode;
     dither: boolean;
     reduceMotion: boolean;
+    splash: boolean;
     liteMode: LiteMode;
     theme: ThemeMode;
     customAccent: string;
@@ -110,6 +111,7 @@ export const DEFAULT_SETTINGS: Settings = {
     background: 'latent',
     dither: true,
     reduceMotion: false,
+    splash: true,
     liteMode: 'auto',
     theme: 'cover',
     customAccent: '#8ab4ff',
@@ -136,12 +138,52 @@ export const DEFAULT_SETTINGS: Settings = {
 
 const KEY = 'ye.settings.v2';
 
+/** 枚举型设置的合法值表：localStorage 里写了脏值（手改 / 旧版本字段）就回退默认，
+ *  否则可能让下游按枚举索引的代码直接崩（例如 INTENSITY[x].rot） */
+const ENUM_RULES: Partial<Record<keyof Settings, readonly string[]>> = {
+    lyricIntensity: ['calm', 'normal', 'chaotic'],
+    lyricFont: ['sans', 'serif'],
+    background: ['latent', 'blur', 'solid'],
+    theme: ['default', 'cover', 'custom'],
+    playMode: ['loop', 'one', 'shuffle', 'order'],
+    homeLayout: ['library', 'carousel'],
+    detailLayout: ['wall', 'list'],
+    libraryTab: ['playlists', 'radio', 'albums', 'local', 'plaza', 'boards'],
+    localGroup: ['albums', 'artists', 'folders'],
+    librarySeam: ['full', 'spine', 'hidden'],
+    librarySeamRestore: ['full', 'spine'],
+    libraryAccount: ['wy', 'tx', 'kg'],
+    liteMode: ['auto', 'on', 'off'],
+    searchPlatform: ['kw', 'kg', 'tx', 'wy', 'mg'],
+    plazaPlatform: ['kw', 'kg', 'tx', 'wy', 'mg'],
+    boardPlatform: ['kw', 'kg', 'tx', 'wy', 'mg'],
+    homeTab: ['mine', 'plaza', 'boards'],
+    quality: ['128k', '320k', 'flac', 'flac24bit'],
+    downloadQuality: ['128k', '320k', 'flac', 'flac24bit'],
+};
+/** 数值型设置：必须有限且在范围内 */
+const NUM_RULES: Partial<Record<keyof Settings, [number, number]>> = {
+    volume: [0, 1],
+    lyricScale: [0.5, 2.5],
+    lyricOffset: [-3000, 3000],
+    crossfade: [0, 20],
+};
+
 function load(): Settings {
     try {
         const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
         const merged = { ...DEFAULT_SETTINGS, ...saved };
         if (!Array.isArray(merged.eqGains) || merged.eqGains.length !== EQ_BANDS.length) merged.eqGains = [...DEFAULT_SETTINGS.eqGains];
         if (merged.lyricStyle !== 'luminous' && merged.lyricStyle !== 'flow' && !isFoliaMode(merged.lyricStyle)) merged.lyricStyle = DEFAULT_SETTINGS.lyricStyle;
+        for (const key of Object.keys(ENUM_RULES) as (keyof Settings)[]) {
+            const allowed = ENUM_RULES[key]!;
+            if (!allowed.includes(String(merged[key] as unknown))) (merged as Record<string, unknown>)[key] = DEFAULT_SETTINGS[key];
+        }
+        for (const key of Object.keys(NUM_RULES) as (keyof Settings)[]) {
+            const [min, max] = NUM_RULES[key]!;
+            const v = Number(merged[key] as unknown);
+            if (!Number.isFinite(v) || v < min || v > max) (merged as Record<string, unknown>)[key] = DEFAULT_SETTINGS[key];
+        }
         return merged;
     } catch {
         return { ...DEFAULT_SETTINGS };

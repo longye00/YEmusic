@@ -46,22 +46,32 @@ export const tx: PlatformSdk = {
     name: 'QQ音乐',
     async search(keyword, page = 1, limit = 30) {
         let data: any = null;
+        // 桌面端 DoSearchForQQMusicDesktop 已对未登录账号一律回空（req.code 2001），
+        // 改用移动端接口：游客可搜，字段与桌面端一致（走同一个 fromSong 转换）
         for (let i = 0; i < 3 && !data; i++) {
             const body = await requestJson(MUSICU, {
                 json: {
-                    comm: { ct: '19', cv: '1859', uin: '0' },
+                    comm: {
+                        ct: '11', cv: '14090508', v: '14090508', tmeAppID: 'qqmusic',
+                        phonetype: 'EBG-AN10', os_ver: '12', OpenUDID: '0', QIMEI36: '0',
+                        udid: '0', uid: '0', modeSwitch: '6', teenMode: '0', ui_mode: '2', nettype: '1020',
+                    },
                     req: {
-                        method: 'DoSearchForQQMusicDesktop',
+                        method: 'DoSearchForQQMusicMobile',
                         module: 'music.search.SearchCgiService',
-                        param: { grp: 1, num_per_page: limit, page_num: page, query: keyword, search_type: 0 },
+                        param: {
+                            search_type: 0, query: keyword, page_num: page, num_per_page: limit,
+                            highlight: 0, nqc_flag: 0, multi_zhida: 0, cat: 2, grp: 1, sin: 0, sem: 0,
+                        },
                     },
                 },
                 headers: { Referer: 'https://y.qq.com/' },
             });
             if (body?.code === 0 && body.req?.code === 0) data = body.req.data;
         }
-        const list = (data?.body?.song?.list || []).map(fromSong).filter(Boolean) as Track[];
-        return { list, total: Number(data?.meta?.sum) || list.length, page, limit, source: 'tx' as const };
+        const raw = data?.body?.item_song || data?.body?.song?.list || [];
+        const list = raw.map(fromSong).filter(Boolean) as Track[];
+        return { list, total: Number(data?.meta?.sum) || Number(data?.meta?.estimate_sum) || list.length, page, limit, source: 'tx' as const };
     },
     async getLyric(track) {
         const body = await requestJson(

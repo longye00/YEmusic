@@ -462,8 +462,12 @@ export async function pickAudioFiles() {
 // ---------------- 封面 ----------------
 const coverUrls = new Map<string, Promise<string | undefined>>();
 
+/** 酷我旧封面域 img*.kwcdn.kuwo.cn 的证书已坏（签给别的主机）：换成证书合法的 img*.kuwo.cn */
+const KWC_HOST_RE = /^https?:\/\/img(\d)\.kwcdn\.kuwo\.cn\//;
+
 /** 把 track.cover 解析为可直接用于 <img> 的地址（本地封面存于 IndexedDB） */
 export function resolveCover(cover: string | undefined): Promise<string | undefined> | string | undefined {
+    if (cover && KWC_HOST_RE.test(cover)) cover = cover.replace(KWC_HOST_RE, 'https://img$1.kuwo.cn/');
     if (!cover || !cover.startsWith('idb:')) return cover;
     const key = cover.slice(4);
     let promise = coverUrls.get(key);

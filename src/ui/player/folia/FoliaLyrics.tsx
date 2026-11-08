@@ -10,7 +10,7 @@ import type { VisualizerTuningBundle } from '@/folia/components/visualizer/tunin
 import { useStatusMessageStore } from '@/folia/stores/useStatusMessageStore';
 import { host } from '@/lib/host';
 import type { ParsedLyric } from '@/lib/lyric';
-import { seek, usePlayer } from '@/store/player';
+import { usePlayer } from '@/store/player';
 import { useSettings } from '@/store/settings';
 import { useFoliaTunings } from '@/store/foliaTunings';
 import { toast } from '@/store/toast';
@@ -21,6 +21,7 @@ import { EMPTY_LINES, toFoliaLines } from './lyricsAdapter';
 import { toFoliaTheme } from './foliaTheme';
 import { useMonetPortrait } from './monetPortrait';
 import type { FoliaModeId } from './modes';
+import { useLyricTime } from '../lyricTime';
 import { audioBands, audioPower, lyricClock, useFoliaSignals } from './signals';
 
 /** 远程封面没有 CORS 头，WebGL 纹理 / 画布读取会失败：经宿主取回字节，换成同源的 blob 地址 */
@@ -62,13 +63,18 @@ export interface FoliaLyricsProps {
     mode: FoliaModeId;
     lyric: ParsedLyric;
     theme: Theme;
+    /**
+     * 歌词样式窗口的「内置」样例预览：替换歌曲信息（标题 / 歌手 / 封面 / 随机种子），
+     * 禁掉点句跳转，并把面板当作收起（预览里没有面板，按无面板排版）。
+     */
+    preview?: { title: string; singer: string; cover?: string; seed: string };
 }
 
-export default function FoliaLyrics({ mode, lyric, theme }: FoliaLyricsProps) {
+export default function FoliaLyrics({ mode, lyric, theme, preview }: FoliaLyricsProps) {
     const current = usePlayer(s => s.current);
     const coverRaw = usePlayer(s => s.coverUrl);
-    const status = usePlayer(s => s.status);
     const panelOpen = useUi(s => s.panelOpen);
+    const timeSource = useLyricTime();
     const font = useSettings(s => s.lyricFont);
     const intensity = useSettings(s => s.lyricIntensity);
     const scale = useSettings(s => s.lyricScale);
@@ -79,7 +85,7 @@ export default function FoliaLyrics({ mode, lyric, theme }: FoliaLyricsProps) {
     const patchTuning = useFoliaTunings(s => s.patch);
     const portrait = useMonetPortrait(s => s.image);
     const loadPortrait = useMonetPortrait(s => s.load);
-    const cover = useCanvasSafeCover(useCover(coverRaw || current?.cover));
+    const cover = useCanvasSafeCover(useCover(preview ? preview.cover : coverRaw || current?.cover));
 
     useStatusBridge();
     useEffect(() => { void loadPortrait(); }, [loadPortrait]);
@@ -108,14 +114,15 @@ export default function FoliaLyrics({ mode, lyric, theme }: FoliaLyricsProps) {
         audioPower,
         audioBands,
         showText: true,
-        songTitle: current?.name ?? null,
-        songArtist: current?.singer ?? null,
-        songAlbum: current?.album ?? null,
+        songTitle: preview?.title ?? current?.name ?? null,
+        songArtist: preview?.singer ?? current?.singer ?? null,
+        songAlbum: preview ? null : current?.album ?? null,
         coverUrl: cover ?? null,
-        seed: current?.id,
+        seed: preview?.seed ?? current?.id,
         staticMode: reduceMotion,
         backgroundStaticMode: reduceMotion,
-        paused: status !== 'playing',
+        // 预览的暂停（内置时钟停走 / 实时画面冻结）与播放器的暂停走同一个语义
+        paused: !timeSource.playing(),
         visualizerOpacity: 1,
         lyricsFontScale: scale,
         subtitleFontScale: 1,
@@ -123,9 +130,9 @@ export default function FoliaLyrics({ mode, lyric, theme }: FoliaLyricsProps) {
         subtitleContentMode: showTranslation && showRoma ? 'both' : showTranslation ? 'translation' : showRoma ? 'romanization' : 'none',
         // YEmusic 的底部胶囊空闲时只是变淡、并不消失，字幕始终停在它上方，避免和胶囊重叠
         isPlayerChromeHidden: false,
-        isPanelOpen: panelOpen,
-        // 歌词时钟 = 音频时间 + 偏移，点歌词跳转时要减回去
-        onLyricLineSeek: lyricTime => seek(Math.max(0, lyricTime - useSettings.getState().lyricOffset / 1000)),
+        isPanelOpen: preview ? false : panelOpen,
+        // 预览不提供跳转；播放页 / 实时预览经歌词时钟源换算回媒体时间
+        onLyricLineSeek: preview ? undefined : timeSource.seek,
         monetPortraitImage: portrait,
         visualizerTunings: bundle,
         ...handlers,

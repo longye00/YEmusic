@@ -30,11 +30,11 @@ import { toast } from '@/store/toast';
 import { addToQueue, playTrack, usePlayer } from '@/store/player';
 import { setSetting, useSettings } from '@/store/settings';
 import { ui, useUi, type DetailTarget } from '@/store/ui';
-import { useIsFavorite } from '../hooks';
+import { useCompact, useIsFavorite } from '../hooks';
 import { css, useTheme, type RGB } from '../theme';
 import { Cover, IconButton, PlayingBars, cx } from '../components/common';
 import { MOTION } from '../motion';
-import { MiniPlayer } from '../player/MiniPlayer';
+import { ControlPill } from '../player/ControlPill';
 import './search.css';
 
 type Scope = Platform | 'local' | 'all';
@@ -213,6 +213,7 @@ export function SearchOverlay() {
     const query = useUi(s => s.searchQuery);
     // 在播放页上打开：浮到歌词之上，用更深的底；播放页自身的控件隐藏，只留一套传输控件
     const overPlayer = useUi(s => s.playerOpen);
+    const compact = useCompact();
     const savedPlatform = useSettings(s => s.searchPlatform);
     const bgPalette = useUi(s => s.bgPalette);
     const playerPalette = usePlayer(s => s.palette);
@@ -679,7 +680,10 @@ export function SearchOverlay() {
                     </>
                 )}
             </div>
-            <MiniPlayer />
+            {/* 底部居中的胶囊播放栏，与详情页 / 首页一致 */}
+            <div className={cx('pointer-events-none absolute inset-x-0 z-30 flex justify-center', compact ? 'bottom-[calc(0.5rem+var(--safe-bottom))] px-2' : 'bottom-6 px-4')}>
+                <ControlPill variant="home" />
+            </div>
         </motion.div>
     );
 }

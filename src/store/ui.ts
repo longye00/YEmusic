@@ -22,6 +22,8 @@ export type RemoteTarget = Extract<DetailTarget, { platform: Platform }>;
 export const isRemoteTarget = (target: DetailTarget | null | undefined): target is RemoteTarget => Boolean(target && 'platform' in target);
 
 export type PanelTab = 'cover' | 'lyrics' | 'controls' | 'queue' | 'source';
+/** 歌词样式窗口的页签（窗口本体在 0.6.1 第二部分落地，先存页签状态） */
+export type LyricStyleTab = 'style' | 'background' | 'font' | 'subtitle' | 'global';
 export type SettingsTab = 'playback' | 'sources' | 'lyrics' | 'appearance' | 'download' | 'library' | 'about';
 
 export type Dialog =
@@ -66,6 +68,8 @@ interface UiState {
     playerOpen: boolean;
     panelOpen: boolean;
     panelTab: PanelTab;
+    /** 歌词样式窗口选中的页签；null = 窗口未打开 */
+    lyricStyle: LyricStyleTab | null;
     settingsOpen: boolean;
     settingsTab: SettingsTab;
     dialog: Dialog | null;
@@ -84,6 +88,7 @@ export const useUi = create<UiState>(() => ({
     playerOpen: false,
     panelOpen: false,
     panelTab: 'controls',
+    lyricStyle: null,
     settingsOpen: false,
     settingsTab: 'playback',
     dialog: null,
@@ -112,6 +117,9 @@ export const ui = {
     openPlayer: () => useUi.setState({ playerOpen: true, searchOpen: false }),
     closePlayer: () => useUi.setState({ playerOpen: false, panelOpen: false }),
     togglePanel: (tab?: PanelTab) => useUi.setState(s => ({ panelOpen: tab ? !(s.panelOpen && s.panelTab === tab) : !s.panelOpen, panelTab: tab || s.panelTab })),
+    /** 打开独立的歌词样式窗口：叠在当前页面上（不强制打开播放页），顺手收掉右下面板 */
+    openLyricStyle: (tab: LyricStyleTab = 'style') => useUi.setState({ lyricStyle: tab, panelOpen: false }),
+    closeLyricStyle: () => useUi.setState({ lyricStyle: null }),
     openSettings: (tab?: SettingsTab) => useUi.setState(s => ({ settingsOpen: true, settingsTab: tab || s.settingsTab })),
     closeSettings: () => useUi.setState({ settingsOpen: false }),
     dialog: (dialog: Dialog | null) => useUi.setState({ dialog }),

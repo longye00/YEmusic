@@ -19,7 +19,7 @@ import { LoginDialog } from './library/LoginDialog';
 // ---------------- 右键菜单 ----------------
 function MenuItem({ icon, children, onClick, danger }: { icon: ReactNode; children: ReactNode; onClick: () => void; danger?: boolean }) {
     return (
-        <button type="button" onClick={onClick} className={cx('flex h-9 w-full items-center gap-3 rounded-xl px-3 text-left text-[13px] transition-colors', danger ? 'text-red-300 hover:bg-red-500/15' : 'txt-1 hover:bg-white/10 hover:text-white')}>
+        <button type="button" role="menuitem" onClick={onClick} className={cx('flex h-9 w-full items-center gap-3 rounded-xl px-3 text-left text-[13px] transition-colors', danger ? 'text-red-300 hover:bg-red-500/15' : 'txt-1 hover:bg-white/10 hover:text-white')}>
             <span className="txt-3 [&>svg]:h-4 [&>svg]:w-4">{icon}</span>
             {children}
         </button>
@@ -60,7 +60,7 @@ export function ContextMenu() {
         fn();
     };
     return (
-        <div ref={ref} onPointerDown={event => event.stopPropagation()} className="fixed z-[90] w-56 rounded-2xl border ln bg-[var(--surface-float)] p-1.5 shadow-[var(--shadow-float)] backdrop-blur-2xl" style={{ left: pos.x, top: pos.y }}>
+        <div ref={ref} role="menu" aria-label={`${track.name} 的曲目菜单`} onPointerDown={event => event.stopPropagation()} className="fixed z-[90] w-56 rounded-2xl border ln bg-[var(--surface-float)] p-1.5 shadow-[var(--shadow-float)] backdrop-blur-2xl" style={{ left: pos.x, top: pos.y }}>
             <div className="mb-1 truncate px-3 pb-1.5 pt-1 text-[12px] txt-4">{track.name} · {track.singer}</div>
             <MenuItem icon={<Play />} onClick={run(() => playTrack(track, list))}>播放</MenuItem>
             <MenuItem icon={<ListEnd />} onClick={run(() => playNext(track))}>下一首播放</MenuItem>

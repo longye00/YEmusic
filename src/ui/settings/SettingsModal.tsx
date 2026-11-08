@@ -3,7 +3,7 @@
  * 搜索不维护单独的索引：搜索时把所有页签一起渲染，Section / Item 按搜索词自己决定显不显示（见 SettingsQuery）。
  */
 import { createContext, isValidElement, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowUp, ClipboardPaste, Database, Download, ExternalLink, FileCode2, FolderOpen, FolderPlus, Info, Link2, Palette, Play, Plug, RefreshCw, RotateCcw, ScrollText, Search, Trash2, Type, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, ClipboardPaste, Database, Download, ExternalLink, FileCode2, FolderOpen, FolderPlus, Info, Link2, Palette, Play, Plug, RefreshCw, RotateCcw, ScrollText, Search, Sparkles, Trash2, Type, X } from 'lucide-react';
 import appIcon from '@/assets/icon.png';
 import { displayPath, host, isAndroid, isDesktop } from '@/lib/host';
 import { requestText } from '@/lib/http';
@@ -323,7 +323,7 @@ function LyricsTab() {
     return (
         <>
             <Section title="显示">
-                <Item column title="歌词样式" desc="Luminous：逐字飞入、辉光高亮；Flow：经典滚动歌词；其余 8 种是风格各异的动态歌词，每种动画的细节参数在播放页「设置」面板里调整。">
+                <Item column title="歌词样式" desc="Luminous：逐字飞入、辉光高亮；Flow：经典滚动歌词；其余 8 种是风格各异的动态歌词。每种动画的细节参数在歌词样式窗口里边看预览边调。">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                         {LYRIC_STYLES.map(o => (
                             <button key={o.id} type="button" onClick={() => setSetting('lyricStyle', o.id)} className={cx('flex min-w-0 flex-col items-start rounded-xl px-3 py-2 text-left transition-colors', s.lyricStyle === o.id ? 'bg-[var(--ui-selected)] text-white' : 'bg-[var(--ui-idle)] txt-3 hover:bg-[var(--ui-hover)] hover:text-white')}>
@@ -332,6 +332,9 @@ function LyricsTab() {
                             </button>
                         ))}
                     </div>
+                </Item>
+                <Item title="歌词样式窗口" desc="实时预览所有歌词动画，调整动画参数、背景、字体与字幕">
+                    <Button onClick={() => ui.openLyricStyle('style')}><Sparkles className="h-4 w-4" />打开歌词样式窗口</Button>
                 </Item>
                 <Item title="动效强度"><Segmented size="sm" value={s.lyricIntensity} onChange={v => setSetting('lyricIntensity', v)} options={[{ value: 'calm', label: '平静' }, { value: 'normal', label: '标准' }, { value: 'chaotic', label: '狂野' }]} /></Item>
                 <Item title="字体"><Segmented size="sm" value={s.lyricFont} onChange={v => setSetting('lyricFont', v)} options={[{ value: 'sans', label: '黑体' }, { value: 'serif', label: '宋体' }]} /></Item>
@@ -366,6 +369,7 @@ function AppearanceTab() {
             <Item title="配色"><Segmented size="sm" value={s.theme} onChange={v => setSetting('theme', v)} options={[{ value: 'default', label: '默认' }, { value: 'cover', label: '封面取色' }, { value: 'custom', label: '自定义' }]} /></Item>
             {s.theme === 'custom' && <Item title="自定义主色"><input type="color" value={s.customAccent} onChange={e => setSetting('customAccent', e.target.value)} className="h-8 w-14 cursor-pointer rounded-md border-0 bg-transparent" /></Item>}
             <Toggle k="reduceMotion" title="减少动效" desc="降低动画与背景流速，适合低性能设备" />
+            <Toggle k="splash" title="启动动画" desc="打开软件时播放 YEmusic 字标动画（约 1.5 秒，点击或按任意键可跳过）" />
             <Item title="精简模式" desc="关闭毛玻璃与装饰层、降低背景流体的分辨率与帧率，手机和老旧设备上更流畅。自动：Android 与旧版内核默认开启">
                 <Segmented size="sm" value={s.liteMode} onChange={v => setSetting('liteMode', v)} options={[{ value: 'auto', label: '自动' }, { value: 'on', label: '开启' }, { value: 'off', label: '关闭' }]} />
             </Item>

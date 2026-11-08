@@ -5,7 +5,7 @@
 | 部分 | 许可证 | 文件 |
 | --- | --- | --- |
 | YEmusic 自有代码（`electron/`、`src/` 中除 `src/folia/` 与 `src/ui/search/search.css` 以外的部分、`android/`、`scripts/`、`packaging/` 等） | Apache License 2.0 | `LICENSE` |
-| Folia 的歌词动画代码（`src/folia/`，自 0.5.0 起引入）与搜索页样式（`src/ui/search/search.css`，自 0.6.0 起移植） | GNU AGPL-3.0 | `LICENSE-AGPL-3.0.txt` |
+| Folia 的歌词动画代码（`src/folia/`，自 0.5.0 起引入）、搜索页样式（`src/ui/search/search.css`，自 0.6.0 起移植）与启动遮罩（`index.html` 的 `#app-splash` 样式与 `public/splash.js`，自 0.6.1 起移植） | GNU AGPL-3.0 | `LICENSE-AGPL-3.0.txt` |
 | 其余第三方库 | 见下文各自的许可证 | — |
 
 **由于 0.5.0 起程序中包含了 AGPL-3.0 的 Folia 代码，包含它的整体程序（Windows 安装包、Android APK）按 AGPL-3.0 分发。**
@@ -25,6 +25,8 @@ YEmusic 自有代码本身仍可按 Apache-2.0 单独使用；只是与 `src/fol
 - `src/ui/player/folia/`、`src/store/foliaTunings.ts` 是 YEmusic 写的接入层，因为直接引用 `src/folia/`，同样属于 AGPL 整体的一部分。
 - 0.6.0 起，`src/ui/search/search.css` 的版面数值**移植自 Folia 的 `src/components/app/search/search.css`**（AGPL-3.0），
   按同一许可证提供；适配为 YEmusic 主题变量（`--search-*`）的部分保留了原数值。
+- 0.6.1 起，启动遮罩（`index.html` 中 `#app-splash` 的样式与 `public/splash.js`）**移植自 Folia `index.html` 的加载遮罩**
+  （样式 + 波形随机化 + 字体轮盘脚本，AGPL-3.0），按同一许可证提供；新增的设置开关、点击 / 按键跳过与最短展示时长为本项目自有代码。
 
 ## lx-music-desktop（洛雪音乐助手）
 - 版权所有 © lyswhut 及 lx-music-desktop 贡献者

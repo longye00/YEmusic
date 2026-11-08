@@ -2,14 +2,15 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { findLineIndex, type LyricLine, type ParsedLyric } from '@/lib/lyric';
-import { engine } from '@/player/engine';
-import { seek } from '@/store/player';
 import { useSettings } from '@/store/settings';
 import { css, type RGB } from '../theme';
+import { useLyricTime } from './lyricTime';
 import { buildUnits } from './lyricUnits';
 
-const Line = memo(function Line({ line, active, distance, accent, showTrans, showRoma, fontSize, family, time }: {
+const Line = memo(function Line({ line, active, distance, accent, showTrans, showRoma, fontSize, family, time, onSeek }: {
     line: LyricLine; active: boolean; distance: number; accent: RGB; showTrans: boolean; showRoma: boolean; fontSize: number; family: string; time: number;
+    /** 点行跳转：走歌词时钟源（预览的内置时钟不提供跳转） */
+    onSeek?: (lyricTime: number) => void;
 }) {
     const units = active && line.words?.length ? buildUnits(line) : null;
     const blur = active ? 0 : Math.min(3, Math.abs(distance) * 0.7);
@@ -17,7 +18,7 @@ const Line = memo(function Line({ line, active, distance, accent, showTrans, sho
         <div
             role="button"
             tabIndex={-1}
-            onClick={() => seek(line.time)}
+            onClick={() => onSeek?.(line.time)}
             className="pointer-events-auto origin-left cursor-pointer rounded-2xl px-4 py-3 transition-[transform,opacity,filter] duration-500 ease-[cubic-bezier(.22,1,.36,1)] hover:bg-white/[0.06]"
             style={{ transform: `scale(${active ? 1 : 0.92})`, opacity: active ? 1 : Math.max(0.16, 0.5 - Math.abs(distance) * 0.07), filter: `blur(${blur}px)` }}
         >
@@ -52,7 +53,7 @@ const Line = memo(function Line({ line, active, distance, accent, showTrans, sho
 });
 
 export function LyricsFlow({ lyric, accent }: { lyric: ParsedLyric; accent: RGB }) {
-    const offset = useSettings(s => s.lyricOffset);
+    const timeSource = useLyricTime();
     const scale = useSettings(s => s.lyricScale);
     const font = useSettings(s => s.lyricFont);
     const showTrans = useSettings(s => s.showTranslation);
@@ -72,7 +73,7 @@ export function LyricsFlow({ lyric, accent }: { lyric: ParsedLyric; accent: RGB 
         let lastTime = 0;
         const loop = (now: number) => {
             frame = requestAnimationFrame(loop);
-            const t = engine.currentTime + offset / 1000;
+            const t = timeSource.now();
             const index = findLineIndex(lines, t);
             setActive(prev => (prev === index ? prev : index));
             // 逐字填充只需较低频率刷新
@@ -83,7 +84,7 @@ export function LyricsFlow({ lyric, accent }: { lyric: ParsedLyric; accent: RGB 
         };
         frame = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(frame);
-    }, [lines, offset]);
+    }, [lines, timeSource]);
 
     useLayoutEffect(() => {
         const container = containerRef.current;
@@ -133,7 +134,7 @@ export function LyricsFlow({ lyric, accent }: { lyric: ParsedLyric; accent: RGB 
         >
             <motion.div ref={listRef} className="absolute inset-x-0 top-0 flex flex-col gap-1 py-[30vh]" animate={{ y: shift }} transition={{ type: 'spring', stiffness: 90, damping: 22, mass: 0.9 }}>
                 {lines.map((line, i) => (
-                    <Line key={`${i}-${line.time}`} line={line} active={i === active} distance={i - active} accent={accent} showTrans={showTrans} showRoma={showRoma} fontSize={fontSize} family={family} time={i === active ? time : 0} />
+                    <Line key={`${i}-${line.time}`} line={line} active={i === active} distance={i - active} accent={accent} showTrans={showTrans} showRoma={showRoma} fontSize={fontSize} family={family} time={i === active ? time : 0} onSeek={timeSource.seek} />
                 ))}
             </motion.div>
         </div>

@@ -13,7 +13,16 @@ import { toFoliaTheme } from './foliaTheme';
 import { useMonetPortrait } from './monetPortrait';
 import type { FoliaModeId } from './modes';
 
-export default function FoliaSettings({ mode, theme }: { mode: FoliaModeId; theme: Theme }) {
+export default function FoliaSettings({ mode, theme, hideReset, controlCardBg = 'rgb(255 255 255 / 0.03)', rangeInputClass = 'ye-folia-range' }: {
+    mode: FoliaModeId;
+    theme: Theme;
+    /** 歌词样式窗口有自己的「默认」按钮：藏掉面板内联的恢复默认，免得出现两个入口 */
+    hideReset?: boolean;
+    /** Folia 面板里参数卡片的底色（嵌进本应用的面板 / 歌词样式窗口各传各的） */
+    controlCardBg?: string;
+    /** Folia 面板滑杆的样式类（syncRanges 按这个类名找输入框写 --ye-range-pct） */
+    rangeInputClass?: string;
+}) {
     const { t } = useTranslation();
     const font = useSettings(s => s.lyricFont);
     const intensity = useSettings(s => s.lyricIntensity);
@@ -42,13 +51,13 @@ export default function FoliaSettings({ mode, theme }: { mode: FoliaModeId; them
      * 在这里统一同步：挂载、拖动、以及面板参数被别处改掉时。
      */
     const syncRanges = useCallback(() => {
-        for (const input of rootRef.current?.querySelectorAll<HTMLInputElement>('.ye-folia-range') ?? []) {
+        for (const input of rootRef.current?.querySelectorAll<HTMLInputElement>(`.${rangeInputClass}`) ?? []) {
             const min = Number(input.min) || 0;
             const max = Number(input.max) || 1;
             const pct = max > min ? ((Number(input.value) - min) / (max - min)) * 100 : 0;
             input.style.setProperty('--ye-range-pct', `${Math.max(0, Math.min(100, pct)).toFixed(2)}%`);
         }
-    }, []);
+    }, [rangeInputClass]);
 
     useEffect(() => {
         const root = rootRef.current;
@@ -60,7 +69,7 @@ export default function FoliaSettings({ mode, theme }: { mode: FoliaModeId; them
             root.removeEventListener('input', syncRanges);
             root.removeEventListener('change', syncRanges);
         };
-    }, [syncRanges, mode, tunings]);
+    }, [syncRanges, mode, tunings, rangeInputClass]);
 
     useEffect(() => { if (mode === 'monet') void portrait.load(); }, [mode, portrait.load]);
 
@@ -70,8 +79,8 @@ export default function FoliaSettings({ mode, theme }: { mode: FoliaModeId; them
         t: key => t(key),
         isDaylight: false,
         theme: foliaTheme,
-        controlCardBg: 'rgb(255 255 255 / 0.03)',
-        rangeInputClass: 'ye-folia-range',
+        controlCardBg,
+        rangeInputClass,
         monetTuning: tunings.monet,
         onMonetTuningChange: p => patch('monet', p),
         monetPortraitImage: portrait.image,
@@ -104,7 +113,7 @@ export default function FoliaSettings({ mode, theme }: { mode: FoliaModeId; them
 
     return (
         <div className="space-y-3" style={panelVars} ref={rootRef}>
-            {entry.tuningKind !== 'none' && (
+            {!hideReset && entry.tuningKind !== 'none' && (
                 <button type="button" onClick={resetAll} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-xl bg-white/[0.07] text-[11.5px] text-white/65 hover:bg-white/[0.13] hover:text-white">
                     <RotateCcw className="h-3.5 w-3.5" />恢复此动画的默认参数
                 </button>

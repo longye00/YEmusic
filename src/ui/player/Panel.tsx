@@ -1,27 +1,24 @@
 /** 播放页右下角浮动面板：歌曲 / 歌词 / 控制 / 队列 / 音源 */
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, AudioLines, ChevronDown, ChevronLeft, ChevronRight, Copy, Disc3, Download, FileText, FileUp, Heart, Info, ListMusic, ListPlus, Minus, Moon, Plus, Radio, RefreshCw, RotateCcw, SlidersHorizontal, Sparkles, Trash2, Volume1, Volume2, VolumeX, X } from 'lucide-react';
+import { AlertTriangle, AudioLines, ChevronLeft, ChevronRight, Copy, Disc3, Download, FileText, Heart, Info, ListMusic, ListPlus, Minus, Moon, Plus, Radio, RefreshCw, RotateCcw, SlidersHorizontal, Sparkles, Trash2, Volume1, Volume2, VolumeX, X } from 'lucide-react';
 import { host } from '@/lib/host';
 import { formatTime } from '@/lib/util';
 import { PLATFORM_NAMES, QUALITY_NAMES, QUALITY_ORDER, type Quality } from '@/sdk/types';
 import { downloadTrack } from '@/store/downloads';
 import { toggleFavorite } from '@/store/library';
-import { clearQueue, cycleMode, MODE_NAMES, playTrack, reloadLyric, removeFromQueue, setLyric, switchPlayback, usePlayer } from '@/store/player';
+import { clearQueue, cycleMode, MODE_NAMES, playTrack, removeFromQueue, switchPlayback, usePlayer } from '@/store/player';
 import { setSetting, useSettings, type BackgroundMode, type LyricIntensity, type LyricStyle } from '@/store/settings';
 import { useSources } from '@/store/sources';
 import { toast } from '@/store/toast';
 import { ui, useUi, type PanelTab } from '@/store/ui';
-import { saveCustomLyric } from '@/player/lyrics';
 import { useLite } from '@/lib/lite';
 import { useCompact, useIsFavorite } from '../hooks';
-import { Cover, EmptyState, PlatformTag, Segmented, Slider, Spinner, Switch, cx } from '../components/common';
+import { Cover, EmptyState, PlatformTag, Segmented, Slider, Switch, cx } from '../components/common';
 import { css, type Theme } from '../theme';
 import { MODE_ICONS } from './ControlPill';
-import { FOLIA_MODES, FOLIA_MODE_NAMES, isFoliaMode, type FoliaModeId } from './folia/modes';
-
-// Folia 动画的细调面板（含各动画的参数 UI），展开时才加载
-const FoliaSettings = lazy(() => import('./folia/FoliaSettings'));
+import { LyricSourceButtons, useLyricFromText } from './LyricSourceControls';
+import { FOLIA_MODES, FOLIA_MODE_NAMES } from './folia/modes';
 
 const TABS: { id: PanelTab; icon: typeof Disc3; label: string }[] = [
     { id: 'cover', icon: Disc3, label: '歌曲' },
@@ -118,41 +115,17 @@ function StylePicker({ value, onChange }: { value: LyricStyle; onChange: (value:
     );
 }
 
-/** 当前 Folia 动画的专属参数（可折叠） */
-function FoliaTuning({ mode, theme }: { mode: FoliaModeId; theme: Theme }) {
-    const [open, setOpen] = useState(false);
-    const info = FOLIA_MODES.find(m => m.id === mode)!;
-    return (
-        <div className="rounded-2xl bg-black/15">
-            <button type="button" onClick={() => setOpen(v => !v)} className="flex w-full items-center gap-2 px-3 py-2.5 text-left">
-                <Sparkles className="h-3.5 w-3.5 txt-4" />
-                <span className="flex-1 text-[12px] txt-2">{info.name} · 动画参数</span>
-                <ChevronDown className={cx('h-4 w-4 txt-4 transition-transform', open && 'rotate-180')} />
-            </button>
-            {open && (
-                <div className="px-3 pb-3">
-                    <div className="mb-2 text-[11px] leading-relaxed txt-4">{info.desc}。</div>
-                    <Suspense fallback={<div className="grid place-items-center py-4"><Spinner className="h-4 w-4" /></div>}>
-                        <FoliaSettings mode={mode} theme={theme} />
-                    </Suspense>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function LyricsTab({ theme }: { theme: Theme }) {
+function LyricsTab() {
     const s = useSettings();
-    const lyricState = usePlayer(p => p.lyricState);
-    const lyricFrom = usePlayer(p => p.lyricFrom);
     const lyric = usePlayer(p => p.lyric);
-    const current = usePlayer(p => p.current);
-    const fileRef = useRef<HTMLInputElement>(null);
-    const FROM: Record<string, string> = { platform: '平台接口', source: '洛雪音源', match: '其他平台匹配', lrclib: 'LRCLIB', embedded: '内嵌歌词', sidecar: '同名 .lrc 文件', custom: '手动导入', none: '无' };
+    const fromText = useLyricFromText();
     return (
         <div className="space-y-3">
             <StylePicker value={s.lyricStyle} onChange={v => setSetting('lyricStyle', v)} />
-            {isFoliaMode(s.lyricStyle) && s.lyricStyle !== 'still' && <FoliaTuning mode={s.lyricStyle} theme={theme} />}
+            {/* 动画参数与全部歌词设置挪进了独立的歌词样式窗口（含实时预览），这里只留入口 */}
+            <button type="button" onClick={() => ui.openLyricStyle('style')} className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-[var(--ui-idle)] text-[12.5px] font-semibold txt-2 hover:bg-[var(--ui-hover)] hover:text-white">
+                <Sparkles className="h-3.5 w-3.5" />歌词样式窗口 · 预览与全部参数
+            </button>
             <Segmented size="sm" className="w-full [&>button]:flex-1" value={s.lyricIntensity} onChange={v => setSetting('lyricIntensity', v)} options={(['calm', 'normal', 'chaotic'] as LyricIntensity[]).map(v => ({ value: v, label: INTENSITY_NAMES[v] }))} />
             <Segmented size="sm" className="w-full [&>button]:flex-1" value={s.lyricFont} onChange={v => setSetting('lyricFont', v)} options={[{ value: 'sans', label: '黑体' }, { value: 'serif', label: '宋体' }]} />
             <Row>
@@ -182,26 +155,9 @@ function LyricsTab({ theme }: { theme: Theme }) {
                 <button type="button" onClick={() => setSetting('lyricOffset', 0)} className="grid h-7 w-7 place-items-center rounded-full txt-4 hover:text-white" title="重置"><RotateCcw className="h-3.5 w-3.5" /></button>
             </Row>
             <div className="flex items-center gap-2">
-                <button type="button" onClick={() => reloadLyric()} className="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ui-idle)] text-[12px] hover:bg-[var(--ui-hover)]">{lyricState === 'loading' ? <Spinner className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5" />}重新获取</button>
-                <button type="button" onClick={() => fileRef.current?.click()} className="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ui-idle)] text-[12px] hover:bg-[var(--ui-hover)]"><FileUp className="h-3.5 w-3.5" />导入 .lrc</button>
-                <input
-                    ref={fileRef}
-                    type="file"
-                    accept=".lrc,.txt"
-                    className="hidden"
-                    onChange={async event => {
-                        const file = event.target.files?.[0];
-                        event.target.value = '';
-                        if (!file || !current) return;
-                        const buffer = new Uint8Array(await file.arrayBuffer());
-                        let text: string;
-                        try { text = new TextDecoder('utf-8', { fatal: true }).decode(buffer); } catch { text = new TextDecoder('gbk').decode(buffer); }
-                        setLyric(await saveCustomLyric(current, text), 'custom');
-                        toast('已导入歌词', 'success');
-                    }}
-                />
+                <LyricSourceButtons className="flex h-9 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ui-idle)] text-[12px] hover:bg-[var(--ui-hover)]" />
             </div>
-            <div className="text-center font-mono text-[10.5px] txt-4">歌词来源：{lyricState === 'loading' ? '获取中…' : FROM[lyricFrom] || lyricFrom || '无'}</div>
+            <div className="text-center font-mono text-[10.5px] txt-4">歌词来源：{fromText}</div>
         </div>
     );
 }
@@ -388,6 +344,7 @@ export function Panel({ theme }: { theme: Theme }) {
     const lite = useLite();
     return (
         <motion.div
+            data-panel
             className={cx(
                 'no-drag absolute z-30 flex flex-col overflow-hidden rounded-[30px] border ln shadow-[var(--shadow-panel)] backdrop-blur-3xl',
                 compact ? 'inset-x-2 bottom-[calc(110px+var(--safe-bottom))] max-h-[calc(100%-176px)] p-4' : 'bottom-[104px] right-8 max-h-[calc(100vh-140px)] w-[320px] p-5',
@@ -410,7 +367,7 @@ export function Panel({ theme }: { theme: Theme }) {
             </div>
             <div className="scroll-thin -mx-1 min-h-0 overflow-y-auto px-1">
                 {tab === 'cover' && <SongTab />}
-                {tab === 'lyrics' && <LyricsTab theme={theme} />}
+                {tab === 'lyrics' && <LyricsTab />}
                 {tab === 'controls' && <ControlsTab theme={theme} />}
                 {tab === 'queue' && <QueueTab />}
                 {tab === 'source' && <SourceTab />}

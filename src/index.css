@@ -320,7 +320,8 @@
     to { opacity: 1; }
 }
 .img-in {
-    animation: img-in 0.4s ease-out both;
+    /* backwards：放完就收回 GPU 层；both 会让每张封面留一个 ActiveOpacityAnimation 合成层 */
+    animation: img-in 0.4s ease-out backwards;
 }
 
 /* ---------------- 乐库拼贴墙（Folia 式）：海报 + 中间的书签 ---------------- */
@@ -338,6 +339,11 @@
         z-index: 3;
     }
 }
+/* 相机在动（拖动 / 惯性 / 补间 / 滚轮）时挂掉格子的悬停响应：
+   拖动中频繁的指针命中测试与弹层外扩是重绘大头；指针再动一下悬停就回来了 */
+.wall-viewport[data-moving] .wall-cell {
+    pointer-events: none;
+}
 .wall-poster {
     position: absolute;
     inset: 4px;
@@ -348,7 +354,7 @@
     /* 悬停 / 键盘聚焦时四边各外扩一个 GAP：外扩比例由 Wall.tsx 按格子尺寸写入 --pop-x / --pop-y。
        用独立的 scale 属性走合成层，不再动画 inset（会触发布局），也不与入场动画的 transform 打架 */
     scale: 1;
-    transition: scale 0.3s ease-out, box-shadow 0.6s ease-out, filter 0.6s ease-out;
+    transition: scale 0.3s ease-out, box-shadow 0.6s ease-out;
     cursor: pointer;
     transform-origin: 50% 50%;
     outline: none;
@@ -361,13 +367,11 @@
 .wall-cell > .wall-poster:focus-visible,
 .wall-cell > .wall-poster:has(.wall-play:focus-visible) {
     scale: var(--pop-x, 1.045) var(--pop-y, 1.045);
-    filter: saturate(1.08) brightness(1.05);
     box-shadow: var(--ye-focus-ring), 0 18px 48px rgb(0 0 0 / 0.55);
 }
 @media (hover: hover) {
     .wall-cell:hover > .wall-poster {
         scale: var(--pop-x, 1.045) var(--pop-y, 1.045);
-        filter: saturate(1.08) brightness(1.05);
         box-shadow: 0 18px 48px rgb(0 0 0 / 0.55);
     }
 }
@@ -386,11 +390,25 @@
     overflow: hidden;
     background: #141414;
 }
-.wall-shade {
+/* 底部渐暗（文字可读）与整体压暗都画成 wall-art 的伪元素：
+   伪元素不单独占合成层（原来是两个 absolute div，164 张海报就是 300+ 个 Overlap 层，拖动时反复重分层） */
+.wall-art::after {
+    content: '';
     position: absolute;
     inset: 0;
     pointer-events: none;
     background: linear-gradient(180deg, rgb(0 0 0 / 0) 0%, rgb(0 0 0 / 0.05) 34%, rgb(0 0 0 / 0.24) 56%, rgb(0 0 0 / 0.92) 100%);
+}
+/* 统一的暗色叠色：墙面整体压暗，悬停 / 正在播放的那张亮起来 */
+.wall-art::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: linear-gradient(145deg, color-mix(in srgb, #070707 78%, rgb(var(--accent))), color-mix(in srgb, #070707 84%, rgb(var(--accent-soft))));
+    opacity: 0.46;
+    transition: opacity var(--ye-dur-move) var(--ye-ease-standard);
 }
 .wall-badge {
     position: absolute;
@@ -451,32 +469,22 @@
     font-weight: 650;
     color: rgb(var(--ye-ink) / 0.78);
 }
-/* 统一的暗色叠色：墙面整体压暗，悬停 / 正在播放的那张亮起来 */
-.wall-tint {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    pointer-events: none;
-    background: linear-gradient(145deg, color-mix(in srgb, #070707 78%, rgb(var(--accent))), color-mix(in srgb, #070707 84%, rgb(var(--accent-soft))));
-    opacity: 0.46;
-    transition: opacity var(--ye-dur-move) var(--ye-ease-standard);
-}
 @media (hover: hover) {
-    .wall-cell:hover .wall-tint {
+    .wall-cell:hover .wall-art::before {
         opacity: 0;
     }
 }
-.wall-poster:focus-visible .wall-tint,
-.wall-poster:has(.wall-play:focus-visible) .wall-tint {
+.wall-poster:focus-visible .wall-art::before,
+.wall-poster:has(.wall-play:focus-visible) .wall-art::before {
     opacity: 0;
 }
-.wall-poster.is-current .wall-tint {
+.wall-poster.is-current .wall-art::before {
     opacity: 0;
 }
 .wall-poster.is-current {
     box-shadow: 0 0 0 2px rgb(var(--accent)), inset 0 0 24px rgb(var(--accent) / 0.35);
 }
-.wall-poster.is-action .wall-tint {
+.wall-poster.is-action .wall-art::before {
     opacity: 0.3;
 }
 .wall-play {
