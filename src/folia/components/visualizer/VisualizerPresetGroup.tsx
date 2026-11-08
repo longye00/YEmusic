@@ -27,7 +27,7 @@ const VisualizerPresetGroup = <T,>({
     theme,
 }: VisualizerPresetGroupProps<T>) => (
     <div className="space-y-2.5">
-        <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: theme.secondaryColor }}>
+        <div className="text-xs font-medium uppercase tracking-[0.08em] opacity-45" style={{ color: theme.secondaryColor }}>
             {label}
         </div>
         <div className="flex flex-wrap gap-2">

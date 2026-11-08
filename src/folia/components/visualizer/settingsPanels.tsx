@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React from 'react';
 import { DEFAULT_CAPPELLA_TUNING, DEFAULT_CLASSIC_TUNING, DEFAULT_CLADDAGH_TUNING, DEFAULT_DIORAMA_TUNING, DEFAULT_FUME_TUNING, DEFAULT_PARTITA_TUNING, DEFAULT_TILT_TUNING, DIORAMA_PARTICLE_DENSITY_MAX, DIORAMA_PARTICLE_DENSITY_MIN, DIORAMA_PARTICLE_GLOW_INTENSITY_MAX, DIORAMA_PARTICLE_GLOW_INTENSITY_MIN, DIORAMA_PARTICLE_SIZE_MAX, DIORAMA_PARTICLE_SIZE_MIN, type CappellaTuning, type ClassicTuning, type CladdaghTuning, type DioramaTuning, type FumeTuning, type PartitaTuning, type TiltColorScheme, type TiltTuning } from '../../types';
 import { colorWithAlpha } from './colorMix';
 import { type VisualizerSettingsPanelProps } from './definition';
@@ -7,12 +7,10 @@ import { DioramaBackgroundParticleSettings } from './diorama/DioramaBackgroundPa
 import { DioramaEffectSettings } from './diorama/DioramaEffectSettings';
 import { DioramaSettingsToggle } from './diorama/DioramaSettingsToggle';
 import { resolveDioramaMoteCircumference, resolveDioramaMoteRadial } from './diorama/dioramaMoteField';
-import VisualizerPresetGroup, { type VisualizerPresetOption } from './VisualizerPresetGroup';
+import VisualizerToggleRow from './VisualizerToggleRow';
 
 // src/components/visualizer/settingsPanels.tsx
 // Mode-owned preview settings panels used by discoverable visualizer entries.
-type PresetOption<T> = VisualizerPresetOption<T>;
-const PresetGroup = VisualizerPresetGroup;
 
 const clampPartitaStagger = (value: number) => Math.min(180, Math.max(0, value));
 const clampClassicBreathingFloatMultiplier = (value: number) => Math.min(2, Math.max(0, value));
@@ -287,11 +285,6 @@ export const CladdaghSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         letterSpacingOffset: clampCladdaghLetterSpacingOffset(claddaghTuning.letterSpacingOffset ?? DEFAULT_CLADDAGH_TUNING.letterSpacingOffset),
     };
 
-    const axisLineOptions: PresetOption<boolean>[] = useMemo(() => ([
-        { value: true, label: t('options.partitaGuideLinesOn') },
-        { value: false, label: t('options.partitaGuideLinesOff') },
-    ]), [t]);
-
     return (
         <div
             className="rounded-[24px] border border-white/10 p-4 space-y-4"
@@ -366,10 +359,9 @@ export const CladdaghSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 />
             </div>
 
-            <PresetGroup
+            <VisualizerToggleRow
                 label={t('options.claddaghShowAxisLine')}
                 value={resolvedTuning.showAxisLine}
-                options={axisLineOptions}
                 onChange={(next) => onCladdaghTuningChange?.({ showAxisLine: next })}
                 isDaylight={isDaylight}
                 theme={theme}

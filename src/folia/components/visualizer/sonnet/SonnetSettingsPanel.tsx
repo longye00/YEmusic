@@ -3,6 +3,7 @@ import { DEFAULT_SONNET_TUNING, type SonnetOuterFrameMode, type SonnetTuning } f
 import { colorWithAlpha } from '../colorMix';
 import type { VisualizerSettingsPanelProps } from '../definition';
 import VisualizerPresetGroup, { type VisualizerPresetOption } from '../VisualizerPresetGroup';
+import VisualizerToggleRow from '../VisualizerToggleRow';
 import { SonnetRangeControl, SonnetSettingsSection } from './SonnetSettingsControls';
 
 // src/components/visualizer/sonnet/SonnetSettingsPanel.tsx
@@ -18,11 +19,6 @@ const SonnetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
     onSliderPointerDown,
     onSliderCommit,
 }) => {
-    const booleanOptions: VisualizerPresetOption<boolean>[] = useMemo(() => ([
-        { value: true, label: t('options.sonnetToggleOn') },
-        { value: false, label: t('options.sonnetToggleOff') },
-    ]), [t]);
-
     const outerFrameOptions: VisualizerPresetOption<SonnetOuterFrameMode>[] = useMemo(() => ([
         { value: 'none', label: t('options.sonnetOuterFrameNone') },
         { value: 'frame', label: t('options.sonnetOuterFrameFrame') },
@@ -105,10 +101,9 @@ const SonnetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
             </SonnetSettingsSection>
 
             <SonnetSettingsSection title={t('options.sonnetPostProcessSection')}>
-                <VisualizerPresetGroup
+                <VisualizerToggleRow
                     label={t('options.sonnetPostProcessEnabled')}
                     value={sonnetTuning.postProcessEnabled}
-                    options={booleanOptions}
                     onChange={postProcessEnabled => onSonnetTuningChange?.({ postProcessEnabled })}
                     isDaylight={isDaylight}
                     theme={theme}
@@ -205,13 +200,12 @@ const SonnetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     isDaylight={isDaylight}
                     theme={theme}
                 />
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-x-6 gap-y-3.5 sm:grid-cols-2">
                     {visibilityControls.map(control => (
-                        <VisualizerPresetGroup
+                        <VisualizerToggleRow
                             key={control.key}
                             label={control.label}
                             value={sonnetTuning[control.key]}
-                            options={booleanOptions}
                             onChange={(next) => onSonnetTuningChange?.({ [control.key]: next })}
                             isDaylight={isDaylight}
                             theme={theme}

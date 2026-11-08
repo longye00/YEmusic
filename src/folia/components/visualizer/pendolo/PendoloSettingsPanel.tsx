@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { DEFAULT_PENDOLO_TUNING, type PendoloTuning } from '../../../types';
 import { type VisualizerSettingsPanelProps } from '../definition';
 import VisualizerPresetGroup, { type VisualizerPresetOption } from '../VisualizerPresetGroup';
+import VisualizerToggleRow from '../VisualizerToggleRow';
 
 // src/components/visualizer/pendolo/PendoloSettingsPanel.tsx
 // Owns Pendolo-specific tuning controls while reusing the shared themed preset group.
@@ -16,18 +17,6 @@ const PendoloSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
     onSliderCommit,
 }) => {
     const resolvedTuning = pendoloTuning ?? DEFAULT_PENDOLO_TUNING;
-    const centerGradientOptions: VisualizerPresetOption<boolean>[] = useMemo(() => ([
-        { value: true, label: t('options.pendoloCenterGradientOn') },
-        { value: false, label: t('options.pendoloCenterGradientOff') },
-    ]), [t]);
-    const coverOnWatchFaceOptions: VisualizerPresetOption<boolean>[] = useMemo(() => ([
-        { value: true, label: t('options.pendoloCoverOnWatchFaceOn') },
-        { value: false, label: t('options.pendoloCoverOnWatchFaceOff') },
-    ]), [t]);
-    const lineGlowOptions: VisualizerPresetOption<boolean>[] = useMemo(() => ([
-        { value: true, label: t('options.pendoloLineGlowOn') },
-        { value: false, label: t('options.pendoloLineGlowOff') },
-    ]), [t]);
     const gearDecorOptions: VisualizerPresetOption<PendoloTuning['showGearDecor']>[] = useMemo(() => ([
         { value: 'none', label: t('options.decorNone') },
         { value: 'subtle', label: t('options.decorSubtle') },
@@ -144,26 +133,23 @@ const PendoloSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                 isDaylight={isDaylight}
                 theme={theme}
             />
-            <VisualizerPresetGroup
+            <VisualizerToggleRow
                 label={t('options.pendoloShowCenterGradient')}
                 value={resolvedTuning.showCenterGradient ?? true}
-                options={centerGradientOptions}
                 onChange={(next) => onPendoloTuningChange?.({ showCenterGradient: next })}
                 isDaylight={isDaylight}
                 theme={theme}
             />
-            <VisualizerPresetGroup
+            <VisualizerToggleRow
                 label={t('options.pendoloShowCoverOnWatchFace')}
                 value={resolvedTuning.showCoverOnWatchFace ?? false}
-                options={coverOnWatchFaceOptions}
                 onChange={(next) => onPendoloTuningChange?.({ showCoverOnWatchFace: next })}
                 isDaylight={isDaylight}
                 theme={theme}
             />
-            <VisualizerPresetGroup
+            <VisualizerToggleRow
                 label={t('options.pendoloEnableLineGlow')}
                 value={resolvedTuning.enableLineGlow ?? false}
-                options={lineGlowOptions}
                 onChange={(next) => onPendoloTuningChange?.({ enableLineGlow: next })}
                 isDaylight={isDaylight}
                 theme={theme}

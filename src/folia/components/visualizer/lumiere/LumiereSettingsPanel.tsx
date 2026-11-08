@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { DEFAULT_LUMIERE_TUNING, type LumiereRenderQuality, type LumiereTuning } from '../../../types';
 import type { VisualizerSettingsPanelProps } from '../definition';
 import VisualizerPresetGroup, { type VisualizerPresetOption } from '../VisualizerPresetGroup';
+import VisualizerToggleRow from '../VisualizerToggleRow';
 import { TemperaRangeControl as RangeControl, TemperaSettingsSection as SettingsSection } from '../tempera/TemperaSettingsControls';
 
 // src/components/visualizer/lumiere/LumiereSettingsPanel.tsx
@@ -71,11 +72,6 @@ const LumiereSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
     onSliderPointerDown,
     onSliderCommit,
 }) => {
-    const booleanOptions: VisualizerPresetOption<boolean>[] = useMemo(() => ([
-        { value: true, label: t('options.lumiereToggleOn') },
-        { value: false, label: t('options.lumiereToggleOff') },
-    ]), [t]);
-
     const neighborOptions: VisualizerPresetOption<1 | 2>[] = useMemo(() => ([
         { value: 1, label: t('options.lumiereWindowNeighborsPrev') },
         { value: 2, label: t('options.lumiereWindowNeighborsBoth') },
@@ -102,11 +98,10 @@ const LumiereSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
             onPointerUp={onSliderCommit}
         />
     ) : (
-        <VisualizerPresetGroup
+        <VisualizerToggleRow
             key={spec.key}
             label={t(spec.labelKey)}
             value={lumiereTuning[spec.key]}
-            options={booleanOptions}
             onChange={value => onLumiereTuningChange?.({ [spec.key]: value })}
             isDaylight={isDaylight}
             theme={theme}

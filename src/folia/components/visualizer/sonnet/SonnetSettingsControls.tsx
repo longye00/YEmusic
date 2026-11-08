@@ -10,7 +10,7 @@ interface SonnetSettingsSectionProps {
 export const SonnetSettingsSection: React.FC<SonnetSettingsSectionProps> = ({ title, children }) => (
     <section className="space-y-4 border-t border-white/10 pt-4">
         <h3
-            className="text-xs font-medium uppercase tracking-[0.24em] opacity-45"
+            className="text-xs font-medium uppercase tracking-[0.08em] opacity-45"
             style={{ color: 'var(--text-secondary)' }}
         >
             {title}
