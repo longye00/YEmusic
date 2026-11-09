@@ -6,6 +6,7 @@ const CASES = [
     ['tests/login-mock.ts', {}],
     ['tests/login-phone-mock.ts', {}],
     ['tests/updater-mock.ts', {}],
+    ['tests/net-keepalive-mock.ts', {}],
     ['tests/account-playlists-mock.ts', {}],
     ['tests/official-url-mock.ts', {}],
     ['tests/resolver-order-mock.ts', SRC],

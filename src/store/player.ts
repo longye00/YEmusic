@@ -76,6 +76,8 @@ let stallTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingSeek = 0;
 let crossfading = false;
 let prefetchedFor = '';
+/** 已提前解析过链接（还没预载音频）的那首歌 */
+let prefetchedUrlFor = '';
 const history: number[] = [];
 let shufflePlayed = new Set<string>();
 let radioFeeder: (() => Promise<Track[]>) | null = null;
@@ -253,7 +255,8 @@ export function exitRadio() {
 export function stop() {
     seq++;
     clearTimeout(skipTimer);
-    engine.stop();
+    // 彻底停止：预载的声道一并释放，不占 CDN 连接
+    engine.stop(true);
     set({ status: get().current ? 'paused' : 'idle', buffering: false });
 }
 
@@ -272,6 +275,7 @@ async function loadIndex(index: number, options: { autoplay?: boolean; startAt?:
     excludeSources = new Set();
     midErrors = 0;
     prefetchedFor = '';
+    prefetchedUrlFor = '';
     set({
         index,
         current: track,
@@ -657,13 +661,38 @@ setInterval(() => {
     const mode = useSettings.getState().playMode;
     const upcoming = mode === 'shuffle' || mode === 'one' ? -1 : nextIndex(true);
     const nextTrack = upcoming >= 0 && upcoming !== state.index ? state.queue[upcoming] : undefined;
-    if (nextTrack && remaining < 30 && prefetchedFor !== nextTrack.id && nextTrack.source !== 'local') {
-        prefetchedFor = nextTrack.id;
+    // 先解析链接（不占带宽），再预载音频：手动点「下一首」时链接已在缓存里，省掉音源接口那一两秒
+    if (nextTrack && prefetchedUrlFor !== nextTrack.id && nextTrack.source !== 'local' && !crossfading) {
+        prefetchedUrlFor = nextTrack.id;
         resolveUrl(nextTrack, { allowSwitch: false }).catch(() => {});
+    }
+    if (nextTrack && remaining < 30 && prefetchedFor !== nextTrack.id && nextTrack.source !== 'local' && !crossfading) {
+        prefetchedFor = nextTrack.id;
+        void prefetchNext(nextTrack);
     }
     const fade = useSettings.getState().crossfade;
     if (fade > 0 && nextTrack && !crossfading && remaining <= fade + 0.3 && duration > fade * 3) void crossfadeTo(upcoming, fade);
 }, 400);
+
+/**
+ * 预取下一首：解析链接后立刻在空闲声道把音频暖起来。
+ * 之前只把链接解析好（连不连得上都靠切歌那一刻再说），切歌还要等一次完整缓冲；
+ * 现在音频已经就位，`engine.load` 直接换声道出声。
+ * 提前太久预载会占带宽，所以只在剩余不到 30 秒时才做。
+ */
+async function prefetchNext(track: Track) {
+    try {
+        const resolved = await resolveUrl(track, { allowSwitch: false });
+        const token = seq;
+        const url = await playableUrl(resolved);
+        if (token !== seq) return;
+        const ok = await engine.prepare(url, resolved.local ? undefined : (resolved.via ?? track).duration || undefined);
+        if (!ok && token === seq) {
+            // 预载阶段就发现是试听片段：登记来源，正常切歌时不再向它取链
+            console.info('[player] 预载拿到试听片段或失败，切歌时换源', resolved.sourceName);
+        }
+    } catch { /* 预取失败不影响正常切歌 */ }
+}
 
 async function crossfadeTo(index: number, seconds: number) {
     const track = get().queue[index];

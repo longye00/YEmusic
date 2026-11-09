@@ -18,6 +18,15 @@ let port = 0;
 /** token -> { kind:'remote', url, headers } | { kind:'local', path } */
 const tokens = new Map();
 
+/**
+ * 复用连接：一首歌要连两次（探测一次、拉音频一次），接着下一首又要连。
+ * 不 keep-alive 的话每次都要重新 DNS + TCP + TLS，光是握手就一两百毫秒，
+ * 切歌时这段等待是纯浪费。空闲连接留 30 秒，够跨过一两首歌。
+ */
+const KEEP_ALIVE = { keepAlive: true, keepAliveMsecs: 30000, maxSockets: 16, maxFreeSockets: 8, timeout: 60000 };
+const httpAgent = new http.Agent(KEEP_ALIVE);
+const httpsAgent = new https.Agent(KEEP_ALIVE);
+
 const MIME = {
     '.mp3': 'audio/mpeg', '.flac': 'audio/flac', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.oga': 'audio/ogg',
     '.opus': 'audio/ogg', '.m4a': 'audio/mp4', '.mp4': 'audio/mp4', '.aac': 'audio/aac', '.wma': 'audio/x-ms-wma',
@@ -93,7 +102,7 @@ function serveRemote(req, res, target, extraHeaders, hops = 0) {
     }
     if (req.headers.range) headers.range = req.headers.range;
     const client = parsed.protocol === 'https:' ? https : http;
-    const upstream = client.request(parsed, { method: req.method === 'HEAD' ? 'HEAD' : 'GET', headers, timeout: 30000, lookup: publicLookup }, up => {
+    const upstream = client.request(parsed, { method: req.method === 'HEAD' ? 'HEAD' : 'GET', headers, timeout: 30000, lookup: publicLookup, agent: parsed.protocol === 'https:' ? httpsAgent : httpAgent }, up => {
         const status = up.statusCode || 502;
         if (status >= 300 && status < 400 && up.headers.location) {
             up.resume();

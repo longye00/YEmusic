@@ -9,6 +9,15 @@ const dns = require('node:dns');
 
 const DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36';
 
+/**
+ * 复用连接：探测、取链、图片、下载都往同几个 CDN 打，
+ * 不 keep-alive 的话每个请求都要重新 DNS + TCP + TLS 握手（一两百毫秒），
+ * 切歌时这段等待叠起来很明显。
+ */
+const AGENT_OPTS = { keepAlive: true, keepAliveMsecs: 30000, maxSockets: 32, maxFreeSockets: 8, timeout: 60000 };
+const httpAgent = new http.Agent(AGENT_OPTS);
+const httpsAgent = new https.Agent(AGENT_OPTS);
+
 function isPrivateIp(ip) {
     const s = String(ip || '').toLowerCase().replace(/^\[|\]$/g, '');
     if (s.includes(':')) {
@@ -145,7 +154,7 @@ function request(req, redirects = 0) {
             settled = true;
             resolve(result);
         };
-        const r = client.request(target, { method, headers, timeout: timeoutMs, lookup: publicLookup }, res => {
+        const r = client.request(target, { method, headers, timeout: timeoutMs, lookup: publicLookup, agent: target.protocol === 'https:' ? httpsAgent : httpAgent }, res => {
             const status = res.statusCode || 0;
             if (status >= 300 && status < 400 && res.headers.location && req.followRedirects !== false) {
                 res.resume();
@@ -166,7 +175,11 @@ function request(req, redirects = 0) {
             }
             const chunks = [];
             let received = 0;
+            // 探测只要前 N 个字节：拿够之后停止累积（有的服务器会无视 Range 或按块凑整多给），
+            // 剩下的数据只是排空，不再进内存，也不计入 maxBytes
+            let satisfied = false;
             res.on('data', chunk => {
+                if (satisfied) return;
                 received += chunk.length;
                 if (received > maxBytes) {
                     r.destroy(new Error('response exceeds size limit'));
@@ -174,8 +187,11 @@ function request(req, redirects = 0) {
                 }
                 chunks.push(chunk);
                 if (req.range && received >= req.range) {
+                    satisfied = true;
                     done();
-                    r.destroy();
+                    // 服务器认了 Range（206，body 就是要的那几字节）：让它自然结束，socket 留给下个请求复用。
+                    // 服务器无视 Range（200，接下来会灌整个文件）：立刻掐断，别白下整首歌。
+                    if (status !== 206) r.destroy();
                 }
             });
             const done = () => {
@@ -186,7 +202,8 @@ function request(req, redirects = 0) {
                     statusMessage: res.statusMessage || '',
                     url: target.toString(),
                     headers: flattenHeaders(res.headers),
-                    bytes: req.range ? raw : decodeBody(raw, res.headers['content-encoding']),
+                    // 探测要 2 个字节就只给 2 个：有的服务器按块凑整多给一点，上层据此判 contentType
+                    bytes: req.range ? raw.subarray(0, req.range) : decodeBody(raw, res.headers['content-encoding']),
                 });
             };
             res.on('end', done);
