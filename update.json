@@ -1,6 +1,7 @@
-﻿{"version": "0.6.1",
-  "notes": "启动动画：YEmusic 字标字形轮盘 + 波形（可跳过、可关）；歌词样式窗口：实时预览 + 样式缩略图架 + 五页签参数栏；播放条统一为 Folia 式胶囊（悬停展开、标题导航预览上下首、快捷操作条）；拼贴墙拖动卡顿修复；QQ 音乐搜索恢复、酷我封面恢复、脏设置不再崩页面",
-  "android": "YEmusic-0.6.1-android.apk",
-  "windows": "YEmusic-setup-0.6.1.exe",
-  "publishedAt": "2026-11-08T15:23:14.321Z"
+{
+  "version": "0.6.2",
+  "notes": "歌词样式参数面板改用开关行（商籁/凝彩/绘光/时计/莫奈/克拉达），字距收紧；音量弹层改成 Folia 式圆角卡片：点喇叭即静音、大百分比读数、整宽滑杆",
+  "android": "YEmusic-0.6.2-android.apk",
+  "windows": "YEmusic-setup-0.6.2.exe",
+  "publishedAt": "2026-11-09T05:50:23.618Z"
 }
