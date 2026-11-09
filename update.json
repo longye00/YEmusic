@@ -1,7 +1,7 @@
 {
-  "version": "0.6.2",
-  "notes": "歌词样式参数面板改用开关行（商籁/凝彩/绘光/时计/莫奈/克拉达），字距收紧；音量弹层改成 Folia 式圆角卡片：点喇叭即静音、大百分比读数、整宽滑杆",
-  "android": "YEmusic-0.6.2-android.apk",
-  "windows": "YEmusic-setup-0.6.2.exe",
-  "publishedAt": "2026-11-09T05:50:23.618Z"
+  "version": "0.6.3",
+  "notes": "切歌缓冲提速：下一首链接提前解析、剩余 30 秒在空闲声道预载音频、主进程与音频代理改用 keep-alive 连接池（探测与拉流复用同一条 TCP 连接）、代理地址只申请一次、探测只取所需字节且服务器无视 Range 时立刻掐断",
+  "android": "YEmusic-0.6.3-android.apk",
+  "windows": "YEmusic-setup-0.6.3.exe",
+  "publishedAt": "2026-11-09T13:21:07.510Z"
 }
