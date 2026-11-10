@@ -28,6 +28,7 @@ interface YeNative {
     defaultPaths(): Promise<{ downloads: string; music: string; userData: string; cache?: string }>;
     request(options: Record<string, unknown>): Promise<NativeResponse>;
     proxyAudioUrl(options: { url: string; headers?: Record<string, string> }): Promise<{ url: string | null }>;
+    webLogin(options: { platform: string }): Promise<{ cancelled: boolean; cookie: string | null }>;
     localAudioUrl(options: { path: string }): Promise<{ url: string | null }>;
     pickFolder(): Promise<Picked>;
     pickFiles(options: { multiple?: boolean; extensions?: string[] }): Promise<Picked>;
@@ -168,6 +169,10 @@ function install() {
             return { ok: res.ok, status: res.status, error: res.error, contentType: res.contentType || '', url: res.url };
         },
         proxyAudioUrl: async req => (await native.proxyAudioUrl(req)).url,
+        webLogin: async platform => {
+            const res = await native.webLogin({ platform });
+            return res.cancelled ? null : res.cookie || null;
+        },
         download: req => native.download(req as unknown as Record<string, unknown>),
         cancelDownload: async id => (await native.cancelDownload({ id })).value,
         onDownloadProgress: handler => subscribe(native, 'downloadProgress', handler),

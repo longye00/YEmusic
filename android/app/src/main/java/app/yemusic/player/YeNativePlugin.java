@@ -277,6 +277,41 @@ public class YeNativePlugin extends Plugin {
         call.resolve(out);
     }
 
+    // ---------------------------------------------------------------- 应用内网页登录
+
+    /** 各平台的手机版登录页：在应用内 WebView 里打开，用户按平台自己的方式登录 */
+    private static final Map<String, String[]> LOGIN_PAGES = new LinkedHashMap<>();
+    static {
+        LOGIN_PAGES.put("wy", new String[] { "https://music.163.com/m/login", "登录网易云音乐" });
+        LOGIN_PAGES.put("tx", new String[] { "https://i.y.qq.com/n2/m/account/account.html", "登录QQ音乐" });
+        LOGIN_PAGES.put("kg", new String[] { "https://m.kugou.com/", "登录酷狗音乐" });
+    }
+
+    @PluginMethod
+    public void webLogin(PluginCall call) {
+        String platform = call.getString("platform", "");
+        String[] page = LOGIN_PAGES.get(platform);
+        Activity activity = getActivity();
+        if (page == null || activity == null) {
+            JSObject o = new JSObject();
+            o.put("cancelled", true);
+            o.put("cookie", JSONObject.NULL);
+            call.resolve(o);
+            return;
+        }
+        WebLoginActivity.setListener((cookie, cancelled) -> {
+            JSObject o = new JSObject();
+            o.put("cancelled", cancelled);
+            o.put("cookie", cookie == null ? JSONObject.NULL : cookie);
+            call.resolve(o);
+        });
+        Intent intent = new Intent(activity, WebLoginActivity.class);
+        intent.putExtra("platform", platform);
+        intent.putExtra("url", page[0]);
+        intent.putExtra("title", page[1]);
+        activity.startActivity(intent);
+    }
+
     // ---------------------------------------------------------------- 文件选择
 
     private void persist(Uri uri, boolean write) {

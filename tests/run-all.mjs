@@ -2,11 +2,20 @@
 import { spawnSync } from 'node:child_process';
 
 const SRC = { '@/sdk/official': 'tests/stubs/official.ts', '@/store/sources': 'tests/stubs/sources.ts' };
+// 猜我喜欢只碰推荐接口 / 曲库 / SDK / 设置 / 网易云账号，全部用桩替掉
+const GUESS_SRC = {
+    '@/sdk/wyApi': 'tests/stubs/wyApi.ts',
+    '@/store/library': 'tests/stubs/library.ts',
+    '@/sdk': 'tests/stubs/sdk.ts',
+    '@/store/settings': 'tests/stubs/settings.ts',
+    '@/store/wyAccount': 'tests/stubs/wyAccount.ts',
+};
 const CASES = [
     ['tests/login-mock.ts', {}],
     ['tests/login-phone-mock.ts', {}],
     ['tests/updater-mock.ts', {}],
     ['tests/net-keepalive-mock.ts', {}],
+    ['tests/guess-paging-mock.ts', GUESS_SRC],
     ['tests/account-playlists-mock.ts', {}],
     ['tests/official-url-mock.ts', {}],
     ['tests/resolver-order-mock.ts', SRC],

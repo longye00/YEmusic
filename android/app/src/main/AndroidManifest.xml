@@ -26,6 +26,14 @@
 
         </activity>
 
+        <!-- 应用内网页登录：打开平台手机版登录页，会话 Cookie 出现即回传并关闭 -->
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".WebLoginActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBar"
+            android:exported="false" />
+
         <!-- 播放服务：前台媒体服务 + MediaSession，让后台 / 锁屏下音乐不中断，并提供通知栏控制 -->
         <service
             android:name=".PlaybackService"

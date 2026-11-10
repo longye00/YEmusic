@@ -5,6 +5,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useUi } from "@/store/ui";
+import { useLite } from "@/lib/lite";
 
 const FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
 
@@ -23,6 +24,10 @@ export function Surface({ open, onClose, children, className = "", label, backdr
     const cardRef = useRef<HTMLDivElement>(null);
     const restoreRef = useRef<HTMLElement | null>(null);
     const downOnBackdrop = useRef(false);
+    // 精简模式（安卓默认）去掉遮罩毛玻璃：整屏 backdrop-filter 在手机上每帧都要重采样
+    // 底下所有内容，设置中心这种大浮层会把主线程拖到卡死。深色遮罩本身已足够压暗。
+    const lite = useLite();
+    const backdrop = lite ? backdropClassName.replace(/backdrop-blur-\S+/g, "").trim() : backdropClassName;
 
     useEffect(() => {
         if (!open) return;
@@ -72,7 +77,7 @@ export function Surface({ open, onClose, children, className = "", label, backdr
         <AnimatePresence>
             {open && (
                 <motion.div
-                    className={"fixed inset-0 z-[80] grid place-items-center p-6 " + backdropClassName}
+                    className={"fixed inset-0 z-[80] grid place-items-center p-6 " + backdrop}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}

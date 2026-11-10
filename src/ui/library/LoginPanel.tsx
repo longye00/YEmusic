@@ -1,12 +1,14 @@
 /**
  * 在线平台登录面板：乐库书签里的登录态与设置页的登录对话框共用。
+ * 安卓端以「应用内网页登录」为主：在应用里打开平台自己的手机版登录页，用户按平台的方式
+ * （手机号 / 密码 / 平台 App 授权）登录，登录完成应用自动拿到会话并关闭网页；
+ * Cookie 粘贴退居其次（网页登录拿不到凭据时的兜底）。网易云另有手机号 + 短信验证码登录。
  * 安卓端不提供扫码入口（在手机上要走「显示二维码 → 存到相册 → 打开另一个 App 的扫一扫 → 从相册选图」，
- * 步骤多且经常失败）：网易云用手机号 + 短信验证码，QQ音乐 / 酷狗没有公开的短信登录接口，以粘贴 Cookie 为主。
- * 桌面端维持扫码为主、Cookie 兜底。
+ * 步骤多且经常失败）。桌面端维持扫码为主、Cookie 兜底。
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, RefreshCw, Smartphone, X } from 'lucide-react';
-import { isAndroid } from '@/lib/host';
+import { CheckCircle2, ExternalLink, RefreshCw, Smartphone, X } from 'lucide-react';
+import { host, isAndroid } from '@/lib/host';
 import qrMatrix from '@/lib/vendor/qrcode.js';
 import { ACCOUNT_META, loginWithCookie, loginWyWithPhone, sendWyCaptcha, startQrLogin, type AccountPlatform, type LoginMethod, type LoginPhase, type LoginQr } from '@/store/accounts';
 import { toast } from '@/store/toast';
@@ -53,8 +55,52 @@ export interface LoginPanelProps {
     bottomSafe?: number;
 }
 
-/** 安卓端的登录方式：网易云可用手机验证码，另外两个平台只能粘贴 Cookie */
-type AndroidMode = 'phone' | 'cookie';
+/** 安卓端的登录方式：网页登录（默认）、网易云手机验证码、Cookie 兜底 */
+type AndroidMode = 'web' | 'phone' | 'cookie';
+
+const WEB_LOGIN_TITLE: Record<AccountPlatform, string> = {
+    wy: '打开网易云登录页',
+    tx: '打开QQ音乐登录页',
+    kg: '打开酷狗登录页',
+};
+
+/** 应用内网页登录：原生层打开平台手机版登录页，登录完成自动回传会话 Cookie */
+function WebLogin({ platform, metaName, onDone }: { platform: AccountPlatform; metaName: string; onDone: () => void }) {
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
+    const doneRef = useRef(onDone);
+    doneRef.current = onDone;
+
+    const start = async () => {
+        if (busy || !host.webLogin) return;
+        setBusy(true);
+        setError('');
+        try {
+            const cookie = await host.webLogin(platform);
+            if (!cookie) return; // 用户取消：回到初始状态，什么都不说
+            const profile = await loginWithCookie(platform, cookie);
+            toast(`已登录${metaName}：${profile.nickname}`, 'success');
+            doneRef.current();
+        } catch (e) {
+            setError(`${(e as Error).message || '登录失败'}，可改用其他方式`);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div className="mt-4 space-y-2.5">
+            <Button variant="white" className="h-11 w-full !rounded-[12px]" onClick={start} disabled={busy}>
+                {busy ? <Spinner /> : <ExternalLink className="h-4 w-4" />}
+                {busy ? '等待登录完成…' : WEB_LOGIN_TITLE[platform]}
+            </Button>
+            {error && <p className="break-words rounded-xl bg-red-500/10 px-3 py-2 text-[12.5px] leading-relaxed text-red-300">{error}</p>}
+            <p className="text-center text-[11.5px] leading-relaxed text-[color:var(--seam-ink-soft)]">
+                在打开的网页里按{metaName}自己的方式登录（手机号 / 密码 / 平台 App 授权），登录完成后自动回到本应用。
+            </p>
+        </div>
+    );
+}
 
 /** 网易云手机号 + 短信验证码登录 */
 function PhoneLogin({ metaName, onDone }: { metaName: string; onDone: () => void }) {
@@ -156,8 +202,8 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
     const [qr, setQr] = useState<LoginQr | null>(null);
     const [phase, setPhase] = useState<LoginPhase>({ phase: 'loading' });
     const [nonce, setNonce] = useState(0);
-    // 安卓端不请求二维码：网易云默认手机验证码，QQ音乐 / 酷狗默认 Cookie
-    const [mode, setMode] = useState<AndroidMode>(platform === 'wy' ? 'phone' : 'cookie');
+    // 安卓端不请求二维码：默认应用内网页登录，网易云另有手机验证码，Cookie 兜底
+    const [mode, setMode] = useState<AndroidMode>('web');
     const [manual, setManual] = useState(false);
     const [cookieText, setCookieText] = useState('');
     const [busy, setBusy] = useState(false);
@@ -232,21 +278,19 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
             </p>
             {isAndroid ? (
                 <>
-                    {platform === 'wy' && (
-                        <div className="mt-4 flex w-full rounded-[10px] bg-white/[0.06] p-[3px] text-[12.5px] font-bold">
-                            {(['phone', 'cookie'] as AndroidMode[]).map(m => (
-                                <button
-                                    key={m}
-                                    type="button"
-                                    onClick={() => setMode(m)}
-                                    className={cx('no-drag h-8 flex-1 rounded-[8px] transition-colors', mode === m ? 'bg-[#f7f4ee] text-[#0b0b0c]' : 'txt-3 hover:text-white')}
-                                >
-                                    {m === 'phone' ? '手机验证码' : 'Cookie'}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                    {platform === 'wy' && mode === 'phone' ? <PhoneLogin metaName={meta.name} onDone={onDone} /> : cookieForm}
+                    <div className="mt-4 flex w-full rounded-[10px] bg-white/[0.06] p-[3px] text-[12.5px] font-bold">
+                        {(['web', ...(platform === 'wy' ? ['phone'] : []), 'cookie'] as AndroidMode[]).map(m => (
+                            <button
+                                key={m}
+                                type="button"
+                                onClick={() => setMode(m)}
+                                className={cx('no-drag h-8 flex-1 rounded-[8px] transition-colors', mode === m ? 'bg-[#f7f4ee] text-[#0b0b0c]' : 'txt-3 hover:text-white')}
+                            >
+                                {m === 'web' ? '网页登录' : m === 'phone' ? '手机验证码' : 'Cookie'}
+                            </button>
+                        ))}
+                    </div>
+                    {mode === 'web' ? <WebLogin platform={platform} metaName={meta.name} onDone={onDone} /> : mode === 'phone' ? <PhoneLogin metaName={meta.name} onDone={onDone} /> : cookieForm}
                 </>
             ) : !manual ? (
                 <div className="mt-4 flex flex-col items-center">
@@ -297,8 +341,12 @@ export function LoginPanel({ platform, onDone, onClose, variant, bottomSafe = 0 
             ) : cookieForm}
             <div className={cx('flex items-center justify-between gap-3 text-[12px]', variant === 'seam' ? 'mt-auto pb-2 pt-4' : 'mt-6 border-t ln-weak pt-4')}>
                 {isAndroid ? (
-                    // 安卓没有扫码入口，也就没有"返回扫码"可切；QQ音乐 / 酷狗只有 Cookie 一种方式
-                    <span className="txt-4">{platform === 'wy' ? '登录后可同步歌单与会员音质' : `${meta.name}在手机上使用 Cookie 登录`}</span>
+                    // 安卓没有扫码入口，也就没有"返回扫码"可切
+                    <span className="txt-4">
+                        {host.webLogin
+                            ? '网页登录在应用内打开平台登录页，登录完成自动回到这里'
+                            : platform === 'wy' ? '登录后可同步歌单与会员音质' : `${meta.name}在手机上使用 Cookie 登录`}
+                    </span>
                 ) : (
                     <button type="button" className="no-drag text-left txt-4 underline-offset-2 hover:txt-2 hover:underline" onClick={() => setManual(m => !m)}>
                         {manual ? '返回扫码登录' : '扫码不可用？使用 Cookie 登录'}

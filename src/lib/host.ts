@@ -95,6 +95,8 @@ export interface YeApi {
     saveImage?(req: { data: Uint8Array; name: string }): Promise<string>;
     /** 仅 Android：打开另一个 App（登录时用它的“扫一扫”）；没有安装返回 false */
     launchApp?(app: 'qq' | 'wechat' | 'kugou' | 'netease' | 'qqmusic'): Promise<boolean>;
+    /** 仅 Android：应用内网页登录——打开平台手机版登录页，登录完成返回会话 Cookie，取消返回 null */
+    webLogin?(platform: string): Promise<string | null>;
     /** 仅 Android：调起系统安装器安装已下载的 APK（应用内更新）；无法调起返回 false */
     installApk?(options: { path: string }): Promise<boolean>;
 }
