@@ -3,6 +3,7 @@ import { ImagePlus, Trash2 } from 'lucide-react';
 import { DEFAULT_MONET_TUNING, type MonetAudioStyle, type MonetPortraitSource } from '../../../types';
 import { colorWithAlpha } from '../colorMix';
 import { type VisualizerSettingsPanelProps } from '../definition';
+import VisualizerToggleRow from '../VisualizerToggleRow';
 
 // src/components/visualizer/monet/MonetSettingsPanel.tsx
 // Monet-specific lyric, audio, and portrait controls. Background controls live in the shared background panel.
@@ -43,7 +44,7 @@ const clampValue = (value: number, min: number, max: number, fallback: number) =
 );
 
 const SectionLabel: React.FC<{ children: React.ReactNode; theme: MonetSettingsTheme; }> = ({ children, theme }) => (
-    <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: theme.secondaryColor }}>
+    <div className="text-xs font-medium uppercase tracking-[0.08em] opacity-45" style={{ color: theme.secondaryColor }}>
         {children}
     </div>
 );
@@ -152,14 +153,6 @@ export const MonetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         showPortraitDragHanger: monetTuning.showPortraitDragHanger ?? DEFAULT_MONET_TUNING.showPortraitDragHanger,
     };
 
-    const keywordColoringOptions = useMemo<PresetOption<boolean>[]>(() => ([
-        { value: true, label: t('options.monetKeywordColoringOn') },
-        { value: false, label: t('options.monetKeywordColoringOff') },
-    ]), [t]);
-    const showDescriptionOptions = useMemo<PresetOption<boolean>[]>(() => ([
-        { value: true, label: t('options.partitaGuideLinesOn') },
-        { value: false, label: t('options.partitaGuideLinesOff') },
-    ]), [t]);
     const portraitSourceOptions = useMemo<PresetOption<MonetPortraitSource>[]>(() => ([
         { value: 'cover', label: t('options.monetPortraitSourceCover') },
         {
@@ -172,19 +165,10 @@ export const MonetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
         { value: 'bar', label: t('options.monetAudioStyleBar') },
         { value: 'line', label: t('options.monetAudioStyleLine') },
     ]), [t]);
-    const showAudioVisualizationOptions = useMemo<PresetOption<boolean>[]>(() => ([
-        { value: true, label: t('options.monetAudioVisualizationShow') },
-        { value: false, label: t('options.monetAudioVisualizationHide') },
-    ]), [t]);
     const portraitStyleOptions = useMemo<PresetOption<'rectangular' | 'square'>[]>(() => ([
         { value: 'rectangular', label: t('options.monetPortraitStyleRectangular') },
         { value: 'square', label: t('options.monetPortraitStyleSquare') },
     ]), [t]);
-    const showPortraitDragHangerOptions = useMemo<PresetOption<boolean>[]>(() => ([
-        { value: true, label: t('options.monetPortraitDragHangerShow') },
-        { value: false, label: t('options.monetPortraitDragHangerHide') },
-    ]), [t]);
-
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files ?? []);
         event.target.value = '';
@@ -235,19 +219,17 @@ export const MonetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     onSliderCommit={onSliderCommit}
                 />
 
-                <PresetGroup
+                <VisualizerToggleRow
                     label={t('options.monetKeywordColoring')}
                     value={resolvedTuning.keywordColoringEnabled}
-                    options={keywordColoringOptions}
                     onChange={(value) => onMonetTuningChange?.({ keywordColoringEnabled: value })}
                     isDaylight={isDaylight}
                     theme={theme}
                 />
 
-                <PresetGroup
+                <VisualizerToggleRow
                     label={t('options.monetShowDescription')}
                     value={resolvedTuning.showDescription}
-                    options={showDescriptionOptions}
                     onChange={(value) => onMonetTuningChange?.({ showDescription: value })}
                     isDaylight={isDaylight}
                     theme={theme}
@@ -278,10 +260,9 @@ export const MonetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     theme={theme}
                 />
 
-                <PresetGroup
+                <VisualizerToggleRow
                     label={t('options.monetPortraitDragHanger')}
-                    value={resolvedTuning.showPortraitDragHanger}
-                    options={showPortraitDragHangerOptions}
+                    value={resolvedTuning.showPortraitDragHanger ?? false}
                     onChange={(value) => onMonetTuningChange?.({ showPortraitDragHanger: value })}
                     isDaylight={isDaylight}
                     theme={theme}
@@ -338,10 +319,9 @@ export const MonetSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
                     {t('options.monetAudioStyle')}
                 </div>
 
-                <PresetGroup
+                <VisualizerToggleRow
                     label={t('options.monetShowAudioVisualization')}
                     value={resolvedTuning.showAudioVisualization}
-                    options={showAudioVisualizationOptions}
                     onChange={(value) => onMonetTuningChange?.({ showAudioVisualization: value })}
                     isDaylight={isDaylight}
                     theme={theme}

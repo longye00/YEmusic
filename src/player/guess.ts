@@ -22,7 +22,8 @@ const MAX_PER_ARTIST = 3;
 export const splitArtists = (singer: string) => String(singer || '').split(/\s*(?:[、,，/&;；]|\s(?:feat\.?|ft\.?)\s)\s*/i).map(s => s.trim()).filter(Boolean);
 const norm = (text: string) => String(text || '').toLowerCase().replace(/[\s·.,，。!！?？'"“”‘’()（）[\]【】\-_~～]/g, '');
 /** 去重用：歌名 + 第一位歌手 */
-const keyOf = (track: Track) => `${norm(track.name)}|${norm(splitArtists(track.singer)[0] || '')}`;
+export const guessKeyOf = (track: Track) => `${norm(track.name)}|${norm(splitArtists(track.singer)[0] || '')}`;
+const keyOf = guessKeyOf;
 
 function pickWeighted<T>(items: { item: T; w: number }[], count: number): T[] {
     const pool = items.filter(x => x.w > 0);
@@ -120,9 +121,18 @@ async function artistSongs(artist: string): Promise<Track[]> {
 export interface GuessResult {
     list: Track[];
     desc: string;
+    /** 这一批一首新歌都没凑出来（能推的都推过了）：上层据此停止继续翻页 */
+    exhausted: boolean;
 }
 
-export async function guessSongs(): Promise<GuessResult> {
+export interface GuessOptions {
+    /** 已经推过的歌（`name|首位歌手` 小写键）：翻页时传入，避免第二批还是同一批歌 */
+    exclude?: Set<string>;
+    /** 本页要多少首 */
+    size?: number;
+}
+
+export async function guessSongs(options: GuessOptions = {}): Promise<GuessResult> {
     const signals = collectSignals();
     const wyLoggedIn = Boolean(useWyAccount.getState().profile);
     const seeds = signals.empty ? [] : pickWeighted(signals.songs.filter(x => x.item.source !== 'local'), 4);
@@ -145,6 +155,8 @@ export async function guessSongs(): Promise<GuessResult> {
     const settled = await Promise.allSettled(jobs.map(job => job.list));
     const pool = new Map<string, { track: Track; score: number }>();
     let failures = 0;
+    const exclude = options.exclude;
+    const paging = Boolean(exclude && exclude.size);
     settled.forEach((res, index) => {
         if (res.status === 'rejected') {
             failures++;
@@ -154,7 +166,8 @@ export async function guessSongs(): Promise<GuessResult> {
         res.value.forEach((track, rank) => {
             if (!track?.name) return;
             const key = keyOf(track);
-            if (!key || signals.seen.has(key)) return;
+            // 已收藏 / 刚听过的不推；翻页时把前几页推过的也排掉，否则每页都是同一批
+            if (!key || signals.seen.has(key) || exclude?.has(key)) return;
             const score = base * (1 - Math.min(rank, 30) / 60) + Math.random();
             const prev = pool.get(key);
             // 被多个来源同时推荐的歌加分
@@ -162,8 +175,13 @@ export async function guessSongs(): Promise<GuessResult> {
             else pool.set(key, { track, score });
         });
     });
-    if (!pool.size) throw new Error(failures ? '暂时无法获取推荐，请检查网络后点“换一批”重试' : '暂时没有可推荐的歌曲，多收藏几首喜欢的歌再来看看');
+    // 第一页没东西可推才报错；翻页时「抽干了」是正常收尾，交给上层停止加载
+    if (!pool.size) {
+        if (paging) return { list: [], desc: '', exhausted: true };
+        throw new Error(failures ? '暂时无法获取推荐，请检查网络后点“换一批”重试' : '暂时没有可推荐的歌曲，多收藏几首喜欢的歌再来看看');
+    }
 
+    const size = options.size || GUESS_SIZE;
     const perArtist = new Map<string, number>();
     const list: Track[] = [];
     for (const { track } of [...pool.values()].sort((a, b) => b.score - a.score)) {
@@ -172,12 +190,16 @@ export async function guessSongs(): Promise<GuessResult> {
         if (count >= MAX_PER_ARTIST) continue;
         perArtist.set(artist, count + 1);
         list.push(track);
-        if (list.length >= GUESS_SIZE) break;
+        if (list.length >= size) break;
     }
+
+    // 凑不满一页说明能推的基本推完了（同一歌手上限也在收紧），标记出来让上层别再空转
+    const exhausted = list.length < size;
+    if (paging) return { list: shuffle(list), desc: '', exhausted };
 
     const favNames = artists.slice(0, 3);
     const desc = signals.empty
-        ? '还没有收藏或播放记录，先随机推荐一些歌。收藏几首喜欢的歌，这里会越来越懂你。点「换一批」重新猜。'
-        : `根据你常听的${favNames.length ? `「${favNames.join('、')}」等` : ''}歌曲与收藏生成，混合了相似歌曲${wyLoggedIn ? '与网易云每日推荐' : ''}。点「换一批」重新猜。`;
-    return { list: shuffle(list), desc };
+        ? '还没有收藏或播放记录，先随机推荐一些歌。收藏几首喜欢的歌，这里会越来越懂你。往下滚会继续猜出新的一批。'
+        : `根据你常听的${favNames.length ? `「${favNames.join('、')}」等` : ''}歌曲与收藏生成，混合了相似歌曲${wyLoggedIn ? '与网易云每日推荐' : ''}。往下滚会继续猜出新的一批。`;
+    return { list: shuffle(list), desc, exhausted };
 }

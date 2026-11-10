@@ -54,7 +54,7 @@ const StrengthControl: React.FC<StrengthControlProps> = ({
 
     return (
         <>
-            <div className="text-xs font-medium uppercase tracking-[0.24em] opacity-45" style={{ color: theme.secondaryColor }}>
+            <div className="text-xs font-medium uppercase tracking-[0.08em] opacity-45" style={{ color: theme.secondaryColor }}>
                 {t('options.dioramaEffectStrength')}
             </div>
             <div className="flex flex-wrap gap-2">

@@ -48,6 +48,10 @@ class AudioEngine {
     private fadeTimer?: ReturnType<typeof setTimeout>;
     private pauseTimer?: ReturnType<typeof setTimeout>;
     private loadSeq = 0;
+    /** 空闲声道上预载好的地址（prepare/load 配对用），切歌时直接换声道出声，省掉整个缓冲等待 */
+    private preparedUrl = '';
+    /** 正在淡出的声道：淡完会被清空，不能拿来预载 */
+    private fading?: Deck;
 
     constructor() {
         this.decks = [this.createDeck(0), this.createDeck(1)];
@@ -229,6 +233,8 @@ class AudioEngine {
 
     private waitReady(el: HTMLAudioElement, seq: number, timeoutMs: number): Promise<{ ok: boolean; error?: string }> {
         return new Promise(resolve => {
+            // 已经缓冲够了（预载过 / canplay 早于监听器触发）：立刻放行，不必等一个不会再来的事件
+            if (el.readyState >= 3) { resolve({ ok: seq === this.loadSeq }); return; }
             const cleanup = () => {
                 clearTimeout(timer);
                 el.removeEventListener('canplay', onReady);
@@ -247,7 +253,18 @@ class AudioEngine {
         this.ensureGraph();
         clearTimeout(this.pauseTimer);
         const seq = ++this.loadSeq;
+        // 空闲声道已经预载好这个地址：直接换声道出声，跳过整段「设置 src → 等 canplay」的等待
+        if (this.takePrepared(url)) {
+            const deck = this.decks[this.active];
+            if (options.startAt && options.startAt > 0) {
+                try { deck.el.currentTime = options.startAt; } catch { /* ignore */ }
+            }
+            if (options.autoplay !== false) return this.play().then(() => ({ ok: true }), (error: Error) => ({ ok: false, error: error.message }));
+            return { ok: true };
+        }
         const other = this.decks[1 - this.active];
+        clearTimeout(this.fadeTimer);
+        this.fading = undefined;
         other.el.pause();
         other.el.removeAttribute('src');
         other.el.load();
@@ -275,6 +292,70 @@ class AudioEngine {
     }
 
     /**
+     * 在空闲声道预载一首歌，不打断当前播放。
+     * 链接解析完就先暖好音频，等真正切歌时 `load()` 直接换声道出声，缓冲时间归零。
+     * 预载期间发生切歌 / 停止（空闲声道换了人），预载结果作废。
+     */
+    async prepare(url: string, expectedDuration?: number): Promise<boolean> {
+        this.ensureGraph();
+        // 空闲声道正在淡出：等它放完再说，打断会让上一首突然没声
+        if (this.fading) return false;
+        const deck = this.decks[1 - this.active];
+        if (this.preparedUrl === url && deck.el.getAttribute('src') === url && deck.el.readyState >= 3) return true;
+        deck.el.pause();
+        deck.el.src = url;
+        deck.el.load();
+        if (deck.gain) deck.gain.gain.value = 0;
+        const ok = await new Promise<boolean>(resolve => {
+            const el = deck.el;
+            // 本地文件或已在缓存里：canplay 早于监听器就发过了，不会再来一次
+            if (el.readyState >= 3) { resolve(true); return; }
+            const cleanup = () => {
+                clearTimeout(timer);
+                el.removeEventListener('canplay', onReady);
+                el.removeEventListener('error', onError);
+            };
+            const onReady = () => { cleanup(); resolve(true); };
+            const onError = () => { cleanup(); resolve(false); };
+            const timer = setTimeout(() => { cleanup(); resolve(false); }, 20000);
+            el.addEventListener('canplay', onReady);
+            el.addEventListener('error', onError);
+        });
+        if (this.decks[1 - this.active] !== deck || deck.el.getAttribute('src') !== url || !ok) {
+            this.preparedUrl = '';
+            return false;
+        }
+        // 预载阶段就把试听片段筛掉：切歌时不用再为它白等一轮
+        const trial = this.detectTrial(deck.el, expectedDuration);
+        if (trial) {
+            deck.el.removeAttribute('src');
+            deck.el.load();
+            this.preparedUrl = '';
+            return false;
+        }
+        this.preparedUrl = url;
+        return true;
+    }
+
+    /** 预载的声道能否直接接管播放；成功则把它换成当前声道 */
+    private takePrepared(url: string): boolean {
+        const deck = this.decks[1 - this.active];
+        if (this.preparedUrl !== url || deck.el.getAttribute('src') !== url || deck.el.readyState < 3) {
+            this.preparedUrl = '';
+            return false;
+        }
+        this.preparedUrl = '';
+        const from = this.decks[this.active];
+        from.el.pause();
+        if (from.gain && this.ctx) from.gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        from.el.removeAttribute('src');
+        from.el.load();
+        this.active = 1 - this.active;
+        if (deck.gain && this.ctx) deck.gain.gain.setValueAtTime(1, this.ctx.currentTime);
+        return true;
+    }
+
+    /**
      * 试听片段检测：平台给未开会员的账号发 30/60 秒试听文件，末尾还带一段语音提示。
      * 元数据里的时长远短于这首歌的真实时长（差 30 秒以上且不到八成）就判为试听，
      * 返回 `trial:<秒数>`；调用方把这个链接拉黑、换一个来源重取。
@@ -291,8 +372,13 @@ class AudioEngine {
         const seq = ++this.loadSeq;
         const from = this.decks[this.active];
         const to = this.decks[1 - this.active];
-        to.el.src = url;
-        to.el.load();
+        // 预取已在空闲声道暖好同一地址：不重新 load()，让 waitReady 的快速通道直接放行
+        const reused = this.preparedUrl === url && to.el.getAttribute('src') === url && to.el.readyState >= 3;
+        this.preparedUrl = '';
+        if (!reused) {
+            to.el.src = url;
+            to.el.load();
+        }
         const ready = await this.waitReady(to.el, seq, 20000);
         if (seq !== this.loadSeq) return { ok: false, error: 'superseded' };
         if (!ready.ok) return ready;
@@ -310,12 +396,14 @@ class AudioEngine {
         from.gain!.gain.setValueAtTime(from.gain!.gain.value, t);
         from.gain!.gain.linearRampToValueAtTime(0, t + seconds);
         this.active = 1 - this.active;
+        this.fading = from;
         await to.el.play().catch(() => {});
         clearTimeout(this.fadeTimer);
         this.fadeTimer = setTimeout(() => {
             from.el.pause();
             from.el.removeAttribute('src');
             from.el.load();
+            if (this.fading === from) this.fading = undefined;
         }, seconds * 1000 + 200);
         this.emit({ type: 'playing' });
         return { ok: true };
@@ -358,9 +446,12 @@ class AudioEngine {
         } catch { /* ignore */ }
     }
 
-    stop() {
+    stop(hard = false) {
         ++this.loadSeq;
+        if (hard) this.preparedUrl = '';
         for (const deck of this.decks) {
+            // 已预载好的空闲声道要留住：切歌时 `load()` 靠它免掉一次完整缓冲
+            if (!hard && this.preparedUrl && deck !== this.decks[this.active] && deck.el.getAttribute('src') === this.preparedUrl) continue;
             deck.el.pause();
             deck.el.removeAttribute('src');
             deck.el.load();

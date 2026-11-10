@@ -8,6 +8,7 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Pause, Play } from 'lucide-react';
 import { engine } from '@/player/engine';
+import { isAndroid } from '@/lib/host';
 import { usePlayer } from '@/store/player';
 import { useSettings } from '@/store/settings';
 import { toast } from '@/store/toast';
@@ -129,7 +130,9 @@ export function LyricStage({ theme }: { theme: Theme }) {
     const hasLive = Boolean(liveLyric?.lines.some(l => l.text.trim()));
     // 载了带歌词的歌曲时默认「实时」，否则看内置样例（Folia 的 PreviewSource 语义）
     const [source, setSource] = useState<'builtin' | 'live'>(() => (hasLive ? 'live' : 'builtin'));
-    const [paused, setPaused] = useState(false);
+    // 安卓上预览默认暂停：预览舞台是「应用窗口等大再缩放」的完整歌词动画（Folia 各样式带 WebGL / Pixi），
+    // 手机 GPU 跑它加上窗口自身的背景会把主线程拖到卡死。暂停钮就在预览右上角，想看动效点一下即可。
+    const [paused, setPaused] = useState(isAndroid);
     const { w: winW, h: winH } = useWindowSize();
     const boxRef = useRef<HTMLDivElement>(null);
     const box = useBoxSize(boxRef);

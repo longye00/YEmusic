@@ -5,7 +5,7 @@ import { BookmarkPlus, CalendarDays, Check, ChevronLeft, Clock, Download, FilePl
 import { extractPalette } from '@/lib/color';
 import { isAndroid } from '@/lib/host';
 import { formatCount } from '@/lib/util';
-import { guessSongs } from '@/player/guess';
+import { guessKeyOf, guessSongs } from '@/player/guess';
 import { sdks } from '@/sdk';
 import { PLATFORM_NAMES, type ListDetail, type Platform, type Track } from '@/sdk/types';
 import { albumDetail, dailySongs } from '@/sdk/wyApi';
@@ -36,6 +36,16 @@ const todayText = () => {
     return `${d.getMonth() + 1} 月 ${d.getDate()} 日`;
 };
 
+/**
+ * 「猜我喜欢」的已推记录与抽干标记。
+ * 这个歌单没有平台翻页接口，每页都是本地现算的一批；要像音乐平台那样滚不完，
+ * 就得记住已经推过哪些歌，下一页换个种子重新算，再把重复的排掉。
+ */
+const guessSeen = new Set<string>();
+let guessExhausted = false;
+/** 连续空批次计数：连着几页都抽不出新歌就认定到底了，避免无限翻页 */
+let guessEmptyStreak = 0;
+
 async function fetchRemote(target: RemoteTarget, page: number): Promise<ListDetail> {
     if (target.kind === 'board') return sdks[target.platform].getBoardList(target.id, page);
     if (target.kind === 'songlist') return sdks[target.platform].getSongListDetail(target.id, page);
@@ -49,8 +59,21 @@ async function fetchRemote(target: RemoteTarget, page: number): Promise<ListDeta
         return { list: tracks, total: tracks.length, page: 1, limit: Math.max(1, tracks.length), info: { name: info.name, cover: info.cover, desc: info.desc, author: info.artist } };
     }
     if (target.kind === 'guess') {
-        const { list, desc } = await guessSongs();
-        return { list, total: list.length, page: 1, limit: Math.max(1, list.length), info: { name: '猜我喜欢', desc } };
+        // 第 1 页清空记录（含「换一批」重新开始）；之后每页都排掉前几页推过的歌
+        if (page === 1) {
+            guessSeen.clear();
+            guessExhausted = false;
+            guessEmptyStreak = 0;
+        }
+        const { list, desc, exhausted } = await guessSongs({ exclude: guessSeen });
+        for (const track of list) guessSeen.add(guessKeyOf(track));
+        // 连续两批都凑不满就收尾：再抽下去只会一直返回空批
+        guessEmptyStreak = exhausted ? guessEmptyStreak + 1 : 0;
+        if (exhausted && guessEmptyStreak >= 2) guessExhausted = true;
+        // total 只是个「还有没有下一页」的开关：没抽干就给一个比已推数量大的值，
+        // 让上层的 loadMore 判断（list.length < total）继续放行；抽干了就锁死
+        const total = guessExhausted ? guessSeen.size : guessSeen.size + 1;
+        return { list, total, page, limit: Math.max(1, list.length), info: { name: '猜我喜欢', desc } };
     }
     const tracks = await dailySongs();
     return { list: tracks, total: tracks.length, page: 1, limit: Math.max(1, tracks.length), info: { name: '每日推荐', desc: `网易云 · ${todayText()}的推荐（每天 6:00 更新）` } };
@@ -76,7 +99,7 @@ function useRemoteList(target: DetailTarget | null) {
                     loading: false,
                     name: s.name || res.info?.name,
                     cover: s.cover || res.info?.cover,
-                    // 猜我喜欢每次生成的说明不同（换一批后要更新）
+                    // 猜我喜欢每次生成的说明不同（换一批后要更新），但翻页那几批不带说明，别把它清空
                     desc: remoteTarget.kind === 'guess' ? res.info?.desc || s.desc : s.desc || res.info?.desc,
                     author: s.author || res.info?.author,
                     playCount: s.playCount || res.info?.playCount,
@@ -94,8 +117,10 @@ function useRemoteList(target: DetailTarget | null) {
         void load(1);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [key]);
+    // 猜我喜欢是本地现算的，没有平台的「第 N 页」：抽干标记为真就到此为止，别再请求
+    const done = remoteTarget?.kind === 'guess' && guessExhausted;
     const loadMore = () => {
-        if (state.loading || state.error || !state.page || state.list.length >= state.total) return;
+        if (state.loading || state.error || done || !state.page || state.list.length >= state.total) return;
         void load(state.page + 1);
     };
     return { ...state, loadMore, reload: () => load(1) };
@@ -114,9 +139,12 @@ export function DetailView() {
     const { w: winW } = useWindowSize();
     const wall = layout === 'wall' && winW >= WALL_MIN_WIDTH;
 
-    // 拼贴墙没有「滚到底再加载」，远程歌单在墙模式下自动续载到上限
+    // 拼贴墙没有「滚到底再加载」，远程歌单在墙模式下自动续载到上限。
+    // 猜我喜欢除外：它每页都要现算一批（相似歌曲 + 歌手搜索 + 每日推荐），
+    // 自动续到 300 首会连着发几十次请求，手机上直接卡住；墙上先铺第一批，换列表模式再往下滚。
     useEffect(() => {
         if (!wall || !isRemoteTarget(target) || remote.loading || remote.error || !remote.page) return;
+        if (target.kind === 'guess') return;
         if (remote.list.length >= remote.total || remote.list.length >= WALL_CAP) return;
         remote.loadMore();
         // loadMore 每次渲染都是新函数，依赖里只放它读取的状态
@@ -203,7 +231,8 @@ export function DetailView() {
     }
 
     const meta = [
-        `${isStatic ? tracks.length : remote.total || tracks.length} 首`,
+        // 猜我喜欢是滚不完的一批批推荐：total 只是翻页开关，显示实际已推数量
+        `${isStatic || target.kind === 'guess' ? tracks.length : remote.total || tracks.length} 首`,
         totalDuration > 0 && (isStatic || target.kind === 'album') ? (totalDuration >= 3600 ? `${Math.floor(totalDuration / 3600)} 小时 ${Math.round((totalDuration % 3600) / 60)} 分钟` : `${Math.max(1, Math.round(totalDuration / 60))} 分钟`) : '',
         target.kind === 'guess' ? '为你推荐' : platform ? PLATFORM_NAMES[platform] : isLocal || isGroup ? '本地' : isRecent ? '历史' : playlist?.id === FAVORITES_ID ? '收藏' : '自建',
         target.kind === 'album' ? '专辑' : target.kind === 'daily' ? todayText() : isGroup ? target.desc || '' : '',
@@ -301,7 +330,8 @@ export function DetailView() {
             : undefined;
         const onWall = shown.slice(0, WALL_CAP);
         const capped = shown.length > onWall.length;
-        const waiting = isRemoteTarget(target) && !remote.error && (remote.loading || !remote.page || remote.list.length < Math.min(remote.total, WALL_CAP)) && !filter;
+        // 猜我喜欢不自动续载，所以也不显示「正在载入 x/300」的进度，否则那条提示会一直挂着
+        const waiting = isRemoteTarget(target) && target.kind !== 'guess' && !remote.error && (remote.loading || !remote.page || remote.list.length < Math.min(remote.total, WALL_CAP)) && !filter;
         return (
             <motion.div className="pointer-events-auto absolute inset-0 z-40" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
                 <DetailWall

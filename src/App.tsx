@@ -36,6 +36,7 @@ function SharedBackground() {
     const detailOpen = useUi(s => Boolean(s.detail));
     const searchOpen = useUi(s => s.searchOpen);
     const lyricStyleOpen = useUi(s => Boolean(s.lyricStyle));
+    const settingsOpen = useUi(s => s.settingsOpen);
     const detail = useUi(s => s.detail);
     const detailLayout = useSettings(s => s.detailLayout);
     const { w: winW } = useWindowSize();
@@ -61,8 +62,11 @@ function SharedBackground() {
     }, [theme, lite]);
 
     const energy = useCallback(() => engine.energy(), []);
-    // 不透明整版浮层盖住背景时同样暂停：拼贴墙详情（宽屏）、搜索工作台与歌词样式窗口都不是半透的
-    const opaqueCover = Boolean(detail && detailLayout === 'wall' && winW >= WALL_MIN_WIDTH) || searchOpen || lyricStyleOpen;
+    // 不透明整版浮层盖住背景时同样暂停：拼贴墙详情（宽屏）、搜索工作台与歌词样式窗口都不是半透的。
+    // 设置中心在桌面是半透卡片（背景还在旁边动，不能暂停），但窄屏（max-sm）下是整版不透明，
+    // 不暂停的话背景在看不见的地方白烧 GPU —— 安卓上这正是设置页卡死的元凶之一。
+    const settingsOpaque = settingsOpen && winW < 640;
+    const opaqueCover = Boolean(detail && detailLayout === 'wall' && winW >= WALL_MIN_WIDTH) || searchOpen || lyricStyleOpen || settingsOpaque;
     const covered = playerOpen && background !== 'latent';
     return (
         <FluidBackground

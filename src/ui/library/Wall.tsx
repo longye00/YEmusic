@@ -217,6 +217,10 @@ function TileImage({ src, px, seed, priority }: { src?: string; px: number; seed
     return <img src={url} alt="" draggable={false} decoding="async" referrerPolicy="no-referrer" onError={() => setStatus('error')} className={cx('absolute inset-0 h-full w-full object-cover', !instant && 'img-in')} />;
 }
 
+/** 触屏（安卓 / 平板）没有悬停，播放键只能常驻在每张海报上，整面墙因此糊满按钮：整块不渲染。
+ *  桌面端保留悬停浮出与键盘聚焦可见；触屏上播放仍可用双击海报或长按菜单。 */
+const NO_HOVER = typeof window === 'undefined' ? false : !window.matchMedia?.('(hover: hover)').matches;
+
 interface TileProps {
     card: WallCard;
     x: number;
@@ -279,7 +283,7 @@ const Tile = memo(function Tile({ card, x, y, w, h, delay, priority, tabbable, i
                     <div className="wall-title">{card.title}</div>
                     {card.desc && <div className="wall-sub">{card.desc}</div>}
                 </div>
-                {card.onPlay && (
+                {card.onPlay && !NO_HOVER && (
                     <button
                         type="button"
                         title="播放"

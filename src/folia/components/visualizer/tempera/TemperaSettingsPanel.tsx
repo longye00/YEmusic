@@ -3,6 +3,7 @@ import { DEFAULT_TEMPERA_TUNING, type TemperaColorMode, type TemperaTuning } fro
 import { colorWithAlpha } from '../colorMix';
 import type { VisualizerSettingsPanelProps } from '../definition';
 import VisualizerPresetGroup, { type VisualizerPresetOption } from '../VisualizerPresetGroup';
+import VisualizerToggleRow from '../VisualizerToggleRow';
 import { TemperaRangeControl, TemperaSettingsSection } from './TemperaSettingsControls';
 import TemperaImageLayerControls from './TemperaImageLayerControls';
 
@@ -19,11 +20,6 @@ const TemperaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
     onSliderPointerDown,
     onSliderCommit,
 }) => {
-    const booleanOptions: VisualizerPresetOption<boolean>[] = useMemo(() => ([
-        { value: true, label: t('options.temperaToggleOn') || '开启' },
-        { value: false, label: t('options.temperaToggleOff') || '关闭' },
-    ]), [t]);
-
     const colorModeOptions: VisualizerPresetOption<TemperaColorMode>[] = useMemo(() => ([
         { value: 'duo', label: t('options.temperaColorModeDuo') || '主题双色' },
         { value: 'mono', label: t('options.temperaColorModeMono') || '黑白灰' },
@@ -137,20 +133,18 @@ const TemperaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
             </TemperaSettingsSection>
 
             <TemperaSettingsSection title={t('options.temperaPostProcessSection') || '后处理'}>
-                <VisualizerPresetGroup
+                <VisualizerToggleRow
                     label={t('options.temperaPostProcessEnabled') || '整体后处理滤镜'}
                     value={temperaTuning.postProcessEnabled}
-                    options={booleanOptions}
                     onChange={postProcessEnabled => onTemperaTuningChange?.({ postProcessEnabled })}
                     isDaylight={isDaylight}
                     theme={theme}
                 />
                 {temperaTuning.postProcessEnabled && (
                     <>
-                        <VisualizerPresetGroup
+                        <VisualizerToggleRow
                             label={t('options.temperaPostProcessTextureCompression') || '后处理纹理压缩'}
                             value={temperaTuning.postProcessTextureCompression}
-                            options={booleanOptions}
                             onChange={postProcessTextureCompression => onTemperaTuningChange?.({ postProcessTextureCompression })}
                             isDaylight={isDaylight}
                             theme={theme}
@@ -219,10 +213,9 @@ const TemperaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
             </TemperaSettingsSection>
 
             <TemperaSettingsSection title={t('options.temperaLyricSection') || '歌词分镜'}>
-                <VisualizerPresetGroup
+                <VisualizerToggleRow
                     label={t('options.temperaWholeLineLyrics') || '整句显示歌词'}
                     value={temperaTuning.wholeLineLyrics}
-                    options={booleanOptions}
                     onChange={wholeLineLyrics => onTemperaTuningChange?.({ wholeLineLyrics })}
                     isDaylight={isDaylight}
                     theme={theme}
@@ -234,13 +227,12 @@ const TemperaSettingsPanel: React.FC<VisualizerSettingsPanelProps> = ({
             </TemperaSettingsSection>
 
             <TemperaSettingsSection title={t('options.temperaDisplaySection')}>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-x-6 gap-y-3.5 sm:grid-cols-2">
                     {visibilityControls.map(control => (
-                        <VisualizerPresetGroup
+                        <VisualizerToggleRow
                             key={control.key}
                             label={control.label}
                             value={temperaTuning[control.key]}
-                            options={booleanOptions}
                             onChange={(next) => onTemperaTuningChange?.({ [control.key]: next })}
                             isDaylight={isDaylight}
                             theme={theme}

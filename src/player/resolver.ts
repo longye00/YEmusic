@@ -37,6 +37,8 @@ export class ResolveError extends Error {
 
 interface CacheEntry extends Resolved { time: number }
 const cache = new Map<string, CacheEntry>();
+/** 原始链接 -> 本地代理地址，省掉重复的 IPC 往返 */
+const proxyMemo = new Map<string, string>();
 const CACHE_TTL = 12 * 60 * 1000;
 const STAGGER_MS = 2500;
 const CALL_TIMEOUT = 12000;
@@ -79,6 +81,7 @@ export function reportBadLink(sourceId: string | undefined, platform: Platform |
 
 export function invalidateUrl(url: string) {
     for (const [key, value] of cache) if (value.url === url) cache.delete(key);
+    proxyMemo.delete(url);
 }
 
 /**
@@ -519,6 +522,13 @@ function summarize(errors: string[]): string {
 /** 远程链接需经本地代理（附带 Referer/UA，允许 WebAudio 读取） */
 export async function playableUrl(resolved: Resolved): Promise<string> {
     if (resolved.local) return resolved.url;
+    // 预取和真正播放会对同一个链接各要一次代理地址：第二次必然命中，不必再走一趟 IPC
+    const hit = proxyMemo.get(resolved.url);
+    if (hit) return hit;
     const proxied = await host.proxyAudioUrl({ url: resolved.url }).catch(() => null);
-    return proxied || resolved.url;
+    const url = proxied || resolved.url;
+    // 代理令牌不会过期（进程内 Map），记住它省掉重复 IPC
+    if (proxyMemo.size > 200) proxyMemo.clear();
+    proxyMemo.set(resolved.url, url);
+    return url;
 }

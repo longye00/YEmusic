@@ -18,7 +18,7 @@ import { setSetting, useSettings, type PlayMode } from '@/store/settings';
 import { toast } from '@/store/toast';
 import { ui } from '@/store/ui';
 import { useCompact, useDuration, useIsFavorite } from '../hooks';
-import { Slider, Spinner, Switch, cx } from '../components/common';
+import { Slider, Spinner, cx } from '../components/common';
 import { LikeButton } from '../components/LikeButton';
 import type { Track } from '@/sdk/types';
 
@@ -376,7 +376,7 @@ function QuickBar({ visible, variant, volumeOpen, setVolumeOpen, reenterVolume }
                     </button>
                     {volumeOpen && (
                         <div
-                            className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-full bg-black/40 lite:bg-black/70 p-3 backdrop-blur-xl lite:backdrop-blur-none"
+                            className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-2xl bg-black/40 lite:bg-black/70 px-4 py-3.5 backdrop-blur-xl lite:backdrop-blur-none"
                             style={{ boxShadow: QUICK_SHADOW }}
                             onPointerEnter={reenterVolume}
                         >
@@ -432,28 +432,36 @@ function QuickBar({ visible, variant, volumeOpen, setVolumeOpen, reenterVolume }
     );
 }
 
-/** 音量弹层：滑块 0–100% + 数值 + 静音开关 */
+/** 音量弹层：图标点按静音（Folia 的命令面板音量卡样子：图标 + 大百分比 + 整宽滑杆） */
 function VolumePanel() {
     const volume = useSettings(s => s.volume);
     const muted = useSettings(s => s.muted);
+    const shown = muted ? 0 : volume;
+    const PanelIcon = muted || shown === 0 ? VolumeX : shown < 0.5 ? Volume1 : Volume2;
     return (
-        <div className="flex w-44 flex-col gap-2" onPointerDown={e => e.stopPropagation()}>
-            <div className="flex items-center gap-2">
-                <Slider
-                    value={muted ? 0 : volume}
-                    max={1}
-                    onChange={v => { setSetting('muted', false); setSetting('volume', v); }}
-                    className="flex-1"
-                    trackClass="h-1"
-                    label="音量"
-                    valueText={`${Math.round((muted ? 0 : volume) * 100)}%`}
-                />
-                <span className="w-9 text-right font-mono text-[11px] opacity-70">{Math.round((muted ? 0 : volume) * 100)}%</span>
+        <div className="flex w-56 flex-col gap-3" onPointerDown={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2.5">
+                <button
+                    type="button"
+                    title={muted ? '取消静音' : '静音'}
+                    aria-pressed={muted}
+                    aria-label={muted ? '取消静音' : '静音'}
+                    onClick={() => setSetting('muted', !muted)}
+                    className="-m-1.5 shrink-0 rounded-full p-1.5 transition-colors hover:bg-white/10"
+                >
+                    <PanelIcon className={cx('h-[18px] w-[18px]', muted ? 'opacity-45' : 'text-[rgb(var(--accent))]')} />
+                </button>
+                <span className="text-[13px] font-medium">音量</span>
+                <span className="ml-auto text-sm font-semibold tabular-nums">{Math.round(shown * 100)}%</span>
             </div>
-            <div className="flex items-center justify-between text-[11px] opacity-80">
-                <span>静音</span>
-                <Switch checked={muted} onChange={v => setSetting('muted', v)} label="静音" />
-            </div>
+            <Slider
+                value={shown}
+                max={1}
+                onChange={v => { setSetting('muted', false); setSetting('volume', v); }}
+                trackClass="h-1.5"
+                label="音量"
+                valueText={`${Math.round(shown * 100)}%`}
+            />
         </div>
     );
 }
