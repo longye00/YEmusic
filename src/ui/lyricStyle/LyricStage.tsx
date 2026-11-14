@@ -133,6 +133,9 @@ export function LyricStage({ theme }: { theme: Theme }) {
     // 安卓上预览默认暂停：预览舞台是「应用窗口等大再缩放」的完整歌词动画（Folia 各样式带 WebGL / Pixi），
     // 手机 GPU 跑它加上窗口自身的背景会把主线程拖到卡死。暂停钮就在预览右上角，想看动效点一下即可。
     const [paused, setPaused] = useState(isAndroid);
+    // 安卓上连「挂载预览」都等用户点一下：开窗那一刻要解析约 1MB 的动画分包并初始化 WebGL，
+    // 在中端手机上就是好几秒的白屏卡死。先给一张静态占位，点了再真正挂载。
+    const [armed, setArmed] = useState(!isAndroid);
     const { w: winW, h: winH } = useWindowSize();
     const boxRef = useRef<HTMLDivElement>(null);
     const box = useBoxSize(boxRef);
@@ -173,19 +176,37 @@ export function LyricStage({ theme }: { theme: Theme }) {
                 className="relative overflow-hidden rounded-xl bg-[#151517] ring-1 ring-white/[0.08]"
                 style={{ aspectRatio: `${winW} / ${winH}`, width: `min(100cqw, 100cqh * ${winW / winH})` }}
             >
-                {/* 背景层：框的大小，不缩放 */}
-                <StageBackdrop theme={theme} cover={cover} paused={paused} />
-                {/* 歌词舞台：应用窗口大小 + 整体缩放，渲染结果只看不许点 */}
-                {box && scale > 0 && (
-                    <div
-                        data-lyst-stage
-                        className="pointer-events-none absolute left-0 top-0"
-                        style={{ width: winW, height: winH, transform: `scale(${scale})`, transformOrigin: 'top left', contain: 'strict' }}
+                {!armed ? (
+                    // 安卓首开：静态占位 + 一个明确的「载入预览」按钮，解析分包与 WebGL 初始化都推迟到点击之后
+                    <button
+                        type="button"
+                        onClick={() => setArmed(true)}
+                        className="absolute inset-0 grid w-full place-items-center bg-[#151517] text-center"
                     >
-                        <LyricTimeContext.Provider value={timeSource}>{renderer}</LyricTimeContext.Provider>
-                    </div>
+                        <span className="flex flex-col items-center gap-2 px-6 text-[13px] text-white/70">
+                            <Play size={22} />
+                            载入歌词预览
+                            <span className="text-[11px] text-white/45">首次载入需要解析动画，约一两秒</span>
+                        </span>
+                    </button>
+                ) : (
+                    <>
+                        {/* 背景层：框的大小，不缩放 */}
+                        <StageBackdrop theme={theme} cover={cover} paused={paused} />
+                        {/* 歌词舞台：应用窗口大小 + 整体缩放，渲染结果只看不许点 */}
+                        {box && scale > 0 && (
+                            <div
+                                data-lyst-stage
+                                className="pointer-events-none absolute left-0 top-0"
+                                style={{ width: winW, height: winH, transform: `scale(${scale})`, transformOrigin: 'top left', contain: 'strict' }}
+                            >
+                                <LyricTimeContext.Provider value={timeSource}>{renderer}</LyricTimeContext.Provider>
+                            </div>
+                        )}
+                    </>
                 )}
-                {/* 右上：内置 / 实时 切换 + 暂停（深色底板，浮在预览画面上） */}
+                {/* 右上：内置 / 实时 切换 + 暂停（深色底板，浮在预览画面上）；未挂载预览时不显示 */}
+                {armed && (
                 <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
                     <div role="group" aria-label="预览来源" className="flex items-center gap-0.5 rounded-lg bg-black/45 p-0.5">
                         <button
@@ -213,7 +234,8 @@ export function LyricStage({ theme }: { theme: Theme }) {
                         {paused ? <Play size={14} /> : <Pause size={14} />}
                     </button>
                 </div>
-                {liveEmpty && (
+                )}
+                {liveEmpty && armed && (
                     <div className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-3 py-1 text-[11px] text-white/75">
                         当前歌曲没有歌词，显示内置示例
                     </div>

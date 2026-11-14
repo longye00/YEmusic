@@ -3,6 +3,7 @@ import type { MotionValue } from 'framer-motion';
 import type { Filter } from 'pixi.js';
 import type { AudioBands, LumiereTuning, Theme } from '../../../types';
 import { loadPixi } from '../loadPixi';
+import { budgetedResolution, liteBudget } from '../liteBudget';
 import { PixiSceneCache } from '../pixiSceneCache';
 import { createLumiereAudioSampler, type LumiereAudioSampler } from './lumiereAudio';
 import { findLumiereParagraphIndexAtTime, type LumiereProgram } from './lumiereProgram';
@@ -124,7 +125,7 @@ export class LumierePixiRuntime {
         const app = new pixi.Application();
         const width = Math.max(options.host.clientWidth, MIN_WIDTH);
         const height = Math.max(options.host.clientHeight, MIN_HEIGHT);
-        const resolution = resolveLumiereRenderResolution(window.devicePixelRatio);
+        const resolution = budgetedResolution(resolveLumiereRenderResolution(window.devicePixelRatio));
         await app.init({
             width,
             height,
@@ -169,6 +170,8 @@ export class LumierePixiRuntime {
     private install() {
         this.resizeToHost(true);
         this.app.ticker.add(this.renderFrame);
+        const { maxFPS } = liteBudget();
+        if (maxFPS) this.app.ticker.maxFPS = maxFPS;
         this.resizeObserver = new ResizeObserver(() => {
             if (this.destroyed || !this.resizeToHost(false)) return;
             if (this.options.paused) this.renderOnce();
@@ -183,7 +186,7 @@ export class LumierePixiRuntime {
         if (this.destroyed) return false;
         const width = Math.max(this.options.host.clientWidth, MIN_WIDTH);
         const height = Math.max(this.options.host.clientHeight, MIN_HEIGHT);
-        const resolution = resolveLumiereRenderResolution(window.devicePixelRatio);
+        const resolution = budgetedResolution(resolveLumiereRenderResolution(window.devicePixelRatio));
         if (width === this.width && height === this.height && resolution === this.renderResolution) return false;
         this.width = width;
         this.height = height;

@@ -6,6 +6,7 @@ import {
     unloadPixiDisplayTree,
 } from '../pixiDisplayResources';
 import { snapResolutionToTexturePool } from '../pixiTextureBudget';
+import { budgetedResolution, liteBudget } from '../liteBudget';
 import type { TemperaProgram } from './types';
 import { findTemperaParagraphIndexAtTime } from './temperaProgram';
 import {
@@ -146,12 +147,12 @@ export class TemperaPixiRuntime {
         const app = new pixi.Application();
         const width = Math.max(options.host.clientWidth, 320);
         const height = Math.max(options.host.clientHeight, 240);
-        const resolution = snapResolutionToTexturePool(width, height, options.tuning.textureResolution);
+        const resolution = budgetedResolution(snapResolutionToTexturePool(width, height, options.tuning.textureResolution));
         await app.init({
             width,
             height,
             backgroundAlpha: 0,
-            antialias: true,
+            antialias: !liteBudget().maxFPS,
             autoDensity: true,
             resolution,
             autoStart: false,
@@ -189,6 +190,8 @@ export class TemperaPixiRuntime {
     private install() {
         this.resizeToHost();
         this.app.ticker.add(this.renderFrame);
+        const { maxFPS } = liteBudget();
+        if (maxFPS) this.app.ticker.maxFPS = maxFPS;
         this.resizeObserver = new ResizeObserver(() => {
             if (this.destroyed || !this.resizeToHost()) return;
             if (this.options.paused) this.renderOnce();
@@ -205,7 +208,7 @@ export class TemperaPixiRuntime {
     private resolveRenderResolution(tuning: TemperaTuning) {
         const width = this.lastWidth || Math.max(this.options.host.clientWidth, 320);
         const height = this.lastHeight || Math.max(this.options.host.clientHeight, 240);
-        return snapResolutionToTexturePool(width, height, tuning.textureResolution);
+        return budgetedResolution(snapResolutionToTexturePool(width, height, tuning.textureResolution));
     }
 
     private resizeToHost() {

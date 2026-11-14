@@ -4,6 +4,7 @@ import type { SonnetProgram } from './types';
 import { findSonnetParagraphIndexAtTime } from './sonnetProgram';
 import { buildSonnetScene, type SceneView } from './sonnetSceneBuilder';
 import { snapResolutionToTexturePool } from '../pixiTextureBudget';
+import { budgetedResolution, liteBudget } from '../liteBudget';
 import {
     destroySonnetContainerChildren,
     destroySonnetDisplayTree,
@@ -141,9 +142,9 @@ export class SonnetPixiRuntime {
             width,
             height,
             backgroundAlpha: 0,
-            antialias: true,
+            antialias: !liteBudget().maxFPS,
             autoDensity: true,
-            resolution: snapResolutionToTexturePool(width, height, options.tuning.textureResolution),
+            resolution: budgetedResolution(snapResolutionToTexturePool(width, height, options.tuning.textureResolution)),
             autoStart: false,
             sharedTicker: false,
             preference: 'webgl',
@@ -174,6 +175,9 @@ export class SonnetPixiRuntime {
     private install() {
         this.resizeToHost();
         this.app.ticker.add(this.renderFrame);
+        // 精简模式（安卓默认）：ticker 限到 30fps，中端机的主线程才排得上别的活
+        const { maxFPS } = liteBudget();
+        if (maxFPS) this.app.ticker.maxFPS = maxFPS;
         this.resizeObserver = new ResizeObserver(() => {
             if (this.destroyed || !this.resizeToHost()) return;
             if (this.options.paused) this.renderOnce();
@@ -196,7 +200,7 @@ export class SonnetPixiRuntime {
         this.app.renderer.resize(
             width,
             height,
-            snapResolutionToTexturePool(width, height, this.options.tuning.textureResolution),
+            budgetedResolution(snapResolutionToTexturePool(width, height, this.options.tuning.textureResolution)),
         );
         // Staged against the old viewport, so its layout no longer fits.
         if (this.songSwap?.staged) {

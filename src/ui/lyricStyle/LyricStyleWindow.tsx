@@ -116,7 +116,9 @@ export function LyricStyleWindow() {
                 {/* 主体：左预览 + 右设置；窄窗口上下堆叠、整列滚动 */}
                 <div className="min-h-0 overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_420px] lg:overflow-hidden">
                     <section className="flex flex-col gap-4 px-4 pb-4 pt-4 sm:px-6 sm:pb-6 lg:min-h-0 lg:pt-0">
-                        <div className="flex h-[64vh] min-h-[380px] lg:h-auto lg:min-h-0 lg:flex-1">
+                        {/* 手机上预览压到 40vh：原来 64vh 加最小 380px，参数栏整块被顶到屏外，
+                            看着像「参数界面没适配」；桌面保持撑满左栏。 */}
+                        <div className="flex h-[40vh] min-h-[220px] lg:h-auto lg:min-h-0 lg:flex-1">
                             <LyricStage theme={theme} />
                         </div>
                         <StyleShelf theme={theme} />
