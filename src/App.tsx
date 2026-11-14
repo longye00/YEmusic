@@ -62,12 +62,17 @@ function SharedBackground() {
     }, [theme, lite]);
 
     const energy = useCallback(() => engine.energy(), []);
-    // 不透明整版浮层盖住背景时同样暂停：拼贴墙详情（宽屏）、搜索工作台与歌词样式窗口都不是半透的。
-    // 设置中心在桌面是半透卡片（背景还在旁边动，不能暂停），但窄屏（max-sm）下是整版不透明，
-    // 不暂停的话背景在看不见的地方白烧 GPU —— 安卓上这正是设置页卡死的元凶之一。
+    // 不透明整版浮层盖住背景时暂停背景渲染。
+    // 原来这些判定全挂在 !playerOpen 下，于是「在播放页打开设置」时一条都不成立，
+    // 全屏 WebGL 背景照旧每 48ms 重绘一遍 —— 安卓上设置页因此卡到滚不动。现在分开算：
+    // - 盖住全屏的浮层（窄屏设置、搜索、歌词样式窗口）无论底下是什么页面都暂停；
+    // - 只有首页那层「拼贴墙本身不透明」才需要 !playerOpen 这个前提。
     const settingsOpaque = settingsOpen && winW < 640;
-    const opaqueCover = Boolean(detail && detailLayout === 'wall' && winW >= WALL_MIN_WIDTH) || searchOpen || lyricStyleOpen || settingsOpaque;
+    const fullCover = searchOpen || lyricStyleOpen || settingsOpaque;
+    const homeCover = !playerOpen && libraryHome;
+    const wallCover = Boolean(detail && detailLayout === 'wall' && winW >= WALL_MIN_WIDTH);
     const covered = playerOpen && background !== 'latent';
+    const paused = covered || reduceMotion || fullCover || homeCover || wallCover;
     return (
         <FluidBackground
             colors={theme.fluid as never}
@@ -76,7 +81,7 @@ function SharedBackground() {
             grain={playerOpen}
             speed={reduceMotion ? 0.25 : playerOpen ? 1 : 0.6}
             energy={playerOpen && reactive && playing && !reduceMotion ? energy : undefined}
-            paused={covered || reduceMotion || (!playerOpen && (libraryHome || opaqueCover))}
+            paused={paused}
         />
     );
 }

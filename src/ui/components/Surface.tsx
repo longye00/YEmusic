@@ -94,10 +94,12 @@ export function Surface({ open, onClose, children, className = "", label, backdr
                         aria-label={label}
                         tabIndex={-1}
                         className={"relative max-h-full overflow-hidden rounded-[var(--radius-card)] border ln bg-[var(--surface-card)] shadow-[var(--shadow-card)] outline-none " + className}
-                        initial={{ opacity: 0, scale: 0.94, y: 16 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                        transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                        initial={{ opacity: 0, ...(lite ? {} : { scale: 0.94, y: 16 }) }}
+                        animate={{ opacity: 1, ...(lite ? {} : { scale: 1, y: 0 }) }}
+                        exit={{ opacity: 0, ...(lite ? {} : { scale: 0.96, y: 8 }) }}
+                        // 精简模式下只做淡入淡出：scale/y 的 spring 每帧都要重排整个浮层，
+                        // 设置中心这种整版卡片在安卓上会被拖到点不动。
+                        transition={lite ? { duration: 0.15 } : { type: "spring", stiffness: 380, damping: 32 }}
                     >
                         {children}
                     </motion.div>
