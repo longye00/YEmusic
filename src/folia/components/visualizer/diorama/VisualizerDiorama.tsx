@@ -9,6 +9,7 @@ import { type VisualizerSharedProps } from '../definition';
 import VisualizerShell from '../VisualizerShell';
 import VisualizerSubtitleOverlay from '../VisualizerSubtitleOverlay';
 import { resolveSubtitleFontSizes } from '../subtitleFontSizes';
+import { liteBudget } from '../liteBudget';
 import CameraRig from './CameraRig';
 import DioramaScene from './DioramaScene';
 import { type DioramaVec, getFrame, resolveDioramaMotionParams } from './cameraPath';
@@ -402,8 +403,10 @@ const VisualizerDiorama: React.FC<VisualizerDioramaProps> = (props) => {
             <div className="absolute inset-0 z-0">
                 <Canvas
                     camera={{ position: [0, 0.6, 9], fov: 55 }}
-                    dpr={[1, 2]}
-                    gl={{ alpha: true, antialias: true }}
+                    // 精简模式（安卓默认）：手机 GPU 上 dpr 2 + MSAA 是整屏 3D 场景里最贵的两笔，
+                    // 压到 1.25 并关掉抗锯齿，画面略软但整机才跟得上。
+                    dpr={liteBudget().maxFPS ? [1, 1.25] : [1, 2]}
+                    gl={{ alpha: true, antialias: !liteBudget().maxFPS }}
                     style={{ background: 'transparent' }}
                 >
                     <CameraRig

@@ -60,7 +60,6 @@ function DesktopPill({ variant, idle, maxWidth }: { variant: 'home' | 'player'; 
     const W = Math.min(512, maxWidth ?? Infinity);
     const collapsedW = Math.max(240, Math.round(W * 0.6));
     const playing = status === 'playing';
-    const ModeIcon = MODE_ICONS[mode];
 
     const onEnter = () => {
         clearTimeout(hoverTimer.current);
@@ -139,7 +138,7 @@ function DesktopPill({ variant, idle, maxWidth }: { variant: 'home' | 'player'; 
                 {!expanded ? (
                     <ProgressRow seekRelease={seekRelease} />
                 ) : (
-                    <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2">
+                    <div className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2">
                         <button
                             type="button"
                             title={playing ? '暂停（空格）' : '播放（空格）'}
@@ -149,27 +148,6 @@ function DesktopPill({ variant, idle, maxWidth }: { variant: 'home' | 'player'; 
                             {status === 'loading' ? <Spinner className="h-5 w-5" /> : status === 'error' ? <AlertTriangle className="h-5 w-5" /> : playing ? <Pause className="h-5 w-5" fill="currentColor" /> : <Play className="ml-0.5 h-5 w-5" fill="currentColor" />}
                         </button>
                         <TitleNavigator queue={queue} index={index} mode={mode} />
-                        <div className="row-span-2 flex shrink-0 flex-col justify-center gap-0.5">
-                            <button
-                                type="button"
-                                title={MODE_NAMES[mode]}
-                                onClick={() => toast(MODE_NAMES[cycleMode()], 'info', { duration: 1200 })}
-                                className={cx('grid place-items-center rounded-full p-2 transition-colors hover:bg-white/10', mode !== 'order' ? 'bg-white/20 text-white' : 'opacity-40 hover:opacity-100')}
-                            >
-                                <ModeIcon className="h-[18px] w-[18px]" />
-                            </button>
-                            <button
-                                type="button"
-                                title="播放队列"
-                                onClick={() => {
-                                    if (variant === 'home') ui.openPlayer();
-                                    ui.togglePanel('queue');
-                                }}
-                                className="grid place-items-center rounded-full p-2 opacity-40 transition-colors hover:bg-white/10 hover:opacity-100"
-                            >
-                                <ListMusic className="h-[18px] w-[18px]" />
-                            </button>
-                        </div>
                         <ProgressRow seekRelease={seekRelease} />
                     </div>
                 )}

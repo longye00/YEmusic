@@ -6,6 +6,7 @@ import { next, retry, usePlayer } from '@/store/player';
 import { useSettings } from '@/store/settings';
 import { ui, useUi } from '@/store/ui';
 import { useCompact, useCover, useIdle } from '../hooks';
+import { useLite } from '@/lib/lite';
 import { Button, Cover, EmptyState, IconButton, Spinner, cx } from '../components/common';
 import { css, useTheme } from '../theme';
 import { DitherLayer } from '../components/FluidBackground';
@@ -95,12 +96,16 @@ export function PlayerView() {
     // Folia 各动画读写模块级的 lyricClock / audioBands MotionValue，预览与播放页各挂一个会互相污染。
     // 关窗后的 350ms 里继续压着：窗口退场动画里预览还活着，两套 rAF 同写一个 MotionValue 会让歌词抖一下
     const lyricStyleOpen = useUi(s => Boolean(s.lyricStyle));
-    const [suppressLyrics, setSuppressLyrics] = useState(lyricStyleOpen);
+    // 安卓（精简模式）上设置中心是整版不透明浮层：歌词动画的 WebGL 渲染器藏在它后面白烧 GPU，
+    // 中端机上足以把设置页拖到卡死。精简模式下开设置就一并卸下渲染器，关窗再挂回来。
+    const settingsOpen = useUi(s => s.settingsOpen);
+    const lite = useLite();
+    const [suppressLyrics, setSuppressLyrics] = useState(lyricStyleOpen || (lite && settingsOpen));
     useEffect(() => {
-        if (lyricStyleOpen) { setSuppressLyrics(true); return; }
+        if (lyricStyleOpen || (lite && settingsOpen)) { setSuppressLyrics(true); return; }
         const timer = setTimeout(() => setSuppressLyrics(false), 350);
         return () => clearTimeout(timer);
-    }, [lyricStyleOpen]);
+    }, [lyricStyleOpen, settingsOpen, lite]);
 
     // 面板轻按外部关闭：落在控件（胶囊、返回键、任何可交互元素）上的点击照常生效；
     // 落在歌词 / 封面舞台上时吞掉随后的 click，避免误触歌词行 seek（对话框 / 右键菜单开着时不收）
